@@ -143,17 +143,7 @@ h2.pt{font-size:22px;margin:4px 0 10px}
 .notes .pdf{font-size:12px;color:var(--b);background:#e0f2fe;border-radius:6px;padding:2px 7px;display:inline-block;margin-bottom:8px}
 .notes ul{padding-left:18px;margin:6px 0}
 .notes .tip{background:#f8fafc;border-radius:8px;padding:8px 10px;font-size:13px;color:#475569;margin-top:10px}
-/* ---------- admin ---------- */
-#vAdmin{display:none;min-height:calc(100vh - 52px)}
-.adm{display:flex;min-height:calc(100vh - 52px)}
-.side{width:220px;background:#fff;border-right:1px solid var(--line);padding:16px 10px;flex:none}
-.side .brand{font-weight:700;padding:4px 10px 14px;font-size:15px}
-.side button{display:flex;justify-content:space-between;width:100%;border:0;background:none;text-align:left;padding:9px 10px;border-radius:8px;color:#374151;font-size:14px}
-.side button.on{background:#e0f2fe;color:#075985;font-weight:600}
-.side .cnt{background:#ef4444;color:#fff;border-radius:9px;font-size:11px;padding:1px 7px}
-.main{flex:1;padding:22px 28px;overflow:auto}
-.main h1{font-size:22px;margin:0 0 4px}
-.main .sub{color:var(--mut);font-size:13px;margin-bottom:16px}
+/* ---------- shared tables / pills ---------- */
 .grid{display:grid;gap:14px}
 .g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:1.2fr 1fr}
 .box{background:#fff;border-radius:12px;padding:16px;border:1px solid var(--line)}
@@ -171,16 +161,13 @@ table.t td{padding:9px 10px;border-bottom:1px solid #f3f4f6;vertical-align:top}
 .ab{border:1px solid var(--line);background:#fff;border-radius:7px;padding:5px 10px;font-size:12px;margin-right:4px}
 .ab.pri{background:var(--b);color:#fff;border-color:var(--b)}
 .ab.dan{background:#fff;color:#b91c1c;border-color:#fecaca}
-#admMap{height:520px;border-radius:12px}
-.setrow{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f3f4f6;font-size:14px}
-.setrow small{display:block;color:var(--mut);font-size:12px}
 </style>
 </head>
 <body>
 <div class="topnav">
   <b>Rex Capture · 原型</b><span class="proto-tag">Place Sunnybank · 全部为模拟数据，不连接 Rex</span>
   <span class="sp"></span>
-  <div class="seg"><button id="sw1" class="on" onclick="switchView('m')">经纪人 App（iPhone）</button><button id="sw2" onclick="switchView('a')">管理后台（Web）</button></div>
+  <div class="seg"><button id="langZh" class="on" onclick="setLang('zh')">中文</button><button id="langEn" onclick="setLang('en')">EN</button></div>
 </div>
 
 <!-- ================= MOBILE ================= -->
@@ -225,13 +212,206 @@ table.t td{padding:9px 10px;border-bottom:1px solid #f3f4f6;vertical-align:top}
  <div class="notes" id="notes"></div>
 </div>
 
-<!-- ================= ADMIN ================= -->
-<div id="vAdmin"><div class="adm">
-  <div class="side" id="side"></div>
-  <div class="main" id="amain"></div>
-</div></div>
 
 <script>
+/* The Chinese copy is the source of truth. English is deliberately only a lookup. */
+const EN = {
+ '原型':'Prototype','全部为模拟数据，不连接 Rex':'Simulated data only · not connected to Rex','中文':'Chinese',
+ '登录':'Sign in','安全 · 第 8–9 页':'Security · pp. 8–9',
+ '只用 Microsoft 365 单点登录 + MFA，不设独立密码。':'Microsoft 365 SSO + MFA only; no separate password.',
+ '手机端用原生 MSAL（为以后接 Intune 留路）。':'Native MSAL on mobile (ready for Intune).',
+ '角色（经纪人 / 团队负责人 / 管理员）从 Entra 用户组读取。':'Roles (agent / team leader / admin) come from Entra groups.',
+ '区域地图 + 业主状态颜色':'Area map + owner status colours','MVP 第 1、2 项':'MVP items 1–2',
+ '颜色按“当前经纪人能在 Rex 看到的业主关联”计算：同一处房产，不同经纪人颜色可能不同。':'Colours depend on owner links visible to the current agent in Rex; agents may see different colours for the same property.',
+ '紫色 = 其他经纪人跟进（PDF 待定项，建议中性圆点）。':'Purple = followed by another agent (pending PDF decision; neutral dot recommended).',
+ '◉ 白心红点 = RP Data/Pricefinder 有业主名，可在门口确认身份。':'◉ White-centred red dot = owner name from RP Data/Pricefinder; confirm at the door.',
+ '▢ 方块 = 单元楼，点开列出每个单元各自的颜色。':'▢ Square = unit complex; tap to see each unit’s colour.',
+ '地图层不显示姓名电话；顶部显示覆盖率。':'The map shows no names or phone numbers; coverage appears at the top.',
+ '试试：点 Gager St 上带白心的红点 → 按住麦克风录入 → 确认后圆点变绿。右上角“4G”可切到离线。':'Try: tap a white-centred red dot on Gager St → hold the mic → confirm; the dot turns green. Tap “4G” for offline mode.',
+ '房产详情面板 + 快速录入':'Property sheet + quick capture','MVP 第 3、4、5、7 项':'MVP items 3, 4, 5, 7',
+ '有权访问的联系人及角色、最近 3 条 Rex 笔记（日期 + 作者）。':'Visible contacts and roles, plus three latest Rex notes (date + author).',
+ '黄色卡片是第三方数据，只有业主名 + 最近成交日期，标明来源，不是 Rex 数据。':'The yellow card shows third-party owner name and last sale date, with source; it is not Rex data.',
+ '快捷结果按钮：无人应答 / 不感兴趣 / 已留名片 / 租客应门。':'Quick results: No answer / Not interested / Left card / Tenant answered.',
+ '免打扰：勿上门、勿投广告标在房产上；勿致电标在联系人上。经纪人只能设置，取消要管理员。':'Do not knock and No junk mail are property flags; Do not call is a contact flag. Only admins can remove them.',
+ '底部“按住说话”是主操作，单手可达。':'Hold to talk at the bottom is the main one-handed action.',
+ '按住说话':'Hold to talk','MVP 第 4 项':'MVP item 4',
+ '松开即上传，转写（英/普/粤混说）→ LLM 提取字段。':'Release to upload; transcribe mixed English/Mandarin/Cantonese → LLM extracts fields.',
+ '原型里可选三段模拟口述，看不同提取结果（业主信息 / 勿上门 / 租客）。':'Choose one of three sample recordings (owner / do not knock / tenant).',
+ '目标：4G 下 10 秒内出确认卡片。':'Target: confirmation card within 10 seconds on 4G.',
+ '确认卡片':'Confirmation card','MVP 第 4 项 · 通用规则':'MVP item 4 · general rules',
+ '所有字段可改；AI 不确定的字段标黄。':'All fields editable; uncertain AI fields are highlighted yellow.',
+ '去重：按手机 → 邮箱 → 姓名+地址匹配，只在本人权限内；队友的记录写入但归属不变。':'Deduplicate by mobile → email → name + address within your permissions; teammates keep ownership.',
+ '底部列出将对 Rex 执行的操作，确认后只由后台 Rex 连接器写入。':'Review Rex actions below; only the backend connector writes after confirmation.',
+ '离线时先存手机，恢复网络自动发送（带幂等键，不重复）。':'Offline captures stay on the phone and sync on reconnection (idempotent).',
+ '标签、邮件列表同意也在这里勾选。':'Tags and email-list consent are selected here.',
+ '列表视图':'List view','MVP 第 6 项':'MVP item 6',
+ '与地图共用同一筛选和颜色。':'Shares filters and colours with the map.',
+ '手机只显示关键列，完整列在平板/电脑（见 Web 端）。':'Phone shows key fields; full columns are on tablet/desktop (web).',
+ '无导出、无复制（文字不可选）、有姓名水印。':'No export or copying (text not selectable); personalised watermark.',
+ '开放参观登记':'Open home registration','MVP 第 8 项':'MVP item 8',
+ '从 Rex 已排的 OFI 中选，正在进行且最近的置顶。':'Select a scheduled Rex OFI; live and nearby first.',
+ '语音优先：说一句自动填好姓名、手机、邮箱和两个勾选。':'Voice first: one sentence fills name, mobile, email and both checkboxes.',
+ '回头客按手机/邮箱匹配，显示以往参观记录。':'Returning visitors match on mobile/email, with past visits shown.',
+ '显示隐私告知（措辞待 Ping 确认）。':'Privacy notice shown (wording pending Ping).',
+ '拍照录入':'Photo capture','MVP 第 9 项':'MVP item 9',
+ '拍纸质登记表或手写笔记，识别中英文手写。':'Photograph paper registers or notes; recognise English and Chinese handwriting.',
+ '按人拆成逐行，不确定的格子标黄，可改可删，一键确认整批。':'Split by person into rows; uncertain cells yellow; edit, delete or confirm the batch.',
+ '原图附到 Rex 对应 OFI / 房产，上传后从 App 存储删除。':'Attach the original image to the Rex OFI/property and delete it from the app after upload.',
+ '我的 / 离线 / 缓存':'Me / offline / cache','离职与数据外流 · 第 9 页':'Offboarding & data leakage · p. 9',
+ '显示待发送队列，网络恢复自动同步。':'Shows the pending queue; syncs on reconnection.',
+ '本地缓存 24 小时失效，离线也生效。':'Local cache expires after 24 hours, even offline.',
+ '管理员撤销后 1 分钟内所有设备登出（在 Web 端 → 团队与权限 操作）。':'Admin revocation signs out all devices within one minute (web → Team & permissions).',
+ '当前用户：':'Current user:','网络：':'Network:','在线':'Online','离线':'Offline','待发送：':'Pending:','第':'item ', '项':'',
+ '地图':'Map','列表':'List','开放参观':'Open home','拍照':'Photo','我的':'Me',
+ '业主信息（中英混说）':'Owner details (mixed Chinese/English)','要求勿上门（粤语+英文）':'Do not knock request (Cantonese/English)','租客应门（英文）':'Tenant answered (English)',
+ '原型：选择模拟口述内容':'Prototype: choose a sample recording','普通话':'Mandarin','粵語':'Cantonese',
+ '点击切换在线/离线':'Tap to toggle online/offline',
+ '搜索街道，例如 Gager St':'Search street, e.g. Gager St','附近':'Near me',
+ '业主在 Rex':'Owner in Rex','无业主':'No owner','未匹配':'Not matched','其他经纪人':'Other agent','已知业主姓名':'Owner name known','勿上门':'Do not knock','勿致电':'Do not call','勿投广告':'No junk mail','单元楼':'Units',
+ '全部':'All','红色':'Red','绿色':'Green','灰色':'Grey','90 天未拜访':'Not visited 90d','10 年前成交':'Sold 10+ yrs ago','已标记':'Flagged',
+ '处房产':'properties','绿色覆盖率':'green','条街道可见':'streets in view','无信号':'No signal',
+ '在 Rex 已关联业主':'Owner linked in Rex','无可见业主':'No owner you can see','尚未匹配 Rex':'Not matched to Rex yet','其他经纪人跟进':'Followed by another agent',
+ '最近拜访':'Last visit','从未拜访':'Never visited','待发送':'Waiting to send',
+ '此地址尚未匹配 Rex 房产，已进入管理员审核队列。仍可录入；系统会创建 Rex 房产并标记待审核。':"This address is not matched to a Rex property yet. It's in the admin review queue. You can still capture — the portal will create the Rex property and flag it for review.",
+ '其他经纪人已跟进此房产。根据 Rex 封闭数据库规则隐藏详情。录入前请联系办公室避免重复。':'Another agent already follows this property. Details are hidden under Rex closed-database rules. Talk to the office before capturing to avoid duplicates.',
+ 'Rex 联系人':'Contacts in Rex','您的联系人':'Your contact','归属 ':'Owned by ','无可见关联联系人':'No linked contacts you can see.',
+ '登记业主 · 最近成交':'Registered owner · last sale','第三方数据 · 非 Rex 数据 · 录入前请上门确认':'Third-party data · not in Rex · confirm at the door before capturing',
+ '最新 Rex 笔记':'Latest Rex notes','无可见笔记':'No notes you can see.','在 Rex 打开':'Open in Rex','在 Rex 打开此房产':'Opens this property in Rex (rexsoftware.com)',
+ '快捷结果':'Quick result','无人应答':'No answer','不感兴趣':'Not interested','已留名片':'Left card','租客应门':'Tenant answered',
+ '免打扰标记':'Do-not-contact flags','仅管理员可以取消标记（在 Web 端操作）':'Only an admin can remove a flag (in the web app)',
+ '离线保存到手机':'saved on phone','已保存至 Rex':'saved to Rex','已设置 · 已写入 Rex，所有 Rex 用户可见':'set · written to Rex, visible to all Rex users',
+ '后退':'Back','取消':'Cancel','放弃':'Discard','核对并写入 Rex':'Check & save to Rex','确认并写入 Rex':'Confirm & save to Rex','保存到手机（离线）':'Save on phone (offline)',
+ '姓名':'Name','手机':'Mobile','邮箱':'Email','关系':'Relationship to property','出售意向':'Selling intent','时间范围':'Timeframe','跟进提醒':'Follow-up reminder','笔记':'Note','备注':'Notes',
+ '业主':'Owner','自住人':'Occupier','租客':'Tenant','房东':'Landlord','未知':'Unknown','不卖':'Not selling','可能出售':'Maybe selling','6 个月内出售':'Selling < 6 months','2027 年春':'Spring 2027',
+ '潜在卖家':'Potential seller','投资者':'Investor','换小房':'Downsizer','首次置业者':'First home buyer',
+ '未听到':'not heard','请核对':'check','联系人姓名':'Contact name','Rex 标签（管理员维护）':'Rex tags (managed by admin)','将写入 Rex':'Will write to Rex',
+ '更新':'Update','创建':'Create','联系人':'contact','关联到':'Link to','身份为':'as','添加笔记（作者：':'Add note (author: ','提醒':'Reminder for','标签：':'Tags:','设置房产勿上门':'Set Do not knock on property',
+ '检测到要求：':'Detected request: ','将为此房产设置勿上门。':'will be set on this property.',
+ '无 Rex 联系人匹配（手机 → 邮箱 → 姓名 + 地址）。将创建新联系人。':'No match in your Rex contacts (mobile → email → name + address). A new contact will be created.',
+ '同意加入“Sunnybank Market Update”邮件列表':'Agreed to join “Sunnybank Market Update” email list','（口头同意，时间已记录）':'(consent: verbal at door, time recorded)',
+ '处理中…':'Transcribing','录音中…松开结束':'Recording… release to finish','完成（或松开）':'Done (or release)',
+ '澳大利亚区域 · 服务商不保留音频':'Australian region · provider keeps no audio','离线 · 音频保存在手机上，联网后转写':'Offline — audio saved on phone, will transcribe when online',
+ '正在写入 Rex…':'Writing to Rex…','已保存到手机 · 恢复网络后发送 Rex':'Saved on phone · will send to Rex when back online','租客已记录':'tenant recorded','圆点现已变绿':'dot is now green',
+ '第三方':'3rd party','成交于':'sold','从未':'Never','筛选街道…':'Filter street…','按地址排序':'Sort: address','按最早成交排序':'Sort: oldest sale','按最久未访排序':'Sort: least recent visit',
+ '今日开放参观':'Open homes today','来自 Rex 已排期 OFI · 最近正在进行的优先':'From Rex listings with an OFI scheduled · nearest live first','正在进行':'LIVE NOW','人已登记':'registered','人入场':'in',
+ '隐私告知：Place Sunnybank 收集您的姓名和联系方式，用于跟进此房产及发送您要求的信息。请参阅隐私政策。':'Privacy notice: Place Sunnybank collects your name and contact details to follow up on this property and send information you ask for. See our privacy policy.',
+ '（措辞待 Ping 确认）':'(wording TBC by Ping)','回访客':'Returning visitor','您的联系人；曾参观 2 场：':'your contact · attended 2 opens:',
+ '住址（选填）':'Home address (optional)','发送验房报告':'Send building & pest report','验房报告':'B&P report','报告已附在 Rex 并可发送 → 自动邮件发送。':'Report is attached in Rex and marked sendable → emailed automatically.',
+ '按住说话 — 自动填表':'Hold to talk — fills the form','登记':'Register','今日已登记':'Registered today','尚无人登记':'Nobody yet.',
+ '姓名、手机和邮箱为必填项':'Name, mobile and email are required','已加入 Rex OFI 参观名单':'added to OFI attendees in Rex','已关联为业主：':'linked as owner of ','已保存到手机 · 稍后同步':'Saved on phone · will sync',
+ '纸张录入':'Paper capture','开放参观登记表或手写笔记。英文和中文，印刷或手写。':'Open-home sheets or handwritten notes. English & Chinese, print or handwriting.',
+ '拍摄照片':'Take photo','从相册选择':'Choose from library','上传扫描 PDF':'Upload scanned PDF','最近':'Recent','登记表':'OFI sheet','条记录 · 已确认':'records · confirmed',
+ '正在识别手写（英文 / 中文）…':'Reading handwriting (EN / 中文)…','核对 5 条记录':'Review 5 records','归属于':'Belongs to','从登记表识别':'read from sheet',
+ '黄色格子为不确定内容 — 点击修改。仅搜索您有权查看的 Rex 联系人。':'Yellow cells are uncertain — tap to fix. Matching only searches your Rex contacts.',
+ '电话':'Phone','出售？':'Selling?','出售':'Sell','Grace Huang 匹配已有 Rex 联系人（您的）· 将更新。':'Grace Huang matched existing Rex contact (yours) · will update.',
+ '创建 / 更新联系人并添加为 OFI 参观者':'Create / update contacts, add as OFI attendees','向 2 人发送验房报告 · 给 1 人加潜在卖家标签':'B&P report to 2 people · potential-seller tag on 1',
+ '原图附到 OFI 记录':'Attach original photo to the OFI record','上传后从手机删除照片':'Delete photo from this phone after upload','全部确认':'Confirm all',
+ '销售经纪人':'Sales agent','同步':'Sync','网络：':'Network:','模拟离线':'Simulate offline','恢复在线':'Go online','待发送：':'Waiting to send:',
+ '安全':'Security','手机数据将在':'Data on this phone expires in','23 小时 41 分钟':'23 h 41 m','后过期（离线也生效）':'(even offline)',
+ '您保存的一切均以您的名字记录':'Everything you save is logged with your name','本 App 不允许导出、复制或分享':'No export, copy or share in this app',
+ '今天':'Today','敲门次数：':'Doors knocked:','录入次数：':'Captures:','退出登录':'Sign out','访问权限已撤销':'Access removed',
+ '您的访问权限已被管理员撤销。':'Your access was removed by the administrator.','此手机上待发送的记录已先同步到 Rex。':'captures waiting on this phone were sent to Rex first.','此手机上待发送的 {n} 条录入已先同步到 Rex。':'{n} capture(s) waiting on this phone were sent to Rex first.',
+ '此手机上的地图、笔记及业主数据已删除。':'Maps, notes and owner data on this phone were deleted.','如果这是误操作，请联系办公室。':'Contact the office if this is a mistake.',
+ '使用 Microsoft 登录':'Sign in with Microsoft','Microsoft 365 单点登录 + MFA · 无独立密码':'Microsoft 365 single sign-on + MFA · no separate password',
+ '已恢复在线':'Back online','离线 — 录入将保存到此手机':'Offline — captures will be saved on this phone','未找到地址':'No address found','显示附近地址':'Showing addresses near you',
+ '个待发送录入已发送至 Rex · 幂等键避免重复':'queued captures sent to Rex · no duplicates (idempotency key)',
+ '门访：':'Door-knock: ','设置“':'Set "','”？可选原因：':'"? Optional reason:',
+ '已匹配 Rex 联系人':'Matched existing Rex contact','您的联系人':'your contact','将更新而非新建。':'will update, not create.','撤销':'Undo',
+ '按手机匹配：':'Matched by mobile:','您的笔记将以您为作者添加；归属仍为 Natalie。':'Your note is added with you as author; ownership stays with Natalie.',
+ '记录创建':'Contact created','审核队列':'Review queue','与业主交谈':'Spoke to owner','您的联系人':'Your contact','保存至 Rex':'Saved to Rex','房产单元':'Unit','没有业主信息':'No owner info','第三方业主：':'Owner (3rd party): ',
+ '已匹配到已有 Rex 联系人':'Matched existing Rex contact','业主已登记':'Registered owner','最近成交':'last sale','创建 Rex 房产（标记管理员审核）':'Create Rex property (flag for admin review)',
+ '提醒 {name} 于 {date} 跟进':'Reminder for {name} on {date}',
+ '周六 11月2日 · 10:00–10:30':'Sat 2 Nov · 10:00–10:30','周六 11月2日 · 11:00–11:30':'Sat 2 Nov · 11:00–11:30','周六 11月2日 · 12:15–12:45':'Sat 2 Nov · 12:15–12:45',
+ '住了 12 年的自住业主。明年春天可能卖，三月回访。':'Owner-occupier 12 years. May sell next spring. Call back in March.',
+ '要求以后不要再上门。不出售。':'Asked us not to door-knock again. Not selling.',
+ '租客应门。租约六月到期。业主住在悉尼，未提供联系方式。':'Tenant answered. Lease ends June. Owner lives in Sydney — no contact given.',
+ '在 Runcorn 有房，明年可能出售。':'Has a house in Runcorn, may sell next year.'
+};
+let lang = new URLSearchParams(location.search).get('lang');
+lang = ['zh','en'].includes(lang) ? lang : (localStorage.getItem('proto-lang') === 'en' ? 'en' : 'zh');
+const T = (zh, params = {}) => (lang === 'en' ? (EN[zh] ?? zh) : zh).replace(/\{(\w+)\}/g, (_, k) => params[k] ?? '');
+const reverseEN = Object.entries(EN).filter(([, en]) => en).sort((a,b) => b[1].length - a[1].length);
+// Existing mock copy is normalised to the Chinese source at the display boundary.
+// Preserve the original text node so a live switch never translates a translation.
+const sourceText = new WeakMap(), sourceAttr = new WeakMap();
+function localise(s) {
+  if (typeof s !== 'string') return s;
+  let parts = [s];
+  // Translate only unprotected segments: short words must not match inside
+  // already translated phrases (e.g. "in" inside Pricefinder).
+  for (const [zh, en] of reverseEN) {
+    const escaped = en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`${/^[A-Za-z]/.test(en) ? '(?<![A-Za-z])' : ''}${escaped}${/[A-Za-z]$/.test(en) ? '(?![A-Za-z])' : ''}`, 'g');
+    parts = parts.flatMap(part => {
+      if (typeof part !== 'string' || !part.includes(en)) return [part];
+      const pieces = part.split(pattern), out = [];
+      pieces.forEach((piece, i) => { if (i) out.push({zh}); out.push(piece); });
+      return out;
+    });
+  }
+  const zhKeys = [...reverseEN].sort((a,b) => b[0].length - a[0].length);
+  return parts.map(part => {
+    if (typeof part !== 'string') return T(part.zh);
+    if (lang !== 'en') return part;
+    for (const [zh] of zhKeys) if (part.includes(zh)) part = part.split(zh).join(T(zh));
+    return part;
+  }).join('');
+}
+function translateDOM() {
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  document.title = `Rex Capture ${T('原型')} · Place Sunnybank`; 
+  langZh.classList.toggle('on', lang === 'zh'); langEn.classList.toggle('on', lang === 'en');
+  const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let node; (node = walk.nextNode()); ) {
+    if (node.parentElement.closest('.trans,.paper,.seg')) continue; // spoken and handwritten originals
+    if (!sourceText.has(node)) sourceText.set(node, node.nodeValue);
+    const value = localise(sourceText.get(node));
+    if (node.nodeValue !== value) node.nodeValue = value;
+  }
+  document.querySelectorAll('[placeholder],[title]').forEach(el => {
+    for (const attr of ['placeholder','title']) {
+      if (!el.hasAttribute(attr)) continue;
+      let saved = sourceAttr.get(el); if (!saved) { saved = {}; sourceAttr.set(el, saved); }
+      if (!(attr in saved)) saved[attr] = el.getAttribute(attr);
+      const value = localise(saved[attr]); if (el.getAttribute(attr) !== value) el.setAttribute(attr, value);
+    }
+  });
+}
+let translating = false;
+const translationObserver = new MutationObserver(() => {
+  if (translating) return;
+  translating = true; translateDOM(); translating = false;
+});
+function setLang(next) {
+  if (lang === next) return;
+  const previous = lang;
+  lang = next; localStorage.setItem('proto-lang', next);
+  // Preserve edited notes while translating untouched AI output in an open card.
+  if (typeof draft !== 'undefined' && draft && document.getElementById('f_note')) {
+    const notes = ['住了 12 年的自住业主。明年春天可能卖，三月回访。','要求以后不要再上门。不出售。','租客应门。租约六月到期。业主住在悉尼，未提供联系方式。'];
+    const oldNote = previous === 'zh' ? notes[recSample] : EN[notes[recSample]];
+    if (f_note.value === oldNote) f_note.value = T(notes[recSample]);
+  }
+  // Re-render the current view without navigating away or resetting draft/queue.
+  if (state.tab === 'map') { renderChips('chipsMap'); drawMarkers(); }
+  else if (state.tab === 'list') {
+    const query = document.querySelector('#pg-list .srch input')?.value || '';
+    renderList(); if (query) { document.querySelector('#pg-list .srch input').value = query; listQ(query); }
+  }
+  else if (state.tab === 'ofi') renderOfi();
+  else if (state.tab === 'cap') { if (capStage !== 2) renderCap(); }
+  else renderMe();
+  if (sheet.classList.contains('on')) {
+    const scroll = sheet.querySelector('.sh-body')?.scrollTop || 0;
+    if (state.sel) openSheet(state.sel); else openCx();
+    sheet.querySelector('.sh-body').scrollTop = scroll;
+  }
+  renderTabs(); setNote(modal.classList.contains('on') ? (modal.querySelector('.trans') ? 'confirm' : 'rec') : sheet.classList.contains('on') ? 'sheet' : state.tab);
+  if (revoked.classList.contains('on')) renderRevoked();
+  translateDOM();
+}
+translationObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+translateDOM();
 /* ===================== DATA ===================== */
 let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647, (seed - 1) / 2147483646);
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -249,7 +429,7 @@ const STREETS = [
   { name: 'Dillon St', a: [-27.5716, 153.0642], b: [-27.5719, 153.0722], n: 10 },
 ];
 const daysAgo = d => new Date(TODAY - d * 864e5);
-const fmt = d => d ? d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+const fmt = d => d ? d.toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-AU', lang === 'zh' ? { year: 'numeric', month: 'long', day: 'numeric' } : { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 const props = []; let pid = 1;
 function mkProp(street, num, lat, lng, unit) {
   const x = rnd();
@@ -304,35 +484,28 @@ const AUD = (who, action, target, detail) => state.audit.unshift({ at: new Date(
 [['Natalie Wong','Voice capture','8 Turton St','Contact created · linked Owner · note · reminder'],['Owen Chen','Quick result','11 Lister St','No answer'],['Jason Wu','OFI registration','12 Pinelands Rd','Visitor: Amy Xu · B&P report'],['Natalie Wong','Flag set','3 Dillon St','Do not knock · "asked not to visit"'],['Ping Han','Address linked','7 Mains Rd','Rex #48213 ↔ Lot 7 RP84512']].reverse().forEach(a => AUD(...a));
 const reviews = props.filter(p => p.status === 'grey').map((p, i) => ({ p, rex: p.addr.replace('St', 'Street').replace('Rd', 'Road') + (i % 2 ? '' : ', Sunnybank QLD'), cand: `Lot ${p.num} on RP${84000 + p.id * 7} · ${p.addr}`, score: 72 + (p.id * 7) % 20, kind: i % 3 === 0 ? 'Missing unit no.' : i % 3 === 1 ? 'Spelling' : 'Street type' }));
 
-/* ===================== VIEW SWITCH ===================== */
-function switchView(v) {
-  document.getElementById('vMobile').style.display = v === 'm' ? 'flex' : 'none';
-  document.getElementById('vAdmin').style.display = v === 'a' ? 'block' : 'none';
-  sw1.classList.toggle('on', v === 'm'); sw2.classList.toggle('on', v === 'a');
-  if (v === 'a') renderAdmin(); else { setTimeout(() => map && map.invalidateSize(), 50); if (state.revoked) showRevoked(); }
-}
 
 /* ===================== NOTES ===================== */
 const NOTES = {
   login: ['登录', '安全 · 第 8–9 页', ['只用 Microsoft 365 单点登录 + MFA，不设独立密码。', '手机端用原生 MSAL（为以后接 Intune 留路）。', '角色（经纪人 / 团队负责人 / 管理员）从 Entra 用户组读取。']],
-  map: ['区域地图 + 业主状态颜色', 'MVP 第 1、2 项', ['颜色按“当前经纪人能在 Rex 看到的业主关联”计算：同一处房产，不同经纪人颜色可能不同。', '紫色 = 其他经纪人跟进（PDF 待定项，建议中性圆点；可在管理后台 → 设置 切换成红色对比）。', '◉ 白心红点 = RP Data/Pricefinder 有业主名，可在门口确认身份。', '▢ 方块 = 单元楼，点开列出每个单元各自的颜色。', '地图层不显示姓名电话；顶部显示覆盖率。'], '试试：点 Gager St 上带白心的红点 → 按住麦克风录入 → 确认后圆点变绿。右上角“4G”可切到离线。'],
+  map: ['区域地图 + 业主状态颜色', 'MVP 第 1、2 项', ['颜色按“当前经纪人能在 Rex 看到的业主关联”计算：同一处房产，不同经纪人颜色可能不同。', '紫色 = 其他经纪人跟进（PDF 待定项，建议中性圆点）。', '◉ 白心红点 = RP Data/Pricefinder 有业主名，可在门口确认身份。', '▢ 方块 = 单元楼，点开列出每个单元各自的颜色。', '地图层不显示姓名电话；顶部显示覆盖率。'], '试试：点 Gager St 上带白心的红点 → 按住麦克风录入 → 确认后圆点变绿。右上角“4G”可切到离线。'],
   sheet: ['房产详情面板 + 快速录入', 'MVP 第 3、4、5、7 项', ['有权访问的联系人及角色、最近 3 条 Rex 笔记（日期 + 作者）。', '黄色卡片是第三方数据，只有业主名 + 最近成交日期，标明来源，不是 Rex 数据。', '快捷结果按钮：无人应答 / 不感兴趣 / 已留名片 / 租客应门。', '免打扰：勿上门、勿投广告标在房产上；勿致电标在联系人上。经纪人只能设置，取消要管理员。', '底部“按住说话”是主操作，单手可达。']],
   rec: ['按住说话', 'MVP 第 4 项', ['松开即上传，转写（英/普/粤混说）→ LLM 提取字段。', '原型里可选三段模拟口述，看不同提取结果（业主信息 / 勿上门 / 租客）。', '目标：4G 下 10 秒内出确认卡片。']],
   confirm: ['确认卡片', 'MVP 第 4 项 · 通用规则', ['所有字段可改；AI 不确定的字段标黄。', '去重：按手机 → 邮箱 → 姓名+地址匹配，只在本人权限内；队友的记录写入但归属不变。', '底部列出将对 Rex 执行的操作，确认后只由后台 Rex 连接器写入。', '离线时先存手机，恢复网络自动发送（带幂等键，不重复）。', '标签、邮件列表同意也在这里勾选。']],
-  list: ['列表视图', 'MVP 第 6 项', ['与地图共用同一筛选和颜色。', '手机只显示关键列，完整列在平板/电脑（见管理后台 → 地图与列表）。', '无导出、无复制（文字不可选）、有姓名水印。']],
+  list: ['列表视图', 'MVP 第 6 项', ['与地图共用同一筛选和颜色。', '手机只显示关键列，完整列在平板/电脑（见 Web 端）。', '无导出、无复制（文字不可选）、有姓名水印。']],
   ofi: ['开放参观登记', 'MVP 第 8 项', ['从 Rex 已排的 OFI 中选，正在进行且最近的置顶。', '语音优先：说一句自动填好姓名、手机、邮箱和两个勾选。', '回头客按手机/邮箱匹配，显示以往参观记录。', '显示隐私告知（措辞待 Ping 确认）。']],
   cap: ['拍照录入', 'MVP 第 9 项', ['拍纸质登记表或手写笔记，识别中英文手写。', '按人拆成逐行，不确定的格子标黄，可改可删，一键确认整批。', '原图附到 Rex 对应 OFI / 房产，上传后从 App 存储删除。']],
-  me: ['我的 / 离线 / 缓存', '离职与数据外流 · 第 9 页', ['显示待发送队列，网络恢复自动同步。', '本地缓存 24 小时失效，离线也生效。', '管理员撤销后 1 分钟内所有设备登出（去管理后台 → 用户与权限 点“撤销”试试）。']],
+  me: ['我的 / 离线 / 缓存', '离职与数据外流 · 第 9 页', ['显示待发送队列，网络恢复自动同步。', '本地缓存 24 小时失效，离线也生效。', '管理员撤销后 1 分钟内所有设备登出（在 Web 端 → 团队与权限 操作）。']],
 };
 function setNote(k) {
   const n = NOTES[k]; if (!n) return;
-  notes.innerHTML = `<h3>${n[0]}</h3><span class="pdf">PDF：${n[1]}</span><ul>${n[2].map(x => `<li>${x}</li>`).join('')}</ul>${n[3] ? `<div class="tip">💡 ${n[3]}</div>` : ''}
+  notes.innerHTML = `<h3>${T(n[0])}</h3><span class="pdf">PDF${lang === 'zh' ? '：' : ': '}${T(n[1])}</span><ul>${n[2].map(x => `<li>${T(x)}</li>`).join('')}</ul>${n[3] ? `<div class="tip">💡 ${T(n[3])}</div>` : ''}
   <div class="tip">当前用户：<b>${ME.name}</b>（${ME.team}）· 网络：${state.online ? '在线' : '<b style="color:#b91c1c">离线</b>'} · 待发送：${state.queue.length}</div>`;
 }
 
 /* ===================== MOBILE CORE ===================== */
 let map, layer;
-const BASEMAP = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}';
+const BASEMAP = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'; // 与 wasteid / Web 端一致
 function signIn() {
   login.classList.remove('on');
   AUD(ME.name, 'Sign in', 'iPhone 15', 'Entra SSO · MFA ok');
@@ -388,8 +561,8 @@ function setFilter(f) { state.filter = f; renderChips('chipsMap'); drawMarkers()
 function coverage(list) { const l = list.filter(p => vis(p) !== 'grey'); return Math.round(100 * l.filter(p => vis(p) === 'green').length / l.length); }
 function initMap() {
   if (map) return;
-  map = L.map('map', { zoomControl: false, attributionControl: false }).setView([-27.5805, 153.0625], 16);
-  L.tileLayer(BASEMAP, { maxZoom: 19, maxNativeZoom: 16 }).addTo(map);
+  map = L.map('map', { zoomControl: false }).setView([-27.5805, 153.0625], 16);
+  L.tileLayer(BASEMAP, { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
   layer = L.layerGroup().addTo(map); drawMarkers();
   map.on('click', closeSheet);
 }
@@ -459,9 +632,9 @@ function quick(id, r) {
 }
 function flag(id, k) {
   const p = byId(id); const obj = k === 'dnc' ? p.contacts[0] : p; const key = k === 'dnc' ? 'dnc' : k;
-  if (obj[key]) return toast('🔒 Only an admin can remove a flag (Admin → Settings)');
+  if (obj[key]) return toast('🔒 Only an admin can remove a flag (in the web app)');
   const label = { dnk: 'Do not knock', junk: 'No junk mail', dnc: 'Do not call' }[k];
-  const why = prompt(`Set "${label}"? Optional reason:`, ''); if (why === null) return;
+  const why = prompt(localise(`Set "${label}"? Optional reason:`), ''); if (why === null) return;
   obj[key] = true; AUD(ME.name, 'Flag set', p.addr, label + (why ? ' · "' + why + '"' : ''));
   toast(`⛔ ${label} set · written to Rex, visible to all Rex users`); drawMarkers(); openSheet(id);
 }
@@ -495,9 +668,9 @@ function finishRec(id) {
 }
 function extract(p, i) {
   const n = p.tp || 'Mary Chen';
-  if (i === 0) return { name: n, mobile: '0412 345 678', email: '', rel: 'Owner', intent: 'Maybe selling', time: 'Spring 2027', fu: '2027-03-01', note: 'Owner-occupier 12 years. May sell next spring. Call back in March.', tags: ['Downsizer', 'Potential seller'], dnk: false, low: ['email'] };
-  if (i === 1) return { name: n, mobile: '', email: '', rel: 'Owner', intent: 'Not selling', time: '', fu: '', note: 'Asked us not to door-knock again. Not selling.', tags: [], dnk: true, low: ['mobile'] };
-  return { name: 'Tom Nguyen', mobile: '0433 210 987', email: '', rel: 'Tenant', intent: 'Unknown', time: '', fu: '2027-05-15', note: 'Tenant answered. Lease ends June. Owner lives in Sydney — no contact given.', tags: ['Tenant'], dnk: false, low: ['mobile', 'fu'] };
+  if (i === 0) return { name: n, mobile: '0412 345 678', email: '', rel: 'Owner', intent: 'Maybe selling', time: T('2027 年春'), fu: '2027-03-01', note: T('住了 12 年的自住业主。明年春天可能卖，三月回访。'), tags: ['Downsizer', 'Potential seller'], dnk: false, low: ['email'] };
+  if (i === 1) return { name: n, mobile: '', email: '', rel: 'Owner', intent: 'Not selling', time: '', fu: '', note: T('要求以后不要再上门。不出售。'), tags: [], dnk: true, low: ['mobile'] };
+  return { name: 'Tom Nguyen', mobile: '0433 210 987', email: '', rel: 'Tenant', intent: 'Unknown', time: '', fu: '2027-05-15', note: T('租客应门。租约六月到期。业主住在悉尼，未提供联系方式。'), tags: ['Tenant'], dnk: false, low: ['mobile', 'fu'] };
 }
 let draft;
 function showConfirm(id) {
@@ -516,15 +689,15 @@ function showConfirm(id) {
    <div class="fld ${L('name')}"><label>Contact name</label><input id="f_name" value="${x.name}"></div>
    <div class="row2"><div class="fld ${L('mobile')}"><label>Mobile ${x.low.includes('mobile') ? '· check' : ''}</label><input id="f_mobile" value="${x.mobile}" placeholder="04xx xxx xxx"></div>
    <div class="fld ${L('email')}"><label>Email</label><input id="f_email" value="${x.email}" placeholder="not heard"></div></div>
-   <div class="row2"><div class="fld"><label>Relationship to property</label><select id="f_rel">${['Owner', 'Occupier', 'Tenant', 'Landlord'].map(o => `<option ${o === x.rel ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
-   <div class="fld"><label>Selling intent</label><select>${['Unknown', 'Not selling', 'Maybe selling', 'Selling < 6 months'].map(o => `<option ${o === x.intent ? 'selected' : ''}>${o}</option>`).join('')}</select></div></div>
+   <div class="row2"><div class="fld"><label>Relationship to property</label><select id="f_rel">${['Owner', 'Occupier', 'Tenant', 'Landlord'].map(o => `<option value="${o}" ${o === x.rel ? 'selected' : ''}>${localise(o)}</option>`).join('')}</select></div>
+   <div class="fld"><label>Selling intent</label><select>${['Unknown', 'Not selling', 'Maybe selling', 'Selling < 6 months'].map(o => `<option value="${o.replace(/</g, '&lt;')}" ${o === x.intent ? 'selected' : ''}>${localise(o)}</option>`).join('')}</select></div></div>
    <div class="row2"><div class="fld"><label>Timeframe</label><input value="${x.time}"></div><div class="fld ${L('fu')}"><label>Follow-up reminder</label><input id="f_fu" type="date" value="${x.fu}"></div></div>
    <div class="fld"><label>Note</label><textarea id="f_note" rows="3">${x.note}</textarea></div>
    <div class="fld"><label>Rex tags (managed by admin)</label>${TAGS.map(t => `<span class="tag ${x.tags.includes(t) ? 'on' : ''}" onclick="this.classList.toggle('on')">${t}</span>`).join('')}</div>
    <label class="chk"><input type="checkbox" ${x.dnk ? 'disabled' : ''}> Agreed to join “Sunnybank Market Update” email list <small style="color:var(--mut)">(consent: verbal at door, time recorded)</small></label>
    <div class="sec"><h4>Will write to Rex</h4><ul class="acts">
      <li>${existing || mateMatch ? 'Update' : 'Create'} contact ${x.name}</li><li>Link to ${p.addr} as ${x.rel}</li><li>Add note (author: ${ME.name})</li>
-     ${x.fu ? `<li>Reminder for ${ME.name} on ${x.fu}</li>` : ''}${x.tags.length ? `<li>Tags: ${x.tags.join(', ')}</li>` : ''}${x.dnk ? '<li>Set Do not knock on property</li>' : ''}${p.status === 'grey' ? '<li>Create Rex property (flag for admin review)</li>' : ''}</ul></div>
+     ${x.fu ? `<li>${T('提醒 {name} 于 {date} 跟进', {name: ME.name, date: x.fu})}</li>` : ''}${x.tags.length ? `<li>Tags: ${x.tags.join(', ')}</li>` : ''}${x.dnk ? '<li>Set Do not knock on property</li>' : ''}${p.status === 'grey' ? '<li>Create Rex property (flag for admin review)</li>' : ''}</ul></div>
   </div>
   <div class="mfoot"><button class="btn sec2" onclick="closeModal()">Discard</button><button class="btn pri" onclick="confirmWrite()">${state.online ? '✓ Confirm & save to Rex' : '✓ Save on phone (offline)'}</button></div>`;
   setNote('confirm');
@@ -569,7 +742,7 @@ function renderOfi() {
   const el = document.getElementById('pg-ofi');
   if (ofiSel === null) {
     el.innerHTML = `<div class="scroll"><h2 class="pt">Open homes today</h2><div style="font-size:12px;color:var(--mut);margin-bottom:8px">From Rex listings with an OFI scheduled · nearest live first</div>
-    ${OFIS.map((o, i) => `<div class="ofi" onclick="ofiSel=${i};ofiForm={};renderOfi()"><b>${o.addr}</b>${o.live ? '<span class="live">LIVE NOW</span>' : ''}<div style="font-size:12px;color:var(--mut);margin-top:3px">${o.time} · ${o.dist} · ${o.att.length} registered</div></div>`).join('')}</div>`;
+    ${OFIS.map((o, i) => `<div class="ofi" onclick="ofiSel=${i};ofiForm={};renderOfi()"><b>${o.addr}</b>${o.live ? '<span class="live">LIVE NOW</span>' : ''}<div style="font-size:12px;color:var(--mut);margin-top:3px">${T(o.time)} · ${o.dist} · ${o.att.length} registered</div></div>`).join('')}</div>`;
     return setNote('ofi');
   }
   const o = OFIS[ofiSel], f = ofiForm;
@@ -593,7 +766,7 @@ function renderOfi() {
 }
 function ofiVoice() {
   toast('🎙️ “John Lee, 0412 555 010, john.lee@gmail.com, 要验房报告, 在 Runcorn 有房, 明年可能卖”');
-  setTimeout(() => { ofiForm = { name: 'John Lee', mobile: '0412 555 010', email: 'john.lee@gmail.com', home: '22 Beenleigh Rd, Runcorn', note: 'Has a house in Runcorn, may sell next year.', bp: true, seller: true }; renderOfi(); }, 900);
+  setTimeout(() => { ofiForm = { name: 'John Lee', mobile: '0412 555 010', email: 'john.lee@gmail.com', home: '22 Beenleigh Rd, Runcorn', note: T('在 Runcorn 有房，明年可能出售。'), bp: true, seller: true }; renderOfi(); }, 900);
 }
 function ofiReg() {
   const f = ofiForm, o = OFIS[ofiSel];
@@ -636,95 +809,16 @@ function renderMe() {
    <div class="sec"><h4>Today</h4><div class="card" style="font-size:13px">Doors knocked: <b>${props.filter(p => +p.lastVisit === +TODAY).length}</b> · Captures: <b>${state.audit.filter(a => a.who === ME.name && /capture|Quick/.test(a.action)).length}</b></div></div>
    <button class="btn sec2" style="width:100%" onclick="location.reload()">Sign out</button></div>`;
 }
+function renderRevoked() {
+  const n = Number(revoked.dataset.synced || 0);
+  revMsg.innerHTML = `${T('您的访问权限已被管理员撤销。')}<br><br>${n ? `✓ ${T('此手机上待发送的 {n} 条录入已先同步到 Rex。', { n })}<br>` : ''}✓ ${T('此手机上的地图、笔记及业主数据已删除。')}<br><br>${T('如果这是误操作，请联系办公室。')}`;
+}
 function showRevoked() {
   const n = state.queue.length; flushQueue(true);
-  revMsg.innerHTML = `Your access was removed by the administrator.<br><br>${n ? `✓ ${n} capture${n > 1 ? 's' : ''} waiting on this phone ${n > 1 ? 'were' : 'was'} sent to Rex first.<br>` : ''}✓ Maps, notes and owner data on this phone were deleted.<br><br>Contact the office if this is a mistake.`;
+  revoked.dataset.synced = n; renderRevoked();
   revoked.classList.add('on'); sheet.classList.remove('on'); modal.classList.remove('on');
 }
 
-/* ===================== ADMIN ===================== */
-let apage = 'dash', rtab = 'addr', admMap;
-function renderAdmin() {
-  const P = [['dash', '📊 概览'], ['plan', '🗺️ 地图与列表'], ['review', '🧾 审核队列', reviews.length + 3], ['users', '👥 用户与权限'], ['audit', '📜 审计日志'], ['export', '⬇️ 导出'], ['settings', '⚙️ 设置']];
-  side.innerHTML = `<div class="brand">Rex Capture Admin<div style="font-size:12px;color:var(--mut);font-weight:400">Ping Han · Admin</div></div>${P.map(([k, l, c]) => `<button class="${apage === k ? 'on' : ''}" onclick="apage='${k}';renderAdmin()"><span>${l}</span>${c ? `<span class="cnt">${c}</span>` : ''}</button>`).join('')}
-   <div style="font-size:11px;color:var(--mut);padding:16px 10px;line-height:1.6">Vue 3 + Element Plus（正式版）<br>与 App 共用 Go API<br>按 Entra 角色显示菜单</div>`;
-  ({ dash: aDash, plan: aPlan, review: aReview, users: aUsers, audit: aAudit, export: aExport, settings: aSettings })[apage]();
-}
-function aDash() {
-  const all = props, g = all.filter(p => p.status === 'green').length, r = all.filter(p => p.status === 'red').length, gr = all.filter(p => p.status === 'grey').length, o = all.filter(p => p.status === 'other').length, t = all.length;
-  const sub = [['Sunnybank', coverage(all)], ['Sunnybank Hills', 36], ['Calamvale', 29], ['Runcorn', 22], ['Robertson', 18]];
-  amain.innerHTML = `<h1>概览</h1><div class="sub">全办公室视图（管理员可见全部）· 2 Nov 2026</div>
-  <div class="grid g4"><div class="box kpi"><b style="color:var(--g)">${coverage(all)}%</b><span>Sunnybank 绿色覆盖率</span></div><div class="box kpi"><b>${state.audit.filter(a => /capture|Quick|OFI/.test(a.action)).length}</b><span>今日录入</span></div><div class="box kpi"><b>${reviews.length + 3}</b><span>待审核</span></div><div class="box kpi"><b>${state.users.filter(u => u.st === 'active').length}</b><span>活跃用户</span></div></div>
-  <div class="grid g2" style="margin-top:14px"><div class="box"><b>各区覆盖率</b>${sub.map(([n, v]) => `<div style="margin-top:12px;font-size:13px">${n} <span style="float:right">${v}%</span><div class="bar" style="margin-top:4px"><i style="width:${v}%;background:var(--g)"></i><i style="width:${88 - v}%;background:var(--r)"></i><i style="width:12%;background:var(--gr)"></i></div></div>`).join('')}
-   <div style="font-size:12px;color:var(--mut);margin-top:12px">Sunnybank 原型数据：绿 ${g} · 红 ${r} · 灰 ${gr} · 其他经纪人 ${o} · 共 ${t}</div></div>
-  <div class="box"><b>提醒</b><div class="banner b-bad" style="margin-top:10px">⚠️ <b>Jason Wu</b> 在 1 小时内查看了 312 个房产（阈值 150）。<br><button class="ab" style="margin-top:6px" onclick="apage='audit';renderAdmin()">查看日志</button><button class="ab dan" onclick="apage='users';renderAdmin()">处理</button></div>
-   <div class="banner b-warn">范围外可能匹配 3 条：经纪人录入的联系人可能已存在于其他团队（只提示管理员）。</div>
-   <div class="banner b-info">昨晚全量同步完成 02:10 · 补回漏掉的 webhook 4 条 · Rex 配额本小时已用 1,284 / 3,600</div></div></div>`;
-}
-function aPlan() {
-  const rows = props.filter(p => !p.inCx).slice(0, 40);
-  amain.innerHTML = `<h1>地图与列表</h1><div class="sub">电脑 / 平板上的规划视图，经纪人也能用（只看自己权限内的数据，无导出按钮）</div>
-  <div class="grid" style="grid-template-columns:1fr 1.2fr"><div id="admMap"></div><div class="box" style="padding:0;max-height:520px;overflow:auto"><table class="t"><tr><th></th><th>地址</th><th>Rex 业主</th><th>第三方业主</th><th>最近成交</th><th>最近笔记</th><th>最近拜访</th><th>标记</th></tr>
-  ${rows.map(p => `<tr><td><span class="dot d-${vis(p)}"></span></td><td>${p.addr}</td><td>${p.contacts[0] ? p.contacts[0].name : '—'}</td><td style="color:#b45309">${p.tp || '—'}</td><td>${p.tpSale.getFullYear()}</td><td>${p.notes[0] ? fmt(p.notes[0].date) : '—'}</td><td>${p.lastVisit ? p.lastResult : '—'}</td><td>${p.dnk ? '⛔' : ''}${p.junk ? '📭' : ''}</td></tr>`).join('')}</table></div></div>`;
-  if (admMap) { admMap.remove(); admMap = null; }
-  admMap = L.map('admMap', { attributionControl: false }).setView([-27.5805, 153.0625], 15);
-  L.tileLayer(BASEMAP, { maxZoom: 19, maxNativeZoom: 16 }).addTo(admMap);
-  props.filter(p => !p.inCx).forEach(p => L.marker([p.lat, p.lng], { icon: L.divIcon({ className: '', html: pinHtml(p), iconSize: [16, 16] }) }).addTo(admMap));
-}
-function aReview() {
-  const T = [['addr', `地址匹配（灰色）${reviews.length}`], ['new', '门口新地址 1'], ['ai', 'AI 不确定 1'], ['scope', '范围外匹配 1']];
-  let body = '';
-  if (rtab === 'addr') body = `<table class="t"><tr><th>Rex 房产地址</th><th>地籍候选（DCDB / G-NAF）</th><th>差异</th><th>置信度</th><th></th></tr>${reviews.map((r, i) => `<tr><td>${r.rex}<div style="font-size:11px;color:var(--mut)">Rex #${48000 + r.p.id}</div></td><td>${r.cand}</td><td><span class="pill p-warn">${r.kind}</span></td><td>${r.score}%</td><td><button class="ab pri" onclick="linkRev(${i})">关联</button><button class="ab">换候选</button><button class="ab">不是同一处</button></td></tr>`).join('') || '<tr><td colspan=5>全部处理完 🎉</td></tr>'}</table><div style="font-size:12px;color:var(--mut);margin-top:8px">完全匹配已自动关联；这里只放近似匹配。不在 Rex 中自动合并任何记录。</div>`;
-  if (rtab === 'new') body = `<table class="t"><tr><th>地址</th><th>录入人</th><th>说明</th><th></th></tr><tr><td>4A Turton St, Sunnybank</td><td>Natalie Wong</td><td>门口发现，Rex 无记录 → 已新建 Rex 房产并标记待审核</td><td><button class="ab pri">确认</button><button class="ab">合并到已有</button></td></tr></table>`;
-  if (rtab === 'ai') body = `<table class="t"><tr><th>录入</th><th>字段</th><th>AI 值</th><th></th></tr><tr><td>Owen Chen · 11 Lister St · 粤语</td><td>Mobile</td><td><span class="pill p-warn">0423 81? 552</span> 置信度 54%</td><td><button class="ab">播放录音</button><button class="ab pri">修正</button></td></tr></table>`;
-  if (rtab === 'scope') body = `<table class="t"><tr><th>录入</th><th>可能匹配</th><th></th></tr><tr><td>Kevin Zhang 录入 “David Liu 0411 2…”</td><td>Rex 联系人 David Liu · 归属 Jason Wu（Team Lily Ho）· 手机相同</td><td><button class="ab">通知双方</button><button class="ab">忽略</button></td></tr></table><div style="font-size:12px;color:var(--mut);margin-top:8px">经纪人端看不到这条（封闭式数据库）。</div>`;
-  amain.innerHTML = `<h1>审核队列</h1><div class="sub">灰色地址、门口新地址、AI 不确定字段、范围外重复</div><div class="tabs">${T.map(([k, l]) => `<button class="${rtab === k ? 'on' : ''}" onclick="rtab='${k}';aReview()">${l}</button>`).join('')}</div>${body}`;
-}
-function linkRev(i) { const r = reviews.splice(i, 1)[0]; r.p.status = r.p.contacts.length ? 'green' : 'red'; AUD('Ping Han', 'Address linked', r.p.addr, `Rex #${48000 + r.p.id} ↔ ${r.cand.split(' · ')[0]}`); drawMarkers(); renderAdmin(); }
-function aUsers() {
-  amain.innerHTML = `<h1>用户与权限</h1><div class="sub">登录来自 Microsoft 365；在 Entra 停用账号会自动撤销。撤销后 1 分钟内所有设备登出。</div>
-  <table class="t"><tr><th>姓名</th><th>团队</th><th>角色</th><th>最近活动</th><th>设备</th><th>状态</th><th></th></tr>${state.users.map((u, i) => `<tr><td>${u.name}</td><td>${u.team}</td><td>${u.role}</td><td>${u.last}</td><td>${u.dev}</td><td><span class="pill ${u.st === 'active' ? 'p-ok' : 'p-bad'}">${u.st === 'active' ? '正常' : '已撤销'}</span></td><td>${u.role === 'Admin' ? '' : u.st === 'active' ? `<button class="ab dan" onclick="revoke(${i})">撤销访问</button>` : `<button class="ab" onclick="restore(${i})">恢复</button>`}</td></tr>`).join('')}</table>
-  <div class="box" style="margin-top:14px;font-size:13px;line-height:1.7">撤销时同时提醒：当天关闭此人的 <b>Rex 账号</b>、<b>Pricefinder / CoreLogic 账号</b>。其录入的数据以其名义保留在 Rex。<br>💡 原型：撤销 Kevin Zhang 后切回“经纪人 App”看效果。</div>`;
-}
-function revoke(i) {
-  const u = state.users[i]; if (!confirm(`撤销 ${u.name} 的访问？所有设备会在 1 分钟内登出。`)) return;
-  u.st = 'revoked'; AUD('Ping Han', 'Access revoked', u.name, 'All sessions ended · reminder: close Rex & data-provider accounts');
-  if (u.name === ME.name) state.revoked = true; renderAdmin();
-}
-function restore(i) { const u = state.users[i]; u.st = 'active'; AUD('Ping Han', 'Access restored', u.name, ''); if (u.name === ME.name) { state.revoked = false; revoked.classList.remove('on'); } renderAdmin(); }
-function aAudit() {
-  const who = [...new Set(state.audit.map(a => a.who))];
-  amain.innerHTML = `<h1>审计日志</h1><div class="sub">每条笔记、联系人修改、标记、OFI 登记、导出、撤销都记录。也会以作者身份写进 Rex。</div>
-  <div style="margin-bottom:10px"><select id="aw" onchange="aAuditF()" style="padding:6px;border-radius:7px;border:1px solid var(--line)"><option value="">全部经纪人</option>${who.map(w => `<option>${w}</option>`).join('')}</select> <input placeholder="房产地址…" id="ap" oninput="aAuditF()" style="padding:6px;border-radius:7px;border:1px solid var(--line)"> <input type="date" value="2026-11-02" style="padding:5px;border-radius:7px;border:1px solid var(--line)"></div>
-  <table class="t" id="atab"></table>`; aAuditF();
-}
-function aAuditF() {
-  const w = aw.value, q = ap.value.toLowerCase();
-  atab.innerHTML = `<tr><th>时间</th><th>人</th><th>操作</th><th>对象</th><th>详情</th></tr>` + state.audit.filter(a => (!w || a.who === w) && (!q || a.target.toLowerCase().includes(q))).map(a => `<tr><td>${a.date} ${a.at}</td><td>${a.who}</td><td>${a.action}</td><td>${a.target}</td><td style="color:#4b5563">${a.detail}</td></tr>`).join('');
-}
-function aExport() {
-  amain.innerHTML = `<h1>导出</h1><div class="sub">仅管理员。只含 Rex 字段，不含第三方业主数据。每次导出都记录。</div>
-  <div class="box" style="max-width:640px"><div class="row2"><div class="fld"><label>区域</label><select><option>Sunnybank</option><option>Sunnybank Hills</option><option>Calamvale</option></select></div><div class="fld"><label>筛选</label><select><option>全部</option><option>只看红色</option><option>90 天未拜访</option></select></div></div>
-  <label class="chk"><input type="checkbox" checked disabled> 自动排除 勿致电 / 勿上门 / 勿投广告</label><label class="chk"><input type="checkbox" disabled> 第三方业主名（数据商条款禁止，不可选）</label>
-  <button class="btn pri" style="width:auto;padding:10px 18px" onclick="doExport()">⬇️ 导出 Excel</button></div>
-  <h3 style="margin-top:22px;font-size:15px">导出记录</h3><table class="t"><tr><th>时间</th><th>人</th><th>内容</th><th>字段</th></tr>${state.exports.map(e => `<tr><td>${e.at}</td><td>${e.who}</td><td>${e.what}</td><td>${e.fields}</td></tr>`).join('')}</table>`;
-}
-function doExport() { state.exports.unshift({ at: '2 Nov 2026 ' + new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }), who: 'Ping Han', what: 'Sunnybank · all · ' + props.filter(p => !p.dnk && !p.junk).length + ' rows', fields: 'Rex fields only' }); AUD('Ping Han', 'Export', 'Sunnybank', 'Excel · Rex fields only'); aExport(); }
-function aSettings() {
-  const flagged = props.filter(p => p.dnk || p.junk).slice(0, 4);
-  amain.innerHTML = `<h1>设置</h1><div class="sub">PDF“待定事项”在这里落地，由 Ping 确认</div>
-  <div class="box" style="max-width:760px">
-   <div class="setrow"><div>算作“业主”的 Rex 关系类型<small>决定绿色的定义</small></div><div>${['Owner', 'Landlord', 'Vendor', 'Former owner'].map((t, i) => `<label style="margin-left:10px;font-size:13px"><input type="checkbox" ${i < 3 ? 'checked' : ''}> ${t}</label>`).join('')}</div></div>
-   <div class="setrow"><div>其他经纪人跟进的房产<small>红色可能导致重复采集；建议中性圆点</small></div><div><select onchange="state.otherMode=this.value;drawMarkers();toast('已切换，回到 App 查看')" style="padding:6px;border-radius:7px">${[['neutral', '中性圆点（建议）'], ['red', '显示为红色']].map(([k, l]) => `<option value="${k}" ${state.otherMode === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div></div>
-   <div class="setrow"><div>可用 Rex 标签<small>经纪人只能选，不能新建</small></div><div style="font-size:13px">Potential seller · Investor · Downsizer · First home buyer · Tenant <button class="ab">管理</button></div></div>
-   <div class="setrow"><div>可用邮件列表</div><div style="font-size:13px">Sunnybank Market Update · New listings <button class="ab">管理</button></div></div>
-   <div class="setrow"><div>录音保留<small>确认后删除；转写文本存 Rex</small></div><div><select style="padding:6px;border-radius:7px"><option>30 天</option><option>7 天</option><option>90 天</option></select></div></div>
-   <div class="setrow"><div>异常行为阈值</div><div style="font-size:13px">1 小时内查看 &gt; <input value="150" style="width:60px"> 个房产</div></div>
-   <div class="setrow"><div>业主数据来源</div><div><select style="padding:6px;border-radius:7px"><option>RP Data (CoreLogic)</option><option>Pricefinder</option></select></div></div>
-  </div>
-  <h3 style="margin-top:22px;font-size:15px">免打扰标记（只有管理员能取消）</h3><table class="t"><tr><th>对象</th><th>标记</th><th></th></tr>${flagged.map(p => `<tr><td>${p.addr}</td><td>${p.dnk ? '⛔ Do not knock ' : ''}${p.junk ? '📭 No junk mail' : ''}</td><td><button class="ab dan" onclick="unflag(${p.id})">取消（记录）</button></td></tr>`).join('')}</table>`;
-}
-function unflag(id) { const p = byId(id); p.dnk = p.junk = false; AUD('Ping Han', 'Flag removed', p.addr, 'by admin'); drawMarkers(); aSettings(); }
 
 // revocation poll (simulates ≤1 min)
 setInterval(() => { if (state.revoked && !revoked.classList.contains('on') && vMobile.style.display !== 'none') showRevoked(); }, 1000);
