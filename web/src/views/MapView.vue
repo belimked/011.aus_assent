@@ -70,6 +70,7 @@
 import { ref, computed, watch, onMounted, onActivated, nextTick, shallowRef } from 'vue'
 import { useRoute } from 'vue-router'
 import L from 'leaflet'
+import { osmLayer } from '../components/tiles'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Guide, Aim, FullScreen } from '@element-plus/icons-vue'
 import { state, STATUS, SUBURBS, viewStatus, yearsHeld, relTime, userById, me, now, DAY, audit } from '../data/store'
@@ -204,9 +205,8 @@ function applyQuery() {
   if (r.query.p) { const p = state.props.find(x => x.id === +r.query.p); if (p) { map.flyTo([p.lat, p.lng], 18); openProp(p.id) } }
 }
 onMounted(() => {
-  map = L.map(el.value, { zoomControl: true, attributionControl: false }).setView([-27.582, 153.063], 15)
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, maxNativeZoom: 16 }).addTo(map)
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, maxNativeZoom: 16 }).addTo(map)
+  map = L.map(el.value, { zoomControl: true }).setView([-27.582, 153.063], 15)
+  osmLayer().addTo(map)
   heatLayer = L.layerGroup().addTo(map); layer = L.layerGroup().addTo(map)
   const upd = () => bounds.value = map.getBounds()
   map.on('moveend', upd); upd(); draw(); applyQuery()

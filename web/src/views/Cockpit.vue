@@ -95,6 +95,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import L from 'leaflet'
+import { darkLayer } from '../components/tiles'
 import { FullScreen, Close } from '@element-plus/icons-vue'
 import VChart from '../components/chart'
 import Avatar from '../components/Avatar.vue'
@@ -187,8 +188,8 @@ function fs() { document.fullscreenElement ? document.exitFullscreen() : root.va
 onMounted(() => {
   const tick = () => { const d = now(); clock.value = d.toTimeString().slice(0, 8) }
   tick(); ct = setInterval(tick, 1000)
-  map = L.map(mapEl.value, { zoomControl: false, attributionControl: false }).setView([-27.587, 153.066], 14)
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, maxNativeZoom: 16 }).addTo(map)
+  map = L.map(mapEl.value, { zoomControl: false }).setView([-27.587, 153.066], 14)
+  darkLayer().addTo(map)
   layer = L.layerGroup().addTo(map); drawMap()
   map.fitBounds(state.props.map(p => [p.lat, p.lng]), { padding: [30, 30] })
   window.addEventListener('keydown', keys)

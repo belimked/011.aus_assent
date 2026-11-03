@@ -74,6 +74,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import L from 'leaflet'
+import { osmLayer } from '../components/tiles'
 import { ElMessage } from 'element-plus'
 import { VideoPlay, Delete } from '@element-plus/icons-vue'
 import { state, propById, userById, relTime, audit } from '../data/store'
@@ -94,8 +95,8 @@ let mm
 function drawMini() {
   mm?.remove(); if (!mini.value) return
   const p = propById(cur.value.propId)
-  mm = L.map(mini.value, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false }).setView([p.lat, p.lng], 18)
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, maxNativeZoom: 16 }).addTo(mm)
+  mm = L.map(mini.value, { zoomControl: false, dragging: false, scrollWheelZoom: false }).setView([p.lat, p.lng], 18)
+  osmLayer().addTo(mm)
   L.circle([p.lat, p.lng], { radius: 14, color: '#e6c35c', weight: 3, fillOpacity: .15 }).addTo(mm)
 }
 function next(r) { const i = state.reviews.indexOf(r); state.reviews.splice(i, 1); curId.value = items.value[Math.min(i, items.value.length - 1)]?.id }
