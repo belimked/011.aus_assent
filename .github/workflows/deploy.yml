@@ -3,7 +3,7 @@ name: Deploy to Cloudflare Pages
 on:
   push:
     branches: [main]
-    paths: ['web/**', '.github/workflows/deploy.yml']
+    paths: ['web/**', 'prototype/**', '.github/workflows/deploy.yml']
   workflow_dispatch:
 
 concurrency:
@@ -33,3 +33,16 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy web/dist --project-name aus-assent --branch main --commit-dirty=true
+
+  deploy-mobile:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy prototype --project-name aus-assent-mobile --branch main --commit-dirty=true
