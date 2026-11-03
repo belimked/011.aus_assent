@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rex Capture 原型 · Place Sunnybank</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{--g:#16a34a;--r:#dc2626;--gr:#9ca3af;--o:#8b5cf6;--y:#f59e0b;--b:#0b5d8a;--bg:#eef1f5;--line:#e5e7eb;--mut:#6b7280;--ink:#111827}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Noto Sans CJK SC",sans-serif;background:var(--bg);color:var(--ink)}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit}
+.topnav{display:flex;align-items:center;gap:12px;padding:10px 20px;background:#0f172a;color:#fff}
+.topnav b{font-size:15px}.topnav .sp{flex:1}
+.seg{display:flex;background:#1e293b;border-radius:8px;padding:3px}
+.seg button{border:0;background:none;color:#cbd5e1;padding:6px 14px;border-radius:6px}
+.seg button.on{background:#fff;color:#0f172a;font-weight:600}
+.proto-tag{font-size:12px;color:#94a3b8}
+/* ---------- phone view ---------- */
+#vMobile{display:flex;gap:28px;justify-content:center;align-items:flex-start;padding:24px}
+.phone{width:410px;height:864px;border-radius:56px;background:#111;padding:10px;box-shadow:0 20px 50px rgba(0,0,0,.25);flex:none}
+.screen{position:relative;width:390px;height:844px;border-radius:46px;overflow:hidden;background:#fff;display:flex;flex-direction:column}
+.status{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:14px;font-weight:600;flex:none;z-index:5;background:#fff}
+.net{font-size:12px;padding:2px 8px;border-radius:10px;background:#dcfce7;color:#166534;cursor:pointer}
+.net.off{background:#fee2e2;color:#991b1b}
+.app{flex:1;position:relative;overflow:hidden;isolation:isolate;z-index:0}
+.page{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden}
+.page.on{display:flex}
+.scroll{flex:1;overflow:auto;padding:12px 14px 20px}
+.tabbar{height:78px;flex:none;display:flex;border-top:1px solid var(--line);background:#fff;padding-bottom:18px;z-index:5}
+.tabbar button{flex:1;border:0;background:none;font-size:11px;color:var(--mut);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative}
+.tabbar button i{font-style:normal;font-size:20px}
+.tabbar button.on{color:var(--b);font-weight:600}
+.badge{position:absolute;top:4px;right:22px;background:var(--y);color:#fff;font-size:10px;border-radius:9px;padding:1px 5px}
+h2.pt{font-size:22px;margin:4px 0 10px}
+.srch{display:flex;gap:6px;padding:6px 12px 4px;background:#fff}
+.srch input{flex:1;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#f9fafb}
+.srch button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:0 10px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:6px 12px 8px;background:#fff;border-bottom:1px solid var(--line);flex:none}
+.chip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 10px;font-size:12px;white-space:nowrap}
+.chip.on{background:var(--b);color:#fff;border-color:var(--b)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle}
+.d-green{background:var(--g)}.d-red{background:var(--r)}.d-grey{background:var(--gr)}.d-other{background:var(--o)}
+#map{flex:1}
+.cov{position:absolute;left:12px;top:12px;z-index:500;background:#fff;border-radius:10px;padding:6px 10px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.cov b{color:var(--g)}
+.legend{position:absolute;left:12px;bottom:12px;z-index:500;background:rgba(255,255,255,.95);border-radius:10px;padding:6px 10px;font-size:11px;line-height:1.7;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.fab{position:absolute;right:12px;bottom:14px;z-index:500;width:44px;height:44px;border-radius:50%;border:0;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2);font-size:18px}
+.pin{width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25);position:relative}
+.pin.green{background:var(--g)}.pin.red{background:var(--r)}.pin.grey{background:var(--gr)}.pin.other{background:var(--o)}
+.pin.known::after{content:"";position:absolute;left:3px;top:3px;width:4px;height:4px;border-radius:50%;background:#fff}
+.pin.pending{box-shadow:0 0 0 3px var(--y)}
+.pin.sel{transform:scale(1.5);z-index:999}
+.pin-dnk{font-size:13px;line-height:14px;text-align:center;width:16px;height:16px;background:#fff;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.3)}
+.pin-cx{width:22px;height:22px;border-radius:6px;background:#fff;border:2px solid #374151;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+/* sheet */
+.shade{position:absolute;inset:0;background:rgba(0,0,0,.25);z-index:20;display:none}
+.shade.on{display:block}
+.sheet{position:absolute;left:0;right:0;bottom:0;max-height:80%;background:#fff;border-radius:18px 18px 0 0;z-index:21;transform:translateY(105%);transition:transform .25s;display:flex;flex-direction:column;box-shadow:0 -6px 20px rgba(0,0,0,.15)}
+.sheet.on{transform:none}
+.grab{width:40px;height:5px;border-radius:3px;background:#d1d5db;margin:8px auto 2px;flex:none}
+.sh-body{overflow:auto;padding:4px 16px 16px}
+.sh-addr{font-size:19px;font-weight:700;margin:6px 0 2px}
+.st{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:2px 8px;border-radius:10px;background:#f3f4f6}
+.sec{margin-top:12px}
+.sec h4{margin:0 0 6px;font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.card{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:#fff}
+.tp{background:#fffbeb;border-color:#fde68a}
+.src{font-size:10px;background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;margin-left:6px}
+.note{font-size:13px;border-left:3px solid #cbd5e1;padding:2px 0 2px 8px;margin-bottom:8px}
+.note small{display:block;color:var(--mut);font-size:11px}
+.qr{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.qr button{border:1px solid var(--line);background:#f9fafb;border-radius:10px;padding:9px 4px;font-size:13px}
+.flags{display:flex;gap:6px;flex-wrap:wrap}
+.flag{border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 9px;font-size:12px}
+.flag.on{background:#fee2e2;border-color:#fca5a5;color:#991b1b;font-weight:600}
+.mic{position:sticky;bottom:0;background:linear-gradient(transparent,#fff 30%);padding:12px 0 4px;display:flex;justify-content:center}
+.micbtn{width:100%;border:0;border-radius:16px;background:var(--b);color:#fff;font-size:17px;font-weight:600;padding:16px;user-select:none;-webkit-user-select:none;touch-action:none}
+.micbtn:active{background:#084766}
+.lnk{color:var(--b);font-size:13px;background:none;border:0;padding:0}
+/* modal */
+.modal{position:absolute;inset:0;background:#fff;z-index:30;display:none;flex-direction:column}
+.modal.on{display:flex}
+.mhead{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);flex:none}
+.mhead b{flex:1;font-size:16px}
+.mhead button{border:0;background:none;color:var(--b);font-size:15px}
+.rec{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#0b1220;color:#fff;padding:20px}
+.wave{display:flex;gap:4px;align-items:center;height:60px}
+.wave span{width:5px;background:#38bdf8;border-radius:3px;animation:w 0.9s infinite ease-in-out}
+@keyframes w{0%,100%{height:10px}50%{height:56px}}
+.bigmic{width:110px;height:110px;border-radius:50%;border:0;background:#ef4444;color:#fff;font-size:42px;box-shadow:0 0 0 12px rgba(239,68,68,.25);touch-action:none;user-select:none}
+.samples{display:flex;flex-direction:column;gap:6px;width:100%}
+.samples button{border:1px solid #334155;background:#111a2e;color:#e2e8f0;border-radius:10px;padding:8px;font-size:12px;text-align:left}
+.samples button.on{border-color:#38bdf8;background:#0c2a44}
+.spin{width:38px;height:38px;border:4px solid #e5e7eb;border-top-color:var(--b);border-radius:50%;animation:s 0.8s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+.fld{margin-bottom:9px}
+.fld label{display:block;font-size:11px;color:var(--mut);margin-bottom:2px}
+.fld input,.fld select,.fld textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:8px 9px;background:#fff}
+.fld.low input,.fld.low select{background:#fef9c3;border-color:#facc15}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.banner{border-radius:10px;padding:8px 10px;font-size:12px;margin-bottom:10px}
+.b-ok{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+.b-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.b-warn{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+.b-bad{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+.trans{font-size:13px;background:#f8fafc;border-radius:10px;padding:8px 10px;color:#334155;margin-bottom:10px}
+.tag{display:inline-block;border:1px solid var(--line);border-radius:12px;padding:3px 9px;font-size:12px;margin:0 4px 4px 0;cursor:pointer;background:#fff}
+.tag.on{background:#e0f2fe;border-color:#7dd3fc;color:#075985}
+.acts{font-size:12px;color:#334155;margin:0;padding-left:18px}
+.mfoot{padding:10px 14px 24px;border-top:1px solid var(--line);display:flex;gap:8px;flex:none}
+.btn{border:0;border-radius:12px;padding:13px;font-weight:600;font-size:15px}
+.btn.pri{background:var(--b);color:#fff;flex:1}
+.btn.sec2{background:#f3f4f6;color:#111}
+.btn.sm{padding:7px 10px;font-size:13px;border-radius:9px}
+.toast{position:absolute;left:16px;right:16px;bottom:96px;z-index:40;background:#111827;color:#fff;border-radius:12px;padding:10px 14px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+.wm{position:absolute;inset:0;pointer-events:none;z-index:45;opacity:.07;background-repeat:repeat}
+.lst{user-select:none;-webkit-user-select:none}
+.li{display:flex;gap:10px;align-items:center;padding:10px 2px;border-bottom:1px solid #f1f5f9;cursor:pointer}
+.li .a{flex:1;min-width:0}
+.li .a b{font-size:14px;display:block}
+.li .a span{font-size:12px;color:var(--mut);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li .r{font-size:11px;color:var(--mut);text-align:right}
+.ofi{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
+.live{font-size:10px;background:#dc2626;color:#fff;border-radius:4px;padding:1px 5px;margin-left:4px}
+.chk{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:9px;font-size:13px;margin-bottom:6px}
+.chk.on{background:#eff6ff;border-color:#93c5fd}
+.paper{background:#fdfcf7;border:1px solid #e7e2d0;border-radius:6px;padding:10px;font-family:"Comic Sans MS","Segoe Print",cursive;font-size:12px;color:#1e3a8a;transform:rotate(-1deg);box-shadow:0 3px 10px rgba(0,0,0,.12)}
+.paper table{width:100%;border-collapse:collapse}.paper td,.paper th{border:1px solid #cbd5e1;padding:3px;font-size:11px}
+.rv{width:100%;border-collapse:collapse;font-size:12px}
+.rv td,.rv th{border-bottom:1px solid var(--line);padding:5px 3px;text-align:left}
+.rv td.low{background:#fef9c3}
+.rv input{width:100%;border:0;background:transparent;font-size:12px;padding:0}
+.ov{position:absolute;inset:0;z-index:50;background:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center;gap:14px}
+.ov.on{display:flex}
+.ms{border:1px solid #d1d5db;background:#fff;border-radius:6px;padding:11px 16px;font-weight:600;display:flex;gap:10px;align-items:center}
+/* notes panel */
+.notes{width:400px;background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 4px 14px rgba(0,0,0,.06);font-size:14px;line-height:1.65;position:sticky;top:20px}
+.notes h3{margin:0 0 6px;font-size:17px}
+.notes .pdf{font-size:12px;color:var(--b);background:#e0f2fe;border-radius:6px;padding:2px 7px;display:inline-block;margin-bottom:8px}
+.notes ul{padding-left:18px;margin:6px 0}
+.notes .tip{background:#f8fafc;border-radius:8px;padding:8px 10px;font-size:13px;color:#475569;margin-top:10px}
+/* ---------- admin ---------- */
+#vAdmin{display:none;min-height:calc(100vh - 52px)}
+.adm{display:flex;min-height:calc(100vh - 52px)}
+.side{width:220px;background:#fff;border-right:1px solid var(--line);padding:16px 10px;flex:none}
+.side .brand{font-weight:700;padding:4px 10px 14px;font-size:15px}
+.side button{display:flex;justify-content:space-between;width:100%;border:0;background:none;text-align:left;padding:9px 10px;border-radius:8px;color:#374151;font-size:14px}
+.side button.on{background:#e0f2fe;color:#075985;font-weight:600}
+.side .cnt{background:#ef4444;color:#fff;border-radius:9px;font-size:11px;padding:1px 7px}
+.main{flex:1;padding:22px 28px;overflow:auto}
+.main h1{font-size:22px;margin:0 0 4px}
+.main .sub{color:var(--mut);font-size:13px;margin-bottom:16px}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:1.2fr 1fr}
+.box{background:#fff;border-radius:12px;padding:16px;border:1px solid var(--line)}
+.kpi b{font-size:26px;display:block}.kpi span{color:var(--mut);font-size:12px}
+.bar{height:10px;background:#f3f4f6;border-radius:5px;overflow:hidden;display:flex}
+.bar i{display:block;height:100%}
+table.t{width:100%;border-collapse:collapse;font-size:13px;background:#fff}
+table.t th{text-align:left;background:#f9fafb;color:#6b7280;font-weight:600;padding:9px 10px;border-bottom:1px solid var(--line)}
+table.t td{padding:9px 10px;border-bottom:1px solid #f3f4f6;vertical-align:top}
+.pill{font-size:11px;border-radius:10px;padding:2px 8px;background:#f3f4f6}
+.p-ok{background:#dcfce7;color:#166534}.p-bad{background:#fee2e2;color:#991b1b}.p-warn{background:#fef3c7;color:#92400e}
+.tabs{display:flex;gap:4px;margin-bottom:12px}
+.tabs button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;font-size:13px}
+.tabs button.on{background:#0f172a;color:#fff;border-color:#0f172a}
+.ab{border:1px solid var(--line);background:#fff;border-radius:7px;padding:5px 10px;font-size:12px;margin-right:4px}
+.ab.pri{background:var(--b);color:#fff;border-color:var(--b)}
+.ab.dan{background:#fff;color:#b91c1c;border-color:#fecaca}
+#admMap{height:520px;border-radius:12px}
+.setrow{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f3f4f6;font-size:14px}
+.setrow small{display:block;color:var(--mut);font-size:12px}
+</style>
+</head>
+<body>
+<div class="topnav">
+  <b>Rex Capture · 原型</b><span class="proto-tag">Place Sunnybank · 全部为模拟数据，不连接 Rex</span>
+  <span class="sp"></span>
+  <div class="seg"><button id="sw1" class="on" onclick="switchView('m')">经纪人 App（iPhone）</button><button id="sw2" onclick="switchView('a')">管理后台（Web）</button></div>
+</div>
+
+<!-- ================= MOBILE ================= -->
+<div id="vMobile">
+ <div class="phone"><div class="screen" id="screen">
+  <div class="status"><span>9:41</span><span class="net" id="net" onclick="toggleNet()" title="点击切换在线/离线">4G ●</span></div>
+  <div class="app">
+   <div class="page on" id="pg-map">
+     <div class="srch"><input id="q" placeholder="Search street, e.g. Gager St" onkeydown="if(event.key==='Enter')doSearch()"><button onclick="doSearch()">🔍</button><button onclick="go('list')" title="List">☰</button></div>
+     <div class="chips" id="chipsMap"></div>
+     <div style="position:relative;flex:1;display:flex">
+       <div id="map"></div>
+       <div class="cov" id="cov"></div>
+       <div class="legend"><span class="dot d-green"></span> Owner in Rex　<span class="dot d-red"></span> No owner<br><span class="dot d-grey"></span> Not matched　<span class="dot d-other"></span> Other agent<br>◉ Owner name known · ⛔ Do not knock · ▢ Units</div>
+       <button class="fab" onclick="nearMe()" title="Near me">➤</button>
+     </div>
+   </div>
+   <div class="page" id="pg-list"></div>
+   <div class="page" id="pg-ofi"></div>
+   <div class="page" id="pg-cap"></div>
+   <div class="page" id="pg-me"></div>
+  </div>
+  <nav class="tabbar" id="tabbar"></nav>
+  <div class="shade" id="shade" onclick="closeSheet()"></div>
+  <div class="sheet" id="sheet"></div>
+  <div class="modal" id="modal"></div>
+  <div class="toast" id="toast"></div>
+  <div class="wm" id="wm"></div>
+  <div class="ov on" id="login">
+    <div style="font-size:44px">🏠</div>
+    <div style="font-size:24px;font-weight:700">Rex Capture</div>
+    <div style="color:var(--mut);font-size:14px">Place Sunnybank</div>
+    <button class="ms" onclick="signIn()"><span style="display:grid;grid-template-columns:9px 9px;gap:2px"><i style="background:#f25022;height:9px"></i><i style="background:#7fba00;height:9px"></i><i style="background:#00a4ef;height:9px"></i><i style="background:#ffb900;height:9px"></i></span>Sign in with Microsoft</button>
+    <div style="font-size:12px;color:var(--mut)">Microsoft 365 single sign-on + MFA · no separate password</div>
+  </div>
+  <div class="ov" id="revoked">
+    <div style="font-size:44px">🔒</div>
+    <div style="font-size:20px;font-weight:700">Access removed</div>
+    <div style="color:var(--mut);font-size:14px" id="revMsg"></div>
+  </div>
+ </div></div>
+ <div class="notes" id="notes"></div>
+</div>
+
+<!-- ================= ADMIN ================= -->
+<div id="vAdmin"><div class="adm">
+  <div class="side" id="side"></div>
+  <div class="main" id="amain"></div>
+</div></div>
+
+<script>
+/* ===================== DATA ===================== */
+let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647, (seed - 1) / 2147483646);
+const pick = a => a[Math.floor(rnd() * a.length)];
+const TODAY = new Date('2026-11-02');
+const ME = { name: 'Kevin Zhang', team: 'Team Owen Chen' };
+const TEAM = ['Kevin Zhang', 'Natalie Wong', 'Owen Chen'];
+const NAMES = ['Mary Chen','David Liu','Grace Huang','Peter Nguyen','Linda Wang','James Smith','Karen Lee','Michael Brown','Helen Zhou','Tony Tran','Susan Taylor','Wei Zhang','Emily Wilson','Jack Ho','Anna Lin','Robert Jones','Cindy Wu','Daniel Kim','Fiona Ma','George Chan'];
+const NOTE_TXT = ['Owner-occupier, happy where they are. Check again next year.','Spoke to wife, husband handles property matters.','Interested in recent sales on the street. Sent CMA.','Renovated kitchen 2023. Might upsize in 2 years.','Left card, no answer.','Investor owner, tenant on lease until March.','Asked about appraisal after Christmas.'];
+const STREETS = [
+  { name: 'Mains Rd', a: [-27.5702, 153.0566], b: [-27.5902, 153.0579], n: 22 },
+  { name: 'McCullough St', a: [-27.5756, 153.0525], b: [-27.5763, 153.0690], n: 24 },
+  { name: 'Gager St', a: [-27.5811, 153.0597], b: [-27.5816, 153.0706], n: 16 },
+  { name: 'Lister St', a: [-27.5851, 153.0587], b: [-27.5857, 153.0700], n: 16 },
+  { name: 'Turton St', a: [-27.5768, 153.0627], b: [-27.5900, 153.0634], n: 18 },
+  { name: 'Dillon St', a: [-27.5716, 153.0642], b: [-27.5719, 153.0722], n: 10 },
+];
+const daysAgo = d => new Date(TODAY - d * 864e5);
+const fmt = d => d ? d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+const props = []; let pid = 1;
+function mkProp(street, num, lat, lng, unit) {
+  const x = rnd();
+  const status = x < .42 ? 'green' : x < .86 ? 'red' : x < .93 ? 'grey' : 'other';
+  const p = { id: pid++, street, num, unit, lat, lng, status, suburb: 'Sunnybank',
+    addr: (unit ? unit + '/' : '') + num + ' ' + street,
+    tp: status !== 'grey' && rnd() < .72 ? pick(NAMES) : null,
+    tpSale: new Date(1996 + Math.floor(rnd() * 29), Math.floor(rnd() * 12), 1 + Math.floor(rnd() * 27)),
+    contacts: [], notes: [], lastVisit: rnd() < .55 ? daysAgo(Math.floor(rnd() * 200)) : null, lastResult: null,
+    dnk: rnd() < .04, junk: rnd() < .05, pending: false };
+  if (status === 'green') {
+    const owner = pick(TEAM);
+    p.contacts.push({ name: p.tp && rnd() < .7 ? p.tp : pick(NAMES), role: rnd() < .8 ? 'Owner' : 'Landlord', mobile: '04' + Math.floor(10000000 + rnd() * 89999999), owner, dnc: rnd() < .06 });
+  }
+  if (status === 'green' || (status === 'red' && rnd() < .5)) {
+    const k = 1 + Math.floor(rnd() * 3);
+    for (let i = 0; i < k; i++) p.notes.push({ date: daysAgo(10 + Math.floor(rnd() * 400)), author: pick(TEAM), text: pick(NOTE_TXT) });
+    p.notes.sort((a, b) => b.date - a.date);
+  }
+  if (p.lastVisit) p.lastResult = pick(['No answer', 'Spoke to owner', 'Left card', 'Not interested', 'Tenant answered']);
+  return p;
+}
+STREETS.forEach(s => {
+  const dy = s.b[0] - s.a[0], dx = s.b[1] - s.a[1], L = Math.hypot(dx, dy), off = 0.00022;
+  for (let i = 0; i < s.n; i++) {
+    const t = (i + 0.5) / s.n, side = i % 2;
+    const lat = s.a[0] + dy * t + (side ? -1 : 1) * (dx / L) * off, lng = s.a[1] + dx * t + (side ? 1 : -1) * (dy / L) * off;
+    props.push(mkProp(s.name, side ? i + 1 + (i % 2 ? 0 : 1) : i + 1, lat, lng));
+  }
+});
+props.forEach((p, i) => { p.num = String(2 * Math.floor(i % 30 / 2) + (i % 2) + 1); p.addr = p.num + ' ' + p.street; });
+// ensure unique numbers per street
+const seen = {}; props.forEach(p => { const k = p.street + p.num; let n = +p.num; while (seen[p.street + n]) n += 2; seen[p.street + n] = 1; p.num = String(n); p.addr = n + ' ' + p.street; });
+// strata complex 15 Gager St (units 1–6)
+const cx = { id: 'cx', addr: '15 Gager St', lat: -27.58085, lng: 153.0655, units: [] };
+for (let u = 1; u <= 6; u++) { const p = mkProp('Gager St', '15', cx.lat, cx.lng, u); p.addr = u + '/15 Gager St'; p.inCx = true; cx.units.push(p); props.push(p); }
+// make a demo house that is obviously red + owner known
+const demo = props.find(p => p.street === 'Gager St' && !p.inCx && p.status === 'red') || props[40];
+Object.assign(demo, { status: 'red', tp: 'Mary Chen', dnk: false, contacts: [], notes: [{ date: daysAgo(210), author: 'Owen Chen', text: 'No answer. Two cars in driveway.' }] });
+
+const state = { online: true, tab: 'map', filter: 'all', sel: null, queue: [], otherMode: 'neutral', revoked: false,
+  audit: [], exports: [{ at: '28 Oct 2026 16:02', who: 'Ping Han', what: 'Sunnybank · red only · 214 rows', fields: 'Rex fields only' }],
+  users: [
+    { name: 'Kevin Zhang', team: 'Team Owen Chen', role: 'Agent', last: 'now', dev: 'iPhone 15', st: 'active' },
+    { name: 'Natalie Wong', team: 'Team Owen Chen', role: 'Agent', last: '12 min ago', dev: 'iPhone 13', st: 'active' },
+    { name: 'Owen Chen', team: 'Team Owen Chen', role: 'Team leader', last: '1 h ago', dev: 'iPhone 16 Pro', st: 'active' },
+    { name: 'Jason Wu', team: 'Team Lily Ho', role: 'Agent', last: '3 min ago', dev: 'iPhone 14', st: 'active' },
+    { name: 'Sarah Liu', team: 'Team Lily Ho', role: 'Assistant', last: '2 days ago', dev: 'iPhone SE', st: 'active' },
+    { name: 'Ping Han', team: 'Office', role: 'Admin', last: 'now', dev: 'Web', st: 'active' },
+  ] };
+const AUD = (who, action, target, detail) => state.audit.unshift({ at: new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }), date: '2 Nov 2026', who, action, target, detail });
+[['Natalie Wong','Voice capture','8 Turton St','Contact created · linked Owner · note · reminder'],['Owen Chen','Quick result','11 Lister St','No answer'],['Jason Wu','OFI registration','12 Pinelands Rd','Visitor: Amy Xu · B&P report'],['Natalie Wong','Flag set','3 Dillon St','Do not knock · "asked not to visit"'],['Ping Han','Address linked','7 Mains Rd','Rex #48213 ↔ Lot 7 RP84512']].reverse().forEach(a => AUD(...a));
+const reviews = props.filter(p => p.status === 'grey').map((p, i) => ({ p, rex: p.addr.replace('St', 'Street').replace('Rd', 'Road') + (i % 2 ? '' : ', Sunnybank QLD'), cand: `Lot ${p.num} on RP${84000 + p.id * 7} · ${p.addr}`, score: 72 + (p.id * 7) % 20, kind: i % 3 === 0 ? 'Missing unit no.' : i % 3 === 1 ? 'Spelling' : 'Street type' }));
+
+/* ===================== VIEW SWITCH ===================== */
+function switchView(v) {
+  document.getElementById('vMobile').style.display = v === 'm' ? 'flex' : 'none';
+  document.getElementById('vAdmin').style.display = v === 'a' ? 'block' : 'none';
+  sw1.classList.toggle('on', v === 'm'); sw2.classList.toggle('on', v === 'a');
+  if (v === 'a') renderAdmin(); else { setTimeout(() => map && map.invalidateSize(), 50); if (state.revoked) showRevoked(); }
+}
+
+/* ===================== NOTES ===================== */
+const NOTES = {
+  login: ['登录', '安全 · 第 8–9 页', ['只用 Microsoft 365 单点登录 + MFA，不设独立密码。', '手机端用原生 MSAL（为以后接 Intune 留路）。', '角色（经纪人 / 团队负责人 / 管理员）从 Entra 用户组读取。']],
+  map: ['区域地图 + 业主状态颜色', 'MVP 第 1、2 项', ['颜色按“当前经纪人能在 Rex 看到的业主关联”计算：同一处房产，不同经纪人颜色可能不同。', '紫色 = 其他经纪人跟进（PDF 待定项，建议中性圆点；可在管理后台 → 设置 切换成红色对比）。', '◉ 白心红点 = RP Data/Pricefinder 有业主名，可在门口确认身份。', '▢ 方块 = 单元楼，点开列出每个单元各自的颜色。', '地图层不显示姓名电话；顶部显示覆盖率。'], '试试：点 Gager St 上带白心的红点 → 按住麦克风录入 → 确认后圆点变绿。右上角“4G”可切到离线。'],
+  sheet: ['房产详情面板 + 快速录入', 'MVP 第 3、4、5、7 项', ['有权访问的联系人及角色、最近 3 条 Rex 笔记（日期 + 作者）。', '黄色卡片是第三方数据，只有业主名 + 最近成交日期，标明来源，不是 Rex 数据。', '快捷结果按钮：无人应答 / 不感兴趣 / 已留名片 / 租客应门。', '免打扰：勿上门、勿投广告标在房产上；勿致电标在联系人上。经纪人只能设置，取消要管理员。', '底部“按住说话”是主操作，单手可达。']],
+  rec: ['按住说话', 'MVP 第 4 项', ['松开即上传，转写（英/普/粤混说）→ LLM 提取字段。', '原型里可选三段模拟口述，看不同提取结果（业主信息 / 勿上门 / 租客）。', '目标：4G 下 10 秒内出确认卡片。']],
+  confirm: ['确认卡片', 'MVP 第 4 项 · 通用规则', ['所有字段可改；AI 不确定的字段标黄。', '去重：按手机 → 邮箱 → 姓名+地址匹配，只在本人权限内；队友的记录写入但归属不变。', '底部列出将对 Rex 执行的操作，确认后只由后台 Rex 连接器写入。', '离线时先存手机，恢复网络自动发送（带幂等键，不重复）。', '标签、邮件列表同意也在这里勾选。']],
+  list: ['列表视图', 'MVP 第 6 项', ['与地图共用同一筛选和颜色。', '手机只显示关键列，完整列在平板/电脑（见管理后台 → 地图与列表）。', '无导出、无复制（文字不可选）、有姓名水印。']],
+  ofi: ['开放参观登记', 'MVP 第 8 项', ['从 Rex 已排的 OFI 中选，正在进行且最近的置顶。', '语音优先：说一句自动填好姓名、手机、邮箱和两个勾选。', '回头客按手机/邮箱匹配，显示以往参观记录。', '显示隐私告知（措辞待 Ping 确认）。']],
+  cap: ['拍照录入', 'MVP 第 9 项', ['拍纸质登记表或手写笔记，识别中英文手写。', '按人拆成逐行，不确定的格子标黄，可改可删，一键确认整批。', '原图附到 Rex 对应 OFI / 房产，上传后从 App 存储删除。']],
+  me: ['我的 / 离线 / 缓存', '离职与数据外流 · 第 9 页', ['显示待发送队列，网络恢复自动同步。', '本地缓存 24 小时失效，离线也生效。', '管理员撤销后 1 分钟内所有设备登出（去管理后台 → 用户与权限 点“撤销”试试）。']],
+};
+function setNote(k) {
+  const n = NOTES[k]; if (!n) return;
+  notes.innerHTML = `<h3>${n[0]}</h3><span class="pdf">PDF：${n[1]}</span><ul>${n[2].map(x => `<li>${x}</li>`).join('')}</ul>${n[3] ? `<div class="tip">💡 ${n[3]}</div>` : ''}
+  <div class="tip">当前用户：<b>${ME.name}</b>（${ME.team}）· 网络：${state.online ? '在线' : '<b style="color:#b91c1c">离线</b>'} · 待发送：${state.queue.length}</div>`;
+}
+
+/* ===================== MOBILE CORE ===================== */
+let map, layer;
+const BASEMAP = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}';
+function signIn() {
+  login.classList.remove('on');
+  AUD(ME.name, 'Sign in', 'iPhone 15', 'Entra SSO · MFA ok');
+  initMap(); renderTabs(); go('map');
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='220' height='120'><text x='10' y='70' transform='rotate(-25 110 60)' font-size='14' font-family='sans-serif'>${ME.name} · 2 Nov 2026</text></svg>`;
+  wm.style.backgroundImage = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+function renderTabs() {
+  const T = [['map', '🗺️', 'Map'], ['list', '☰', 'List'], ['ofi', '🏡', 'Open home'], ['cap', '📷', 'Photo'], ['me', '👤', 'Me']];
+  tabbar.innerHTML = T.map(([k, i, l]) => `<button class="${state.tab === k ? 'on' : ''}" onclick="go('${k}')"><i>${i}</i>${l}${k === 'me' && state.queue.length ? `<span class="badge">${state.queue.length}</span>` : ''}</button>`).join('');
+}
+function go(t) {
+  state.tab = t; closeSheet();
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  document.getElementById('pg-' + t).classList.add('on');
+  renderTabs();
+  if (t === 'map') { renderChips('chipsMap'); setTimeout(() => map.invalidateSize(), 30); }
+  if (t === 'list') renderList();
+  if (t === 'ofi') renderOfi();
+  if (t === 'cap') renderCap();
+  if (t === 'me') renderMe();
+  setNote(t);
+}
+function toast(m) { const t = document.getElementById('toast'); t.innerHTML = m; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 2600); }
+function toggleNet() {
+  state.online = !state.online;
+  net.textContent = state.online ? '4G ●' : 'No signal'; net.classList.toggle('off', !state.online);
+  if (state.online && state.queue.length) flushQueue(); else toast(state.online ? 'Back online' : 'Offline — captures will be saved on this phone');
+  setNote(state.tab === 'map' && state.sel ? 'sheet' : state.tab);
+  if (state.tab === 'me') renderMe();
+}
+function flushQueue(silent) {
+  const n = state.queue.length; if (!n) return;
+  state.queue.forEach(q => applyWrite(q, true)); state.queue = [];
+  renderTabs(); drawMarkers(); if (state.tab === 'me') renderMe();
+  if (!silent) toast(`↑ ${n} queued capture${n > 1 ? 's' : ''} sent to Rex · no duplicates (idempotency key)`);
+}
+const vis = p => (state.otherMode === 'red' && p.status === 'other') ? 'red' : p.status;
+const notVisited = (p, d) => !p.lastVisit || (TODAY - p.lastVisit) / 864e5 > d;
+function passFilter(p) {
+  const f = state.filter, s = vis(p);
+  if (f === 'red' || f === 'green' || f === 'grey') return s === f;
+  if (f === 'nv') return notVisited(p, 90);
+  if (f === 'old') return p.tp && p.tpSale.getFullYear() <= 2016;
+  if (f === 'flag') return p.dnk || p.junk;
+  return true;
+}
+function renderChips(id) {
+  const C = [['all', 'All'], ['red', '● Red'], ['green', '● Green'], ['grey', '● Grey'], ['nv', 'Not visited 90d'], ['old', 'Sold 10+ yrs ago'], ['flag', '⛔ Flagged']];
+  document.getElementById(id).innerHTML = C.map(([k, l]) => `<button class="chip ${state.filter === k ? 'on' : ''}" onclick="setFilter('${k}')">${l}</button>`).join('');
+}
+function setFilter(f) { state.filter = f; renderChips('chipsMap'); drawMarkers(); if (state.tab === 'list') renderList(); }
+function coverage(list) { const l = list.filter(p => vis(p) !== 'grey'); return Math.round(100 * l.filter(p => vis(p) === 'green').length / l.length); }
+function initMap() {
+  if (map) return;
+  map = L.map('map', { zoomControl: false, attributionControl: false }).setView([-27.5805, 153.0625], 16);
+  L.tileLayer(BASEMAP, { maxZoom: 19, maxNativeZoom: 16 }).addTo(map);
+  layer = L.layerGroup().addTo(map); drawMarkers();
+  map.on('click', closeSheet);
+}
+function pinHtml(p) {
+  if (p.dnk) return `<div class="pin-dnk">⛔</div>`;
+  return `<div class="pin ${vis(p)} ${vis(p) === 'red' && p.tp ? 'known' : ''} ${p.pending ? 'pending' : ''} ${state.sel === p.id ? 'sel' : ''}"></div>`;
+}
+function drawMarkers() {
+  if (!layer) return; layer.clearLayers();
+  props.filter(p => !p.inCx && passFilter(p)).forEach(p => {
+    L.marker([p.lat, p.lng], { icon: L.divIcon({ className: '', html: pinHtml(p), iconSize: [16, 16] }) }).on('click', e => { L.DomEvent.stopPropagation(e); openSheet(p.id); }).addTo(layer);
+  });
+  const us = cx.units.filter(passFilter);
+  if (us.length) {
+    const g = cx.units.filter(u => vis(u) === 'green').length;
+    L.marker([cx.lat, cx.lng], { icon: L.divIcon({ className: '', html: `<div class="pin-cx" style="border-color:${g === 6 ? 'var(--g)' : '#374151'}">${cx.units.length}</div>`, iconSize: [22, 22] }) }).on('click', e => { L.DomEvent.stopPropagation(e); openCx(); }).addTo(layer);
+  }
+  const all = props.filter(p => p.suburb === 'Sunnybank');
+  cov.innerHTML = `Sunnybank: <b>${coverage(all)}% green</b> · ${STREETS.length} streets in view`;
+}
+function doSearch() {
+  const q = document.getElementById('q').value.trim().toLowerCase(); if (!q) return;
+  const m = props.filter(p => p.addr.toLowerCase().includes(q));
+  if (!m.length) return toast('No address found');
+  map.fitBounds(L.latLngBounds(m.map(p => [p.lat, p.lng])).pad(.3));
+  const g = m.filter(p => vis(p) === 'green').length; toast(`${m[0].street}: ${m.length} addresses · ${Math.round(100 * g / m.length)}% green`);
+}
+function nearMe() { map.setView([demo.lat, demo.lng], 18); toast('📍 Showing addresses near you'); }
+
+/* ===================== SHEET ===================== */
+const byId = id => props.find(p => p.id === id);
+function openSheet(id) {
+  const p = byId(id); state.sel = id; drawMarkers();
+  const s = vis(p), stLabel = { green: 'Owner linked in Rex', red: 'No owner you can see', grey: 'Not matched to Rex yet', other: 'Followed by another agent' }[s];
+  let body = `<div class="sh-addr">${p.addr}</div><div style="font-size:13px;color:var(--mut)">${p.suburb} QLD 4109 · Lot ${p.num} on RP${84000 + p.id * 7}</div>
+   <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span class="st"><span class="dot d-${s}"></span>${stLabel}</span>${p.lastVisit ? `<span class="st">Last visit ${fmt(p.lastVisit)} · ${p.lastResult}</span>` : '<span class="st">Never visited</span>'}${p.pending ? '<span class="st" style="background:#fef3c7">⏳ Waiting to send</span>' : ''}</div>`;
+  if (s === 'grey') body += `<div class="banner b-warn" style="margin-top:10px">This address is not matched to a Rex property yet. It's in the admin review queue. You can still capture — the portal will create the Rex property and flag it for review.</div>`;
+  if (s === 'other') body += `<div class="banner b-info" style="margin-top:10px">Another agent already follows this property. Details are hidden under Rex closed-database rules. Talk to the office before capturing to avoid duplicates.</div>`;
+  if (s !== 'other') {
+    body += `<div class="sec"><h4>Contacts in Rex</h4>${p.contacts.length ? p.contacts.map(c => `<div class="card"><b>${c.name}</b> <span class="st">${c.role}</span>${c.dnc ? ' <span class="st" style="background:#fee2e2;color:#991b1b">📵 Do not call</span>' : ''}<div style="font-size:13px;color:var(--mut);margin-top:3px">${c.mobile.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3')} · ${c.owner === ME.name ? 'Your contact' : 'Owned by ' + c.owner + ' (' + ME.team + ')'}</div></div>`).join('') : '<div style="font-size:13px;color:var(--mut)">No linked contacts you can see.</div>'}</div>`;
+    if (p.tp) body += `<div class="card tp"><b>${p.tp}</b><span class="src">${p.id % 2 ? 'RP Data' : 'Pricefinder'}</span><div style="font-size:12px;color:#92400e;margin-top:3px">Registered owner · last sale ${fmt(p.tpSale)}<br>Third-party data · not in Rex · confirm at the door before capturing</div></div>`;
+    body += `<div class="sec"><h4>Latest Rex notes</h4>${p.notes.slice(0, 3).map(n => `<div class="note">${n.text}<small>${fmt(n.date)} · ${n.author}</small></div>`).join('') || '<div style="font-size:13px;color:var(--mut)">No notes you can see.</div>'}<button class="lnk" onclick="toast('Opens this property in Rex (rexsoftware.com)')">Open in Rex ↗</button></div>`;
+  }
+  body += `<div class="sec"><h4>Quick result</h4><div class="qr">${['🚪 No answer', '🙅 Not interested', '📇 Left card', '🏠 Tenant answered'].map(x => `<button onclick="quick(${p.id},'${x.slice(2).trim()}')">${x}</button>`).join('')}</div></div>
+   <div class="sec"><h4>Do-not-contact flags</h4><div class="flags">
+    <button class="flag ${p.dnk ? 'on' : ''}" onclick="flag(${p.id},'dnk')">⛔ Do not knock</button>
+    <button class="flag ${p.junk ? 'on' : ''}" onclick="flag(${p.id},'junk')">📭 No junk mail</button>
+    ${p.contacts[0] ? `<button class="flag ${p.contacts[0].dnc ? 'on' : ''}" onclick="flag(${p.id},'dnc')">📵 Do not call (${p.contacts[0].name.split(' ')[0]})</button>` : ''}
+   </div></div>
+   <div class="mic"><button class="micbtn" onpointerdown="startRec(${p.id})">🎙️ Hold to talk</button></div>`;
+  sheet.innerHTML = `<div class="grab"></div><div class="sh-body">${body}</div>`;
+  sheet.classList.add('on'); shade.classList.remove('on');
+  setNote('sheet');
+}
+function openCx() {
+  state.sel = null;
+  sheet.innerHTML = `<div class="grab"></div><div class="sh-body"><div class="sh-addr">15 Gager St</div><div style="font-size:13px;color:var(--mut)">Strata · 6 units on one lot (SP 21544)</div>
+   <div class="sec"><h4>Units</h4>${cx.units.map(u => `<div class="li" onclick="openSheet(${u.id})"><span class="dot d-${vis(u)}"></span><div class="a"><b>Unit ${u.unit}</b><span>${u.contacts[0] ? u.contacts[0].role + ': ' + u.contacts[0].name : u.tp ? 'Owner (3rd party): ' + u.tp : 'No owner info'}</span></div><div class="r">${u.lastVisit ? fmt(u.lastVisit) : 'Never'}</div></div>`).join('')}</div></div>`;
+  sheet.classList.add('on'); setNote('sheet');
+}
+function closeSheet() { sheet.classList.remove('on'); shade.classList.remove('on'); if (state.sel) { state.sel = null; drawMarkers(); } if (state.tab === 'map') setNote('map'); }
+function quick(id, r) {
+  const p = byId(id); p.lastVisit = TODAY; p.lastResult = r;
+  p.notes.unshift({ date: TODAY, author: ME.name, text: 'Door-knock: ' + r + '.' });
+  AUD(ME.name, 'Quick result', p.addr, r + (state.online ? '' : ' (queued offline)'));
+  toast(`✓ "${r}" ${state.online ? 'saved to Rex' : 'saved on phone'}`); openSheet(id);
+}
+function flag(id, k) {
+  const p = byId(id); const obj = k === 'dnc' ? p.contacts[0] : p; const key = k === 'dnc' ? 'dnc' : k;
+  if (obj[key]) return toast('🔒 Only an admin can remove a flag (Admin → Settings)');
+  const label = { dnk: 'Do not knock', junk: 'No junk mail', dnc: 'Do not call' }[k];
+  const why = prompt(`Set "${label}"? Optional reason:`, ''); if (why === null) return;
+  obj[key] = true; AUD(ME.name, 'Flag set', p.addr, label + (why ? ' · "' + why + '"' : ''));
+  toast(`⛔ ${label} set · written to Rex, visible to all Rex users`); drawMarkers(); openSheet(id);
+}
+
+/* ===================== VOICE ===================== */
+let recSample = 0, recTimer;
+const SAMPLES = [
+  ['业主信息（中英混说）', p => `业主是 ${p.tp || 'Mary Chen'}，mobile 0412 345 678，住了 12 年，明年春天 maybe sell，三月再 call back。Tag as downsizer。`],
+  ['要求勿上门（粤语+英文）', p => `${p.tp || 'Mary Chen'} 係業主，佢話 please don't knock again，唔想再有人上門。Not selling.`],
+  ['租客应门（英文）', p => `Tenant answered, Tom Nguyen, 0433 210 987, lease ends June. Owner lives in Sydney, no contact given. Follow up May.`],
+];
+function startRec(id) {
+  const p = byId(id); let sec = 0;
+  modal.innerHTML = `<div class="rec"><div style="font-size:13px;color:#94a3b8">${p.addr}</div><div style="font-size:28px;font-weight:700" id="rt">0:00</div>
+   <div class="wave">${Array.from({ length: 18 }, (_, i) => `<span style="animation-delay:${(i * 0.07) % .9}s"></span>`).join('')}</div>
+   <div style="font-size:13px;color:#cbd5e1">Recording… release to finish</div>
+   <button class="bigmic" id="bigmic">🎙️</button>
+   <div class="samples"><div style="font-size:11px;color:#94a3b8">原型：选择模拟口述内容</div>${SAMPLES.map((s, i) => `<button class="${i === recSample ? 'on' : ''}" onclick="recSample=${i};this.parentNode.querySelectorAll('button').forEach((b,j)=>b.classList.toggle('on',j===${i}))">${s[0]}</button>`).join('')}</div>
+   <button class="btn sec2" style="width:100%" id="recDone">Done (or release)</button></div>`;
+  modal.classList.add('on'); setNote('rec');
+  recTimer = setInterval(() => { sec++; const e = document.getElementById('rt'); if (e) e.textContent = '0:' + String(sec).padStart(2, '0'); }, 1000);
+  const fin = () => { document.removeEventListener('pointerup', up); finishRec(id); };
+  const up = e => { if (e.target.closest && e.target.closest('.samples')) return; fin(); };
+  setTimeout(() => document.addEventListener('pointerup', up, { once: true }), 50);
+  document.getElementById('recDone').onclick = fin;
+}
+function finishRec(id) {
+  clearInterval(recTimer);
+  modal.innerHTML = `<div class="rec" style="background:#fff;color:#111"><div class="spin"></div><div>Transcribing (EN / 普通话 / 粵語)…</div><div style="font-size:12px;color:var(--mut)">${state.online ? 'Australian region · provider keeps no audio' : 'Offline — audio saved on phone, will transcribe when online'}</div></div>`;
+  setTimeout(() => showConfirm(id), state.online ? 1400 : 700);
+}
+function extract(p, i) {
+  const n = p.tp || 'Mary Chen';
+  if (i === 0) return { name: n, mobile: '0412 345 678', email: '', rel: 'Owner', intent: 'Maybe selling', time: 'Spring 2027', fu: '2027-03-01', note: 'Owner-occupier 12 years. May sell next spring. Call back in March.', tags: ['Downsizer', 'Potential seller'], dnk: false, low: ['email'] };
+  if (i === 1) return { name: n, mobile: '', email: '', rel: 'Owner', intent: 'Not selling', time: '', fu: '', note: 'Asked us not to door-knock again. Not selling.', tags: [], dnk: true, low: ['mobile'] };
+  return { name: 'Tom Nguyen', mobile: '0433 210 987', email: '', rel: 'Tenant', intent: 'Unknown', time: '', fu: '2027-05-15', note: 'Tenant answered. Lease ends June. Owner lives in Sydney — no contact given.', tags: ['Tenant'], dnk: false, low: ['mobile', 'fu'] };
+}
+let draft;
+function showConfirm(id) {
+  const p = byId(id), x = extract(p, recSample); draft = { id, x, list: false };
+  const existing = p.contacts.find(c => c.name === x.name);
+  const mateMatch = !existing && recSample === 0 && p.id % 3 === 0;
+  const dup = existing ? `<div class="banner b-ok">✓ Matched existing Rex contact <b>${existing.name}</b> · ${existing.owner === ME.name ? 'your contact' : 'owned by ' + existing.owner + ' (' + ME.team + ')'} — will update, not create. <button class="lnk">Undo</button></div>`
+    : mateMatch ? `<div class="banner b-info">Matched by mobile: <b>${x.name}</b> · owned by Natalie Wong (${ME.team}). Your note is added with you as author; ownership stays with Natalie. <button class="lnk">Undo</button></div>`
+    : `<div class="banner b-info">No match in your Rex contacts (mobile → email → name + address). A new contact will be created.</div>`;
+  const L = k => x.low.includes(k) ? 'low' : '';
+  const TAGS = ['Potential seller', 'Investor', 'Downsizer', 'First home buyer', 'Tenant'];
+  modal.innerHTML = `<div class="mhead"><button onclick="closeModal()">Cancel</button><b>Check & save to Rex</b></div>
+  <div class="scroll"><div style="font-size:13px;font-weight:600;margin-bottom:6px">${p.addr}</div>
+   <div class="trans">🎙️ “${SAMPLES[recSample][1](p)}” <button class="lnk">▶ 0:14</button></div>
+   ${dup}${x.dnk ? `<div class="banner b-bad">⛔ Detected request: <b>Do not knock</b> will be set on this property.</div>` : ''}
+   <div class="fld ${L('name')}"><label>Contact name</label><input id="f_name" value="${x.name}"></div>
+   <div class="row2"><div class="fld ${L('mobile')}"><label>Mobile ${x.low.includes('mobile') ? '· check' : ''}</label><input id="f_mobile" value="${x.mobile}" placeholder="04xx xxx xxx"></div>
+   <div class="fld ${L('email')}"><label>Email</label><input id="f_email" value="${x.email}" placeholder="not heard"></div></div>
+   <div class="row2"><div class="fld"><label>Relationship to property</label><select id="f_rel">${['Owner', 'Occupier', 'Tenant', 'Landlord'].map(o => `<option ${o === x.rel ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
+   <div class="fld"><label>Selling intent</label><select>${['Unknown', 'Not selling', 'Maybe selling', 'Selling < 6 months'].map(o => `<option ${o === x.intent ? 'selected' : ''}>${o}</option>`).join('')}</select></div></div>
+   <div class="row2"><div class="fld"><label>Timeframe</label><input value="${x.time}"></div><div class="fld ${L('fu')}"><label>Follow-up reminder</label><input id="f_fu" type="date" value="${x.fu}"></div></div>
+   <div class="fld"><label>Note</label><textarea id="f_note" rows="3">${x.note}</textarea></div>
+   <div class="fld"><label>Rex tags (managed by admin)</label>${TAGS.map(t => `<span class="tag ${x.tags.includes(t) ? 'on' : ''}" onclick="this.classList.toggle('on')">${t}</span>`).join('')}</div>
+   <label class="chk"><input type="checkbox" ${x.dnk ? 'disabled' : ''}> Agreed to join “Sunnybank Market Update” email list <small style="color:var(--mut)">(consent: verbal at door, time recorded)</small></label>
+   <div class="sec"><h4>Will write to Rex</h4><ul class="acts">
+     <li>${existing || mateMatch ? 'Update' : 'Create'} contact ${x.name}</li><li>Link to ${p.addr} as ${x.rel}</li><li>Add note (author: ${ME.name})</li>
+     ${x.fu ? `<li>Reminder for ${ME.name} on ${x.fu}</li>` : ''}${x.tags.length ? `<li>Tags: ${x.tags.join(', ')}</li>` : ''}${x.dnk ? '<li>Set Do not knock on property</li>' : ''}${p.status === 'grey' ? '<li>Create Rex property (flag for admin review)</li>' : ''}</ul></div>
+  </div>
+  <div class="mfoot"><button class="btn sec2" onclick="closeModal()">Discard</button><button class="btn pri" onclick="confirmWrite()">${state.online ? '✓ Confirm & save to Rex' : '✓ Save on phone (offline)'}</button></div>`;
+  setNote('confirm');
+}
+function closeModal() { modal.classList.remove('on'); setNote(state.sel ? 'sheet' : state.tab); }
+function confirmWrite() {
+  const p = byId(draft.id), w = { id: p.id, name: f_name.value, mobile: f_mobile.value, rel: f_rel.value, note: f_note.value, fu: f_fu.value, dnk: draft.x.dnk, key: 'cap-' + Date.now() };
+  if (!state.online) {
+    state.queue.push(w); p.pending = true; AUD(ME.name, 'Voice capture (queued)', p.addr, 'Saved on phone · key ' + w.key);
+    closeModal(); renderTabs(); drawMarkers(); openSheet(p.id); toast('💾 Saved on phone · will send to Rex when back online'); return;
+  }
+  modal.innerHTML = `<div class="rec" style="background:#fff;color:#111"><div class="spin"></div><div>Writing to Rex…</div></div>`;
+  setTimeout(() => { applyWrite(w); closeModal(); drawMarkers(); openSheet(p.id); toast(`✓ Saved to Rex · ${w.rel === 'Tenant' ? 'tenant recorded' : 'dot is now green'}`); }, 900);
+}
+function applyWrite(w, fromQueue) {
+  const p = byId(w.id); p.pending = false;
+  if (!p.contacts.find(c => c.name === w.name)) p.contacts.unshift({ name: w.name, role: w.rel, mobile: (w.mobile || '0400000000').replace(/\s/g, ''), owner: ME.name });
+  if (['Owner', 'Landlord'].includes(w.rel) && p.status !== 'other') p.status = 'green';
+  if (p.status === 'grey') p.status = w.rel === 'Owner' ? 'green' : 'red';
+  if (w.dnk) p.dnk = true;
+  p.notes.unshift({ date: TODAY, author: ME.name, text: w.note }); p.lastVisit = TODAY; p.lastResult = w.rel === 'Tenant' ? 'Tenant answered' : 'Spoke to owner';
+  AUD(ME.name, fromQueue ? 'Voice capture (synced)' : 'Voice capture', p.addr, `${w.name} · ${w.rel} · note${w.fu ? ' · reminder ' + w.fu : ''}${w.dnk ? ' · Do not knock' : ''}`);
+}
+
+/* ===================== LIST ===================== */
+let sortBy = 'addr';
+function renderList() {
+  const rows = props.filter(passFilter).sort((a, b) => sortBy === 'sale' ? a.tpSale - b.tpSale : sortBy === 'visit' ? (a.lastVisit || 0) - (b.lastVisit || 0) : a.street.localeCompare(b.street) || a.num - b.num || (a.unit || 0) - (b.unit || 0));
+  document.getElementById('pg-list').innerHTML = `<div class="srch"><input placeholder="Filter street…" oninput="listQ(this.value)"><button onclick="go('map')" title="Map">🗺️</button></div><div class="chips" id="chipsList"></div>
+   <div style="display:flex;justify-content:space-between;padding:6px 14px;font-size:12px;color:var(--mut);background:#f9fafb"><span>${rows.length} properties · ${coverage(rows) || 0}% green</span><select onchange="sortBy=this.value;renderList()" style="font-size:12px;border:0;background:none">${[['addr', 'Sort: address'], ['sale', 'Sort: oldest sale'], ['visit', 'Sort: least recent visit']].map(([k, l]) => `<option value="${k}" ${sortBy === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+   <div class="scroll lst" id="lstBody">${rows.map(p => `<div class="li" data-a="${p.addr.toLowerCase()}" onclick="openSheet(${p.id})"><span class="dot d-${vis(p)}"></span><div class="a"><b>${p.addr}${p.dnk ? ' ⛔' : ''}${p.junk ? ' 📭' : ''}${p.pending ? ' ⏳' : ''}</b><span>${p.contacts[0] ? '👤 ' + p.contacts[0].name : p.tp && vis(p) !== 'other' ? '<i style="color:#b45309">' + p.tp + ' · 3rd party</i>' : '—'} · sold ${p.tpSale.getFullYear()}</span></div><div class="r">${p.lastVisit ? fmt(p.lastVisit) + '<br>' + p.lastResult : 'Never'}</div></div>`).join('')}</div>`;
+  renderChips('chipsList'); document.querySelectorAll('#chipsList .chip').forEach(b => b.onclick = () => { setFilter(b.getAttribute('onclick').match(/'(\w+)'/)[1]); });
+}
+function listQ(v) { document.querySelectorAll('#lstBody .li').forEach(e => e.style.display = e.dataset.a.includes(v.toLowerCase()) ? '' : 'none'); }
+
+/* ===================== OFI ===================== */
+const OFIS = [{ addr: '12 Pinelands Rd, Sunnybank Hills', time: 'Sat 2 Nov · 10:00–10:30', live: true, dist: '0.4 km', att: [{ n: 'Amy Xu', t: '10:04', bp: true }, { n: 'Ben Carter', t: '10:09' }] },
+  { addr: '8 Albert St, Sunnybank', time: 'Sat 2 Nov · 11:00–11:30', dist: '1.1 km', att: [] },
+  { addr: '27 Beenleigh Rd, Sunnybank', time: 'Sat 2 Nov · 12:15–12:45', dist: '1.6 km', att: [] }];
+let ofiSel = null, ofiForm = {};
+function renderOfi() {
+  const el = document.getElementById('pg-ofi');
+  if (ofiSel === null) {
+    el.innerHTML = `<div class="scroll"><h2 class="pt">Open homes today</h2><div style="font-size:12px;color:var(--mut);margin-bottom:8px">From Rex listings with an OFI scheduled · nearest live first</div>
+    ${OFIS.map((o, i) => `<div class="ofi" onclick="ofiSel=${i};ofiForm={};renderOfi()"><b>${o.addr}</b>${o.live ? '<span class="live">LIVE NOW</span>' : ''}<div style="font-size:12px;color:var(--mut);margin-top:3px">${o.time} · ${o.dist} · ${o.att.length} registered</div></div>`).join('')}</div>`;
+    return setNote('ofi');
+  }
+  const o = OFIS[ofiSel], f = ofiForm;
+  const ret = (f.mobile || '').replace(/\s/g, '') === '0412555010';
+  el.innerHTML = `<div class="mhead"><button onclick="ofiSel=null;renderOfi()">‹ Back</button><b style="font-size:14px">${o.addr.split(',')[0]} · OFI</b><span style="font-size:12px;color:var(--mut)">${o.att.length} in</span></div>
+  <div class="scroll">
+   <div class="banner b-info" style="font-size:11px">Privacy notice: Place Sunnybank collects your name and contact details to follow up on this property and send information you ask for. See our privacy policy. <i>(wording TBC by Ping)</i></div>
+   ${ret ? `<div class="banner b-ok">↺ Returning visitor · <b>John Lee</b> (your contact) · attended 2 opens: 8 Albert St (12 Oct), 3 Gager St (19 Oct)</div>` : ''}
+   <div class="fld"><label>Name *</label><input value="${f.name || ''}" oninput="ofiForm.name=this.value"></div>
+   <div class="row2"><div class="fld"><label>Mobile *</label><input value="${f.mobile || ''}" onchange="ofiForm.mobile=this.value;renderOfi()"></div><div class="fld"><label>Email *</label><input value="${f.email || ''}" oninput="ofiForm.email=this.value"></div></div>
+   <div class="fld"><label>Home address (optional)</label><input value="${f.home || ''}" oninput="ofiForm.home=this.value"></div>
+   <div class="fld"><label>Notes</label><textarea rows="2" oninput="ofiForm.note=this.value">${f.note || ''}</textarea></div>
+   <label class="chk ${f.bp ? 'on' : ''}"><input type="checkbox" ${f.bp ? 'checked' : ''} onchange="ofiForm.bp=this.checked;renderOfi()"> 📄 Send building &amp; pest report</label>
+   <label class="chk ${f.seller ? 'on' : ''}"><input type="checkbox" ${f.seller ? 'checked' : ''} onchange="ofiForm.seller=this.checked;renderOfi()"> 🏷️ Potential seller</label>
+   ${f.bp ? '<div style="font-size:11px;color:var(--mut);margin:-2px 0 6px">Report is attached in Rex and marked sendable → emailed automatically.</div>' : ''}
+   <div class="mic"><button class="micbtn" onclick="ofiVoice()">🎙️ Hold to talk — fills the form</button></div>
+   <button class="btn pri" style="width:100%" onclick="ofiReg()">Register</button>
+   <div class="sec"><h4>Registered today</h4>${o.att.map(a => `<div class="li"><span>👤</span><div class="a"><b>${a.n}</b><span>${a.t}${a.bp ? ' · B&P report' : ''}${a.seller ? ' · potential seller' : ''}${a.q ? ' · ⏳ queued' : ''}</span></div></div>`).join('') || '<div style="font-size:13px;color:var(--mut)">Nobody yet.</div>'}</div>
+  </div>`;
+  setNote('ofi');
+}
+function ofiVoice() {
+  toast('🎙️ “John Lee, 0412 555 010, john.lee@gmail.com, 要验房报告, 在 Runcorn 有房, 明年可能卖”');
+  setTimeout(() => { ofiForm = { name: 'John Lee', mobile: '0412 555 010', email: 'john.lee@gmail.com', home: '22 Beenleigh Rd, Runcorn', note: 'Has a house in Runcorn, may sell next year.', bp: true, seller: true }; renderOfi(); }, 900);
+}
+function ofiReg() {
+  const f = ofiForm, o = OFIS[ofiSel];
+  if (!f.name || !f.mobile || !f.email) return toast('Name, mobile and email are required');
+  o.att.unshift({ n: f.name, t: '10:' + (12 + o.att.length), bp: f.bp, seller: f.seller, q: !state.online });
+  AUD(ME.name, 'OFI registration' + (state.online ? '' : ' (queued)'), o.addr.split(',')[0], `${f.name}${f.bp ? ' · B&P report' : ''}${f.seller ? ' · potential seller → tag + appraisal reminder' + (f.home ? ' · linked owner of ' + f.home : '') : ''}`);
+  ofiForm = {}; renderOfi();
+  toast(state.online ? `✓ ${f.name} added to OFI attendees in Rex${f.seller && f.home ? ' · linked as owner of ' + f.home.split(',')[0] : ''}` : '💾 Saved on phone · will sync');
+}
+
+/* ===================== PHOTO CAPTURE ===================== */
+let capStage = 0;
+const CAPROWS = [['Lily Tan', '0421 778 902', 'lily.t@outlook.com', true, false, []], ['王建国 (Jianguo Wang)', '0435 11? 456', '', false, true, ['mobile']], ['Sam Patel', '0402 334 120', 'sam.patel@gmail.com', false, false, []], ['Grace Huang', '0418 902 555', 'grace.h@??.com', true, false, ['email']], ['M. Robinson', '', '', false, false, ['name']]];
+function renderCap() {
+  const el = document.getElementById('pg-cap');
+  if (capStage === 0) el.innerHTML = `<div class="scroll"><h2 class="pt">Paper capture</h2><div style="font-size:13px;color:var(--mut);margin-bottom:12px">Open-home sheets or handwritten notes. English &amp; 中文, print or handwriting.</div>
+   <button class="btn pri" style="width:100%;margin-bottom:8px" onclick="capGo()">📷 Take photo</button><button class="btn sec2" style="width:100%;margin-bottom:8px" onclick="capGo()">🖼️ Choose from library</button><button class="btn sec2" style="width:100%" onclick="capGo()">📄 Upload scanned PDF</button>
+   <div class="sec"><h4>Recent</h4><div class="li"><span>🗒️</span><div class="a"><b>8 Albert St · OFI sheet</b><span>12 Oct · 7 records · confirmed</span></div></div></div></div>`;
+  else if (capStage === 1) el.innerHTML = `<div class="scroll"><div class="paper"><b>OPEN HOME REGISTER — 12 Pinelands Rd</b> &nbsp; 2/11<table><tr><th>Name</th><th>Phone</th><th>Email</th><th>B&P</th><th>Selling?</th></tr>${CAPROWS.map(r => `<tr><td>${r[0]}</td><td>${r[1] || '~~'}</td><td>${r[2]}</td><td>${r[3] ? '✓' : ''}</td><td>${r[4] ? '✓' : ''}</td></tr>`).join('')}</table></div>
+   <div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:30px"><div class="spin"></div><div style="font-size:13px">Reading handwriting (EN / 中文)…</div></div></div>`;
+  else el.innerHTML = `<div class="mhead"><button onclick="capStage=0;renderCap()">Cancel</button><b style="font-size:15px">Review 5 records</b></div><div class="scroll">
+   <div class="fld"><label>Belongs to</label><select><option>OFI · 12 Pinelands Rd · Sat 2 Nov (read from sheet)</option><option>8 Albert St · Sat 2 Nov</option></select></div>
+   <div class="banner b-warn">Yellow cells are uncertain — tap to fix. Matching only searches your Rex contacts.</div>
+   <table class="rv"><tr><th>Name</th><th>Mobile</th><th>Email</th><th>B&P</th><th>Sell</th><th></th></tr>${CAPROWS.map((r, i) => `<tr id="cr${i}"><td class="${r[5].includes('name') ? 'low' : ''}"><input value="${r[0]}"></td><td class="${r[5].includes('mobile') ? 'low' : ''}"><input value="${r[1]}"></td><td class="${r[5].includes('email') ? 'low' : ''}"><input value="${r[2]}"></td><td>${r[3] ? '✓' : ''}</td><td>${r[4] ? '✓' : ''}</td><td><button class="lnk" onclick="this.closest('tr').remove()">✕</button></td></tr>`).join('')}</table>
+   <div style="font-size:12px;color:var(--mut);margin-top:8px">↺ Grace Huang matched existing Rex contact (yours) · will update.</div>
+   <div class="sec"><h4>Will write to Rex</h4><ul class="acts"><li>Create / update contacts, add as OFI attendees</li><li>B&amp;P report to 2 people · potential-seller tag on 1</li><li>Attach original photo to the OFI record</li><li>Delete photo from this phone after upload</li></ul></div></div>
+   <div class="mfoot"><button class="btn pri" onclick="capConfirm()">✓ Confirm all</button></div>`;
+  setNote('cap');
+}
+function capGo() { capStage = 1; renderCap(); setTimeout(() => { capStage = 2; renderCap(); }, 1600); }
+function capConfirm() { const n = document.querySelectorAll('.rv tr[id]').length; AUD(ME.name, 'Photo capture', '12 Pinelands Rd', n + ' records · photo attached to OFI'); capStage = 0; renderCap(); toast(`✓ ${n} records written to Rex · photo attached · removed from phone`); }
+
+/* ===================== ME ===================== */
+function renderMe() {
+  document.getElementById('pg-me').innerHTML = `<div class="scroll"><h2 class="pt">Me</h2>
+   <div class="card"><b>${ME.name}</b><div style="font-size:13px;color:var(--mut)">Sales agent · ${ME.team} · kevin.zhang@placesunnybank.com.au</div></div>
+   <div class="sec"><h4>Sync</h4><div class="card">Network: <b>${state.online ? 'Online' : 'Offline'}</b> <button class="ab" onclick="toggleNet()">${state.online ? 'Simulate offline' : 'Go online'}</button>
+    <div style="margin-top:8px">Waiting to send: <b>${state.queue.length}</b></div>${state.queue.map(q => `<div class="note">${byId(q.id).addr} · ${q.name}<small>key ${q.key}</small></div>`).join('')}</div></div>
+   <div class="sec"><h4>Security</h4><div class="card" style="font-size:13px;line-height:1.7">🔐 Data on this phone expires in <b>23 h 41 m</b> (even offline)<br>🧾 Everything you save is logged with your name<br>🚫 No export, copy or share in this app</div></div>
+   <div class="sec"><h4>Today</h4><div class="card" style="font-size:13px">Doors knocked: <b>${props.filter(p => +p.lastVisit === +TODAY).length}</b> · Captures: <b>${state.audit.filter(a => a.who === ME.name && /capture|Quick/.test(a.action)).length}</b></div></div>
+   <button class="btn sec2" style="width:100%" onclick="location.reload()">Sign out</button></div>`;
+}
+function showRevoked() {
+  const n = state.queue.length; flushQueue(true);
+  revMsg.innerHTML = `Your access was removed by the administrator.<br><br>${n ? `✓ ${n} capture${n > 1 ? 's' : ''} waiting on this phone ${n > 1 ? 'were' : 'was'} sent to Rex first.<br>` : ''}✓ Maps, notes and owner data on this phone were deleted.<br><br>Contact the office if this is a mistake.`;
+  revoked.classList.add('on'); sheet.classList.remove('on'); modal.classList.remove('on');
+}
+
+/* ===================== ADMIN ===================== */
+let apage = 'dash', rtab = 'addr', admMap;
+function renderAdmin() {
+  const P = [['dash', '📊 概览'], ['plan', '🗺️ 地图与列表'], ['review', '🧾 审核队列', reviews.length + 3], ['users', '👥 用户与权限'], ['audit', '📜 审计日志'], ['export', '⬇️ 导出'], ['settings', '⚙️ 设置']];
+  side.innerHTML = `<div class="brand">Rex Capture Admin<div style="font-size:12px;color:var(--mut);font-weight:400">Ping Han · Admin</div></div>${P.map(([k, l, c]) => `<button class="${apage === k ? 'on' : ''}" onclick="apage='${k}';renderAdmin()"><span>${l}</span>${c ? `<span class="cnt">${c}</span>` : ''}</button>`).join('')}
+   <div style="font-size:11px;color:var(--mut);padding:16px 10px;line-height:1.6">Vue 3 + Element Plus（正式版）<br>与 App 共用 Go API<br>按 Entra 角色显示菜单</div>`;
+  ({ dash: aDash, plan: aPlan, review: aReview, users: aUsers, audit: aAudit, export: aExport, settings: aSettings })[apage]();
+}
+function aDash() {
+  const all = props, g = all.filter(p => p.status === 'green').length, r = all.filter(p => p.status === 'red').length, gr = all.filter(p => p.status === 'grey').length, o = all.filter(p => p.status === 'other').length, t = all.length;
+  const sub = [['Sunnybank', coverage(all)], ['Sunnybank Hills', 36], ['Calamvale', 29], ['Runcorn', 22], ['Robertson', 18]];
+  amain.innerHTML = `<h1>概览</h1><div class="sub">全办公室视图（管理员可见全部）· 2 Nov 2026</div>
+  <div class="grid g4"><div class="box kpi"><b style="color:var(--g)">${coverage(all)}%</b><span>Sunnybank 绿色覆盖率</span></div><div class="box kpi"><b>${state.audit.filter(a => /capture|Quick|OFI/.test(a.action)).length}</b><span>今日录入</span></div><div class="box kpi"><b>${reviews.length + 3}</b><span>待审核</span></div><div class="box kpi"><b>${state.users.filter(u => u.st === 'active').length}</b><span>活跃用户</span></div></div>
+  <div class="grid g2" style="margin-top:14px"><div class="box"><b>各区覆盖率</b>${sub.map(([n, v]) => `<div style="margin-top:12px;font-size:13px">${n} <span style="float:right">${v}%</span><div class="bar" style="margin-top:4px"><i style="width:${v}%;background:var(--g)"></i><i style="width:${88 - v}%;background:var(--r)"></i><i style="width:12%;background:var(--gr)"></i></div></div>`).join('')}
+   <div style="font-size:12px;color:var(--mut);margin-top:12px">Sunnybank 原型数据：绿 ${g} · 红 ${r} · 灰 ${gr} · 其他经纪人 ${o} · 共 ${t}</div></div>
+  <div class="box"><b>提醒</b><div class="banner b-bad" style="margin-top:10px">⚠️ <b>Jason Wu</b> 在 1 小时内查看了 312 个房产（阈值 150）。<br><button class="ab" style="margin-top:6px" onclick="apage='audit';renderAdmin()">查看日志</button><button class="ab dan" onclick="apage='users';renderAdmin()">处理</button></div>
+   <div class="banner b-warn">范围外可能匹配 3 条：经纪人录入的联系人可能已存在于其他团队（只提示管理员）。</div>
+   <div class="banner b-info">昨晚全量同步完成 02:10 · 补回漏掉的 webhook 4 条 · Rex 配额本小时已用 1,284 / 3,600</div></div></div>`;
+}
+function aPlan() {
+  const rows = props.filter(p => !p.inCx).slice(0, 40);
+  amain.innerHTML = `<h1>地图与列表</h1><div class="sub">电脑 / 平板上的规划视图，经纪人也能用（只看自己权限内的数据，无导出按钮）</div>
+  <div class="grid" style="grid-template-columns:1fr 1.2fr"><div id="admMap"></div><div class="box" style="padding:0;max-height:520px;overflow:auto"><table class="t"><tr><th></th><th>地址</th><th>Rex 业主</th><th>第三方业主</th><th>最近成交</th><th>最近笔记</th><th>最近拜访</th><th>标记</th></tr>
+  ${rows.map(p => `<tr><td><span class="dot d-${vis(p)}"></span></td><td>${p.addr}</td><td>${p.contacts[0] ? p.contacts[0].name : '—'}</td><td style="color:#b45309">${p.tp || '—'}</td><td>${p.tpSale.getFullYear()}</td><td>${p.notes[0] ? fmt(p.notes[0].date) : '—'}</td><td>${p.lastVisit ? p.lastResult : '—'}</td><td>${p.dnk ? '⛔' : ''}${p.junk ? '📭' : ''}</td></tr>`).join('')}</table></div></div>`;
+  if (admMap) { admMap.remove(); admMap = null; }
+  admMap = L.map('admMap', { attributionControl: false }).setView([-27.5805, 153.0625], 15);
+  L.tileLayer(BASEMAP, { maxZoom: 19, maxNativeZoom: 16 }).addTo(admMap);
+  props.filter(p => !p.inCx).forEach(p => L.marker([p.lat, p.lng], { icon: L.divIcon({ className: '', html: pinHtml(p), iconSize: [16, 16] }) }).addTo(admMap));
+}
+function aReview() {
+  const T = [['addr', `地址匹配（灰色）${reviews.length}`], ['new', '门口新地址 1'], ['ai', 'AI 不确定 1'], ['scope', '范围外匹配 1']];
+  let body = '';
+  if (rtab === 'addr') body = `<table class="t"><tr><th>Rex 房产地址</th><th>地籍候选（DCDB / G-NAF）</th><th>差异</th><th>置信度</th><th></th></tr>${reviews.map((r, i) => `<tr><td>${r.rex}<div style="font-size:11px;color:var(--mut)">Rex #${48000 + r.p.id}</div></td><td>${r.cand}</td><td><span class="pill p-warn">${r.kind}</span></td><td>${r.score}%</td><td><button class="ab pri" onclick="linkRev(${i})">关联</button><button class="ab">换候选</button><button class="ab">不是同一处</button></td></tr>`).join('') || '<tr><td colspan=5>全部处理完 🎉</td></tr>'}</table><div style="font-size:12px;color:var(--mut);margin-top:8px">完全匹配已自动关联；这里只放近似匹配。不在 Rex 中自动合并任何记录。</div>`;
+  if (rtab === 'new') body = `<table class="t"><tr><th>地址</th><th>录入人</th><th>说明</th><th></th></tr><tr><td>4A Turton St, Sunnybank</td><td>Natalie Wong</td><td>门口发现，Rex 无记录 → 已新建 Rex 房产并标记待审核</td><td><button class="ab pri">确认</button><button class="ab">合并到已有</button></td></tr></table>`;
+  if (rtab === 'ai') body = `<table class="t"><tr><th>录入</th><th>字段</th><th>AI 值</th><th></th></tr><tr><td>Owen Chen · 11 Lister St · 粤语</td><td>Mobile</td><td><span class="pill p-warn">0423 81? 552</span> 置信度 54%</td><td><button class="ab">播放录音</button><button class="ab pri">修正</button></td></tr></table>`;
+  if (rtab === 'scope') body = `<table class="t"><tr><th>录入</th><th>可能匹配</th><th></th></tr><tr><td>Kevin Zhang 录入 “David Liu 0411 2…”</td><td>Rex 联系人 David Liu · 归属 Jason Wu（Team Lily Ho）· 手机相同</td><td><button class="ab">通知双方</button><button class="ab">忽略</button></td></tr></table><div style="font-size:12px;color:var(--mut);margin-top:8px">经纪人端看不到这条（封闭式数据库）。</div>`;
+  amain.innerHTML = `<h1>审核队列</h1><div class="sub">灰色地址、门口新地址、AI 不确定字段、范围外重复</div><div class="tabs">${T.map(([k, l]) => `<button class="${rtab === k ? 'on' : ''}" onclick="rtab='${k}';aReview()">${l}</button>`).join('')}</div>${body}`;
+}
+function linkRev(i) { const r = reviews.splice(i, 1)[0]; r.p.status = r.p.contacts.length ? 'green' : 'red'; AUD('Ping Han', 'Address linked', r.p.addr, `Rex #${48000 + r.p.id} ↔ ${r.cand.split(' · ')[0]}`); drawMarkers(); renderAdmin(); }
+function aUsers() {
+  amain.innerHTML = `<h1>用户与权限</h1><div class="sub">登录来自 Microsoft 365；在 Entra 停用账号会自动撤销。撤销后 1 分钟内所有设备登出。</div>
+  <table class="t"><tr><th>姓名</th><th>团队</th><th>角色</th><th>最近活动</th><th>设备</th><th>状态</th><th></th></tr>${state.users.map((u, i) => `<tr><td>${u.name}</td><td>${u.team}</td><td>${u.role}</td><td>${u.last}</td><td>${u.dev}</td><td><span class="pill ${u.st === 'active' ? 'p-ok' : 'p-bad'}">${u.st === 'active' ? '正常' : '已撤销'}</span></td><td>${u.role === 'Admin' ? '' : u.st === 'active' ? `<button class="ab dan" onclick="revoke(${i})">撤销访问</button>` : `<button class="ab" onclick="restore(${i})">恢复</button>`}</td></tr>`).join('')}</table>
+  <div class="box" style="margin-top:14px;font-size:13px;line-height:1.7">撤销时同时提醒：当天关闭此人的 <b>Rex 账号</b>、<b>Pricefinder / CoreLogic 账号</b>。其录入的数据以其名义保留在 Rex。<br>💡 原型：撤销 Kevin Zhang 后切回“经纪人 App”看效果。</div>`;
+}
+function revoke(i) {
+  const u = state.users[i]; if (!confirm(`撤销 ${u.name} 的访问？所有设备会在 1 分钟内登出。`)) return;
+  u.st = 'revoked'; AUD('Ping Han', 'Access revoked', u.name, 'All sessions ended · reminder: close Rex & data-provider accounts');
+  if (u.name === ME.name) state.revoked = true; renderAdmin();
+}
+function restore(i) { const u = state.users[i]; u.st = 'active'; AUD('Ping Han', 'Access restored', u.name, ''); if (u.name === ME.name) { state.revoked = false; revoked.classList.remove('on'); } renderAdmin(); }
+function aAudit() {
+  const who = [...new Set(state.audit.map(a => a.who))];
+  amain.innerHTML = `<h1>审计日志</h1><div class="sub">每条笔记、联系人修改、标记、OFI 登记、导出、撤销都记录。也会以作者身份写进 Rex。</div>
+  <div style="margin-bottom:10px"><select id="aw" onchange="aAuditF()" style="padding:6px;border-radius:7px;border:1px solid var(--line)"><option value="">全部经纪人</option>${who.map(w => `<option>${w}</option>`).join('')}</select> <input placeholder="房产地址…" id="ap" oninput="aAuditF()" style="padding:6px;border-radius:7px;border:1px solid var(--line)"> <input type="date" value="2026-11-02" style="padding:5px;border-radius:7px;border:1px solid var(--line)"></div>
+  <table class="t" id="atab"></table>`; aAuditF();
+}
+function aAuditF() {
+  const w = aw.value, q = ap.value.toLowerCase();
+  atab.innerHTML = `<tr><th>时间</th><th>人</th><th>操作</th><th>对象</th><th>详情</th></tr>` + state.audit.filter(a => (!w || a.who === w) && (!q || a.target.toLowerCase().includes(q))).map(a => `<tr><td>${a.date} ${a.at}</td><td>${a.who}</td><td>${a.action}</td><td>${a.target}</td><td style="color:#4b5563">${a.detail}</td></tr>`).join('');
+}
+function aExport() {
+  amain.innerHTML = `<h1>导出</h1><div class="sub">仅管理员。只含 Rex 字段，不含第三方业主数据。每次导出都记录。</div>
+  <div class="box" style="max-width:640px"><div class="row2"><div class="fld"><label>区域</label><select><option>Sunnybank</option><option>Sunnybank Hills</option><option>Calamvale</option></select></div><div class="fld"><label>筛选</label><select><option>全部</option><option>只看红色</option><option>90 天未拜访</option></select></div></div>
+  <label class="chk"><input type="checkbox" checked disabled> 自动排除 勿致电 / 勿上门 / 勿投广告</label><label class="chk"><input type="checkbox" disabled> 第三方业主名（数据商条款禁止，不可选）</label>
+  <button class="btn pri" style="width:auto;padding:10px 18px" onclick="doExport()">⬇️ 导出 Excel</button></div>
+  <h3 style="margin-top:22px;font-size:15px">导出记录</h3><table class="t"><tr><th>时间</th><th>人</th><th>内容</th><th>字段</th></tr>${state.exports.map(e => `<tr><td>${e.at}</td><td>${e.who}</td><td>${e.what}</td><td>${e.fields}</td></tr>`).join('')}</table>`;
+}
+function doExport() { state.exports.unshift({ at: '2 Nov 2026 ' + new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }), who: 'Ping Han', what: 'Sunnybank · all · ' + props.filter(p => !p.dnk && !p.junk).length + ' rows', fields: 'Rex fields only' }); AUD('Ping Han', 'Export', 'Sunnybank', 'Excel · Rex fields only'); aExport(); }
+function aSettings() {
+  const flagged = props.filter(p => p.dnk || p.junk).slice(0, 4);
+  amain.innerHTML = `<h1>设置</h1><div class="sub">PDF“待定事项”在这里落地，由 Ping 确认</div>
+  <div class="box" style="max-width:760px">
+   <div class="setrow"><div>算作“业主”的 Rex 关系类型<small>决定绿色的定义</small></div><div>${['Owner', 'Landlord', 'Vendor', 'Former owner'].map((t, i) => `<label style="margin-left:10px;font-size:13px"><input type="checkbox" ${i < 3 ? 'checked' : ''}> ${t}</label>`).join('')}</div></div>
+   <div class="setrow"><div>其他经纪人跟进的房产<small>红色可能导致重复采集；建议中性圆点</small></div><div><select onchange="state.otherMode=this.value;drawMarkers();toast('已切换，回到 App 查看')" style="padding:6px;border-radius:7px">${[['neutral', '中性圆点（建议）'], ['red', '显示为红色']].map(([k, l]) => `<option value="${k}" ${state.otherMode === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div></div>
+   <div class="setrow"><div>可用 Rex 标签<small>经纪人只能选，不能新建</small></div><div style="font-size:13px">Potential seller · Investor · Downsizer · First home buyer · Tenant <button class="ab">管理</button></div></div>
+   <div class="setrow"><div>可用邮件列表</div><div style="font-size:13px">Sunnybank Market Update · New listings <button class="ab">管理</button></div></div>
+   <div class="setrow"><div>录音保留<small>确认后删除；转写文本存 Rex</small></div><div><select style="padding:6px;border-radius:7px"><option>30 天</option><option>7 天</option><option>90 天</option></select></div></div>
+   <div class="setrow"><div>异常行为阈值</div><div style="font-size:13px">1 小时内查看 &gt; <input value="150" style="width:60px"> 个房产</div></div>
+   <div class="setrow"><div>业主数据来源</div><div><select style="padding:6px;border-radius:7px"><option>RP Data (CoreLogic)</option><option>Pricefinder</option></select></div></div>
+  </div>
+  <h3 style="margin-top:22px;font-size:15px">免打扰标记（只有管理员能取消）</h3><table class="t"><tr><th>对象</th><th>标记</th><th></th></tr>${flagged.map(p => `<tr><td>${p.addr}</td><td>${p.dnk ? '⛔ Do not knock ' : ''}${p.junk ? '📭 No junk mail' : ''}</td><td><button class="ab dan" onclick="unflag(${p.id})">取消（记录）</button></td></tr>`).join('')}</table>`;
+}
+function unflag(id) { const p = byId(id); p.dnk = p.junk = false; AUD('Ping Han', 'Flag removed', p.addr, 'by admin'); drawMarkers(); aSettings(); }
+
+// revocation poll (simulates ≤1 min)
+setInterval(() => { if (state.revoked && !revoked.classList.contains('on') && vMobile.style.display !== 'none') showRevoked(); }, 1000);
+setNote('login');
+</script>
+</body>
+</html>
