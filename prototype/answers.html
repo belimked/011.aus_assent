@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>手机 App 反馈第 11 节 · 问题回答与解决方案</title>
+<style>
+:root{--b:#0b5d8a}
+*{box-sizing:border-box}
+body{margin:0;background:#f3f5f8;color:#1f2937;font:15px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+header{background:#0f172a;color:#fff;padding:12px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+header b{font-size:16px} header a{color:#93c5fd;text-decoration:none;font-size:14px}
+main{max-width:920px;margin:20px auto;background:#fff;border-radius:14px;padding:24px 28px;box-shadow:0 1px 3px #0001}
+h1{font-size:24px;color:var(--b);margin-top:0} h2{font-size:20px;border-bottom:2px solid #e5e7eb;padding-bottom:6px;margin-top:2em}
+h3{font-size:16.5px;color:var(--b);margin-top:1.6em}
+table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:14px;margin:1em 0}
+th,td{border:1px solid #e5e7eb;padding:6px 10px;vertical-align:top;text-align:left} th{background:#f1f5f9}
+code{background:#f1f5f9;border-radius:4px;padding:1px 5px;font-size:13px;word-break:break-word}
+pre{background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:12px;overflow:auto} pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:8px 14px;border-left:4px solid var(--b);background:#eff6ff;color:#334155;border-radius:0 8px 8px 0}
+hr{border:0;border-top:1px solid #e5e7eb;margin:2em 0}
+.foot{color:#64748b;font-size:12px;text-align:center;margin:0 0 30px}
+@media(max-width:600px){main{margin:0;border-radius:0;padding:18px 16px}}
+</style></head><body>
+<header><b>agentCollect · 反馈问题回答</b><a href="./">← 返回原型</a></header>
+<main><h1>手机 App 反馈第 11 节 · 问题回答与解决方案</h1>
+<blockquote>
+<p>对应：<code>agentCollect_手机App反馈_中文版.pdf</code> 第 11 节「需要 Kevin 回答的问题」，以及第 10 节中请 Kevin 确认的 DNCR 订阅问题<br>依据：<code>Rex_API_Integration_Guide.docx</code>、<code>.tmp/rexdocs/</code>（Rex API 定义，共 291 个服务）、<code>docs/rex-integration.md</code><br>状态：草案（2026-11-05）</p>
+</blockquote>
+<p><strong>状态标记</strong></p>
+<ul>
+<li>✅ 文档里已有答案</li>
+<li>🔍 方向已定，需要在 Rex 测试账号上验证，或向 Rex API 团队确认</li>
+<li>🌐 需要外部调研或比价，Rex 文档无法回答</li>
+</ul>
+<p><strong>重要前提：</strong> 所有 Rex 结论都来自 API 定义，<strong>尚未在真实账号上调用验证</strong>。拿到测试账号后，先跑一遍第 6 节的验证清单。</p>
+<hr>
+<h2>1. Rex</h2>
+<h3>Rex Q1 · Rex API 能读写哪些字段？Rex 没有的字段存在哪里？　✅ / 🔍</h3>
+<p><strong>回答：</strong> 需求里的数据，Rex 基本都有对应的服务或字段：</p>
+<table>
+<thead>
+<tr>
+<th>需求</th>
+<th>Rex 服务 / 字段</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>联系人、手机、邮箱</td>
+<td><code>Contacts</code>：<code>contact_phones</code>、<code>phone_primary_sms</code>、<code>email_address</code></td>
+</tr>
+<tr>
+<td>备注</td>
+<td><code>Notes.create</code> / <code>search</code></td>
+</tr>
+<tr>
+<td>标签</td>
+<td><code>contact_tags</code>；标签列表由 <code>AdminTags</code> 管理</td>
+</tr>
+<tr>
+<td>关联关系</td>
+<td><code>contact_relationships.relationship_type</code>；<code>AdminPropertyRelationshipTypes</code> 可以新建和合并类型</td>
+</tr>
+<tr>
+<td>提醒、待办</td>
+<td><code>Reminders.create</code>、<code>getRemindeeList</code>（指派同事）、<code>toggleCompletionState</code>、<code>defer</code></td>
+</tr>
+<tr>
+<td>预约估价</td>
+<td><code>Appraisals.create</code> + <code>CalendarEvents.create</code></td>
+</tr>
+<tr>
+<td>中介空闲时段</td>
+<td><code>CalendarAvailabilities.getAvailability</code></td>
+</tr>
+<tr>
+<td>确认短信、前一天提醒</td>
+<td><code>CalendarEvents.sendConfirmationMessages</code> / <code>scheduleAlertMessages</code></td>
+</tr>
+<tr>
+<td>买家需求档案</td>
+<td><code>MatchProfiles</code>（价格、区、卧室/卫生间/车位/土地面积、features、tags）；<code>matchAgainstListings</code></td>
+</tr>
+<tr>
+<td>退订和联系渠道</td>
+<td><code>contact_by_sms/phone/email/letter</code>、<code>is_dnd</code></td>
+</tr>
+<tr>
+<td>邮件列表订阅</td>
+<td><code>contact_mailing_lists</code>：<code>subscription_status</code>、<code>subscribe_timestamp</code>、<code>unsubscribe_timestamp/reason</code></td>
+</tr>
+<tr>
+<td>Last updated by</td>
+<td><code>system_modified_user</code>、<code>system_modtime</code>（负责人是另一个字段 <code>system_owner_user</code>）</td>
+</tr>
+<tr>
+<td>最后联系</td>
+<td><code>last_contacted_date</code></td>
+</tr>
+<tr>
+<td>兴趣度</td>
+<td><code>interest_level</code>（hot / warm / cold）</td>
+</tr>
+</tbody></table>
+<p><strong>Rex 没有对应字段的数据</strong>（贷款状态、同意方式和日期、DNCR 核查日期和结果、卖房原因等）：</p>
+<p><strong>解决方案：</strong></p>
+<ol>
+<li>用 <code>AdminCustomFields.createField</code> 在联系人模块建自定义字段，由 agentCollect 在接入时自动创建，或者由管理员一次性创建。</li>
+<li>读写用 <code>CustomFields.getValuesKeyedByFieldName</code> / <code>setFieldValues</code>。</li>
+<li>原则不变：<strong>Rex 是唯一数据源</strong>，agentCollect 不长期保存联系人资料的副本（<code>rex-integration.md</code> D4）。</li>
+<li>只有 Rex 存不了的运营数据才放在我们自己的库里：屏蔽名单、DNCR 核查记录的完整日志、审计日志、同步队列。</li>
+</ol>
+<p>🔍 <strong>待验证：</strong> 自定义字段写入是否需要额外权限；标签是写 <code>contact_tags</code>，还是要通过 <code>AdminTags</code> 关联（设计文档里原本标为待确认）。</p>
+<hr>
+<h3>Rex Q2 · 能否按手机号搜索并合并重复记录？匹配到没有权限的联系人时显示什么？　✅ / 🔍</h3>
+<p><strong>回答：</strong></p>
+<ul>
+<li><strong>查重：</strong> <code>Contacts.findMatchingContacts(phones[], email, name_first, name_last…)</code> 一次调用就返回结论，手机号会自动展开成多种存储格式去匹配。</li>
+<li><strong>合并：</strong> <code>Dedupe.findPossibleDuplicates</code> 找候选，<code>Dedupe.combineRecords</code> 执行合并。</li>
+<li><strong>权限：</strong> 参数 <code>min_user_relationship_to_contact</code>（none / read / update / owner）的默认值是 <code>read</code>，<strong>调用者没有读权限的联系人不会出现在结果里</strong>，也不影响查重结论。</li>
+</ul>
+<p><strong>这会影响整体架构：</strong> 现有设计 D1 是&quot;只用一个 Rex 集成账号&quot;，这样 Rex 只会按集成账号的权限过滤，无法做到&quot;只显示中介本人有权限的联系人&quot;。</p>
+<p><strong>解决方案：</strong></p>
+<ol>
+<li><strong>改 D1：每位中介用自己的 Rex 身份调用。</strong> Rex 支持 <code>Authentication.loginWithOAuthAccessToken</code>，中介在 App 里连接一次 Rex 账号，Rex 的权限和 closed database 设置就自动生效。</li>
+<li>集成账号只保留给后台任务：夜间对账、webhook、Pricefinder 同步。</li>
+<li><strong>匹配到无权限的联系人时：</strong> 先用中介身份查（<code>min_user_relationship_to_contact=read</code>）。没有结果时，后端再用集成账号以 <code>none</code> 查一次，只返回&quot;存在&quot;这个结论，不返回任何字段。界面显示：<strong>&quot;该号码已是公司其他同事的联系人，详情不可见。新建会产生重复，请联系办公室。&quot;</strong> 同时禁止新建，提供&quot;请求访问&quot;按钮，通知该联系人的负责人。</li>
+<li><strong>合并：</strong> 只在中介点确认后调用 <code>combineRecords</code>，界面左右对比，选择保留哪边的值；合并操作写入审计日志。</li>
+</ol>
+<p>🔍 <strong>待确认：</strong> OAuth 登录时，3,600 次限额是否仍按公司计算（见 Q3）；<code>combineRecords</code> 需要什么权限。</p>
+<hr>
+<h3>Rex Q3 · App 每小时用掉 3,600 次请求中的多少？离线同步和重试如何控制在限额内？　✅ / 🔍</h3>
+<p><strong>回答：</strong></p>
+<ul>
+<li>限额是<strong>每家中介公司每小时 3,600 次</strong>，目前是软限制，Rex 说以后会严格执行。不同公司之间互不占用。</li>
+<li>Draft 1 只是原型，没有连接 Rex，<strong>现在的用量是 0</strong>。估算见 <code>rex-integration.md</code> 第 10 节，要按实际人数更新。</li>
+</ul>
+<p><strong>解决方案：</strong></p>
+<ol>
+<li><strong>后端统一限流：</strong> 所有 Rex 调用都经过后端的连接器，按公司做令牌桶，预留 20% 给交互请求（打开卡片、查重）。</li>
+<li><strong>增量同步：</strong> 用 <code>result_format: &quot;etags&quot;</code> 拉取变化（Rex 说这类请求很便宜），只读取有变化的记录。</li>
+<li><strong>Webhook 代替轮询：</strong> 联系人、备注、房产的变化由 Rex 推送过来；需要中介授予 <code>Manage Webhooks</code> 权限。webhook 被标记为不健康期间的事件会丢失，所以保留夜间对账。</li>
+<li><strong>离线队列：</strong> 恢复网络后不一次性提交，按优先级（新建联系人 &gt; 备注 &gt; 标签）限速提交。每条记录带幂等键，避免重复写入。</li>
+<li><strong>失败重试：</strong> 遇到 429/5xx 按指数退避重试；一直失败的进入&quot;待同步&quot;列表，中介能看到（对应反馈&quot;Rex 同步失败&quot;一项）。</li>
+<li>尽量批量调用，<code>BatchRequests</code> 是否只算一次请求要请 Rex 确认（设计文档 Q8）。</li>
+</ol>
+<p>🔍 <strong>待确认：</strong> 每位中介用 OAuth 调用时如何计数；<code>BatchRequests</code> 的计数方式。</p>
+<hr>
+<h2>2. 短信</h2>
+<h3>短信 Q1 · 用自己手机的发送队列，能否把每条已发短信记录到 Rex？　✅（有限制）</h3>
+<p><strong>回答：</strong> 能记录，但<strong>只能记成&quot;已打开发送&quot;，无法确认对方是否真的发出</strong>：</p>
+<ul>
+<li>iPhone：App 只能预先填好短信并打开发送界面（<code>MFMessageComposeViewController</code>）。系统会告诉 App 用户是点了发送还是取消，<strong>但不提供短信内容和送达状态</strong>。</li>
+<li>Android：用系统短信 App（<code>ACTION_SENDTO</code>）时同样拿不到结果。只有把 agentCollect 设为默认短信 App，或者用网关模式，才能确认发送，但运营商条款和 Google Play 政策有限制。</li>
+<li>Rex 里<strong>没有找到</strong>公开的&quot;记一条短信活动&quot;接口：<code>MessageSends</code> 只能查询，<code>MailMerge</code> 是 Rex 自己发短信用的（每条 10 分）。</li>
+</ul>
+<p><strong>解决方案：</strong></p>
+<ol>
+<li>发送队列：每条短信预先填好，中介点发送 → 返回 App 后自动打开下一条。</li>
+<li>iPhone 上根据系统返回的&quot;已发送 / 已取消&quot;决定是否记录；Android 上中介回到 App 时默认记为已发送，可撤销。</li>
+<li>记录方式：<code>Notes.create</code>（备注写&quot;SMS sent: [模板名] [正文]&quot;）+ 更新 <code>last_contacted_date</code>。</li>
+<li>群发营销不走这个渠道，走短信 Q2 的供应商。</li>
+</ol>
+<p>🔍 <strong>待确认：</strong> 问 Rex 是否有公开接口能把短信记成活动（显示在联系人的通讯记录里），而不只是备注。</p>
+<hr>
+<h3>短信 Q2 · 大批量群发选哪家？回复和 STOP 能否回传到 agentCollect 和 Rex？　🌐 / ✅</h3>
+<p><strong>回答：</strong></p>
+<ul>
+<li><strong>选哪家：</strong> Rex 文档回答不了，需要比价（Mobile Message、Cellcast 等）。</li>
+<li><strong>回传到 agentCollect：可以</strong>，前提是供应商支持回复回调（inbound webhook）。</li>
+<li><strong>回传到 Rex：可以写入退订状态，但写不进 Rex 的短信记录：</strong></li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>要做的</th>
+<th>Rex 接口</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>标记不接收短信</td>
+<td><code>Contacts.update</code>：<code>contact_by_sms = false</code>；全部渠道禁止用 <code>is_dnd</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>记录退订原因和时间</td>
+<td><code>contact_mailing_lists.unsubscribe_*</code> 只适用于邮件列表</td>
+<td>🟡 仅邮件</td>
+</tr>
+<tr>
+<td>记录&quot;收到 STOP&quot;</td>
+<td><code>Notes.create</code></td>
+<td>✅ 作为备注</td>
+</tr>
+<tr>
+<td>回复显示为 Rex 里的短信往来</td>
+<td>没有对应接口</td>
+<td>❌</td>
+</tr>
+</tbody></table>
+<p><strong>解决方案：</strong></p>
+<ol>
+<li><strong>选供应商的必备条件：</strong> 回复回调、自动识别 STOP、专用回复号码（用字母发件人名对方无法回复）、按段计费、退订免费、数据存放在澳洲。</li>
+<li><strong>STOP 处理流程：</strong> 供应商回调 → agentCollect 识别 STOP 和明显的退订用语 → 加入全公司屏蔽名单 → Rex 写 <code>contact_by_sms=false</code> 和一条备注 → 发送确认短信 → 通知中介 → 卡片显示红色&quot;OPTED OUT OF TEXTS&quot;横幅，停用 Text 按钮。</li>
+<li><strong>屏蔽名单以 agentCollect 为准：</strong> Rex 自己发出的短信，回复由 Rex 处理，agentCollect 拿不到。所以以 agentCollect 的屏蔽名单为主，同步到 Rex 的 <code>contact_by_sms</code>，Rex 那边群发时也能跳过。</li>
+<li>每次群发前在后端按屏蔽名单、<code>contact_by_sms</code>、联系同意再过滤一次，并显示费用。</li>
+<li>供应商做成适配层，以后可以换供应商。</li>
+</ol>
+<p>🌐 <strong>待办：</strong> 做一张供应商对比表（价格、回复回调、STOP 处理、发件号码、数据存放地）。<br>🔍 <strong>待确认：</strong> Rex <code>MailMerge</code> 群发短信时，会不会自动跳过 <code>contact_by_sms=false</code> 的联系人。</p>
+<hr>
+<h3>短信 Q3 · 房产网站询盘现在怎么进 Rex？agentCollect 能否自动获取，并接收从手机分享来的线索？　✅ / 🔍</h3>
+<p><strong>回答：</strong></p>
+<ul>
+<li>REA、Domain 的询盘一般作为 <code>Leads</code> 进入 Rex（Rex 的 lead 邮箱解析门户邮件）。<code>Leads.getAllowedSourcesForAccount</code> 可以查看公司开启了哪些来源。eplace.com.au（官网）是不是同一个流程，要问 Ping。</li>
+<li>每位用户都有 Rex 的 lead 邮箱和 email dropbox 地址（<code>Leads.getLeadDropboxAddressForUser</code>、<code>EmailDropbox.getEmailDropboxAddressForUser</code>），转发进去的邮件会自动关联到联系人（<code>EmailDropbox.autoAttachToContacts</code>）。</li>
+</ul>
+<p><strong>解决方案：</strong></p>
+<ol>
+<li><strong>自动获取：</strong> 订阅 Leads 的 webhook（不可用时定时 <code>Leads.search</code>），新线索进入 agentCollect 后走反馈第 3 节的流程：识别 → 匹配 → 显示历史 → 追加备注 → 建议下一步。</li>
+<li><strong>手机分享：</strong> 原生 App 注册为系统分享目标（iOS Share Extension / Android Intent），接收文字、图片和截图 → OCR 加 LLM 提取姓名、手机、邮箱、房产、来源和需求 → 走同一流程。</li>
+<li><strong>转发邮件和短信：</strong> 给每位中介一个 agentCollect 收件地址，统一解析；同时可以抄送 Rex 的 dropbox，Rex 里也会有原件。</li>
+<li><strong>语音：</strong> 和录入共用语音服务。</li>
+</ol>
+<p>🔍 <strong>待确认：</strong> 用测试账号看一条门户询盘在 Rex 里的样子（<code>Leads.read</code>），确认能拿到哪些字段；Leads 有没有 webhook 事件。</p>
+<hr>
+<h2>3. 数据</h2>
+<h3>数据 Q1 · 能否用每位中介自己的 Pricefinder 账号做整个区域的批量更新和成交/挂牌实时提醒？每天能刷新多少处？成交后多久能看到？　🔍 / 🌐</h3>
+<p><strong>回答：</strong></p>
+<ul>
+<li><strong>Rex 自带的 Pricefinder/RP Data 集成只能逐个房产查询</strong>（<code>ThirdPartyServicePriceFinderPropertyV2.getPropertyDetails</code>、<code>ThirdPartyServiceCoreLogicProperty.getPropertyDetails</code>），不能整片区域批量刷新。</li>
+<li>Rex 自己的勘察地图有&quot;按多边形查房产，并叠加 RP Data 里不在 Rex 的房产&quot;（<code>ProspectingMap.searchPropertyPinsInAreaWithThirdParty</code>），用的是中介自己的 RP Data 登录。但这些方法看起来是 Rex 自己 App 的内部接口，<strong>是否允许第三方调用要确认</strong>。</li>
+<li>Properties 里有 <code>oab.*</code>（其他中介公司的挂牌，含公司、状态、价格），可以用来显示地图上的琥珀色&quot;其他中介公司在售&quot;。</li>
+<li>每天能刷新多少、成交后多久能看到，取决于 Pricefinder API 的配额和数据更新频率，<strong>Rex 文档里没有</strong>。</li>
+</ul>
+<p><strong>解决方案：</strong></p>
+<ol>
+<li><strong>第一阶段：</strong> 用 Rex 自带的逐个查询，在打开房产卡片时显示业主和购买日期；不做批量。</li>
+<li><strong>第二阶段：</strong> 直接接入 Pricefinder API，每位中介用自己的账号授权（OAuth），后端按区域每周批量刷新一次，新画区域时立即刷新；有变动的进入&quot;等待批准&quot;。</li>
+<li>数据提供商做成插件接口（Pricefinder / RP Data / 以后 PropTrack）。</li>
+<li>如果 Rex 确认 <code>ProspectingMap</code> 可以给第三方调用，就优先用它，开发量最小。</li>
+</ol>
+<p>🌐 <strong>待办：</strong> 向 Pricefinder 申请 API 文档，确认批量查询的配额、成交数据延迟、是否有事件推送。<br>🔍 <strong>待确认：</strong> 问 Rex 是否允许第三方调用 <code>ProspectingMap.*</code>。</p>
+<hr>
+<h3>数据 Q2 · 地图的准确地址和地块边界用哪个数据源？　🌐（建议方案）</h3>
+<p><strong>回答：</strong> Draft 1 的问题在于房产点是按街道线段生成的，不是真实地址。建议用开放数据：</p>
+<table>
+<thead>
+<tr>
+<th>用途</th>
+<th>数据源</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>地址和坐标</td>
+<td><strong>G-NAF</strong>（Geoscape，开放数据）</td>
+<td>全澳官方地址库，坐标落在地块内</td>
+</tr>
+<tr>
+<td>地块边界</td>
+<td><strong>QLD DCDB</strong>（昆州地籍数据，QSpatial 开放下载）</td>
+<td>含 Lot/Plan，可以和 G-NAF 关联</td>
+</tr>
+<tr>
+<td>卫星图</td>
+<td>QLD Globe 影像服务 / Esri World Imagery / Nearmap（付费，分辨率最高）</td>
+<td>先用免费的，需要更清晰再考虑 Nearmap</td>
+</tr>
+<tr>
+<td>街道底图</td>
+<td>OpenStreetMap（现有）</td>
+<td>门牌号由 G-NAF 叠加，不依赖底图</td>
+</tr>
+</tbody></table>
+<p><strong>解决方案：</strong></p>
+<ol>
+<li>后端导入 Sunnybank 一带的 G-NAF 地址和 DCDB 地块（表结构已在 <code>rex-integration.md</code> 3.5 节设计好）。</li>
+<li>地图按地块画边界，标记放在地块内；放大后显示门牌号。</li>
+<li>地址和 Rex 房产自动匹配（规范化地址后精确匹配，否则模糊匹配），匹配不上的进入管理员审核队列；匹配后可以用 <code>Properties.setGeoLocation</code> 修正 Rex 里的坐标。</li>
+<li>单元楼（strata）按地块聚合，点开列出各单元。</li>
+</ol>
+<p>🌐 <strong>待确认：</strong> 各数据源的使用许可（G-NAF 和 DCDB 是 CC BY，需要署名；卫星影像的商用条款）；DCDB 的更新频率。</p>
+<hr>
+<h2>4. App</h2>
+<h3>App Q1 · 能否离线使用、之后再同步？能否在 Android 上禁止截屏，在 iPhone 上检测截屏？　✅（技术上可行）</h3>
+<p><strong>回答：</strong></p>
+<ul>
+<li><strong>离线：</strong> 可以，但需要原生 App 或者 Capacitor 这类壳。纯网页的离线存储会被系统清理，不可靠。</li>
+<li><strong>Android 禁止截屏：</strong> 可以，<code>FLAG_SECURE</code> 会禁止截屏和录屏，最近任务列表里也显示空白。</li>
+<li><strong>iPhone：</strong> <strong>无法禁止截屏</strong>，只能检测（<code>userDidTakeScreenshotNotification</code>），以及检测录屏和投屏（<code>UIScreen.isCaptured</code>），检测到录屏时可以遮住界面。</li>
+</ul>
+<p><strong>解决方案：</strong></p>
+<ol>
+<li><strong>App 方案：</strong> 用 Capacitor 包装现有的 Vue 代码，复用最多；原生能力（分享入口、截屏控制、拨号、短信、推送）用插件实现。这个决定要先定下来，它会影响多项第一阶段的功能。</li>
+<li><strong>离线：</strong> 本地用 SQLite 加密存储；录入先存手机，显示&quot;等待同步 N 条&quot;；恢复网络后按 Rex Q3 的方式限速提交，带幂等键；缓存 24 小时过期（离线也生效）。</li>
+<li><strong>截屏：</strong> Android 开启 <code>FLAG_SECURE</code>；iPhone 检测到截屏就记录审计日志（谁、何时、哪个页面）并提醒管理员，检测到录屏时遮住联系方式；两端都保留姓名加日期的水印。</li>
+</ol>
+<hr>
+<h3>App Q2 · 哪个语音转文字服务对英语、普通话和粤语都处理得好？每分钟多少钱？　🌐</h3>
+<p><strong>回答：</strong> 需要实测。候选服务都支持澳洲英语、普通话和粤语，但<strong>中英混说</strong>（例如&quot;明年 maybe sell&quot;）的效果差别很大，价格也要以官网为准：</p>
+<table>
+<thead>
+<tr>
+<th>候选</th>
+<th>特点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Azure Speech</td>
+<td>支持 en-AU、zh-CN、zh-HK（粤语），有澳洲数据中心</td>
+</tr>
+<tr>
+<td>Google Cloud Speech（Chirp）</td>
+<td>多语言模型，有澳洲区域</td>
+</tr>
+<tr>
+<td>OpenAI 转写（Whisper / gpt-4o-transcribe）</td>
+<td>中英混说效果通常较好，数据存放地要确认</td>
+</tr>
+</tbody></table>
+<p><strong>解决方案：</strong></p>
+<ol>
+<li>用真实场景录 20–30 段测试音频（门口嘈杂环境、中英混说、粤语加英文、澳洲口音），对比几家的准确率、延迟和每分钟价格。</li>
+<li>选出结果后，转写由后端调用（密钥不放在手机上），之后交给 LLM 拆分字段。</li>
+<li>优先选可以把数据存在澳洲、服务商不保留音频的方案。</li>
+<li>&quot;Talk to me&quot;翻译器和录入共用同一个服务。</li>
+</ol>
+<p>🌐 <strong>待办：</strong> 做语音转写测试和比价表。</p>
+<hr>
+<h2>5. 第 10 节：DNCR 订阅能否所有公司共用？　🌐</h2>
+<p><strong>回答：</strong> Rex 文档无法回答，需要查 ACMA 的条款，或者直接问 ACMA。DNCR 订阅的主体是&quot;代表电话营销方核查号码的组织&quot;，agentCollect 作为服务商代各家公司核查是否允许，以及费用怎么分摊，都要确认。</p>
+<p><strong>解决方案：</strong></p>
+<ol>
+<li>先确认条款。允许的话，由 agentCollect 统一订阅，按公司记录核查日志。</li>
+<li>按反馈的设计：超过 30 天的号码每晚批量重新核查，点 Call 时实时核查；结果和日期存在 Rex 自定义字段里作为证据（见 Rex Q1）。</li>
+</ol>
+<hr>
+<h2>6. 拿到 Rex 测试账号后的验证清单</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>验证项</th>
+<th>对应问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>V1</td>
+<td>用 OAuth 以中介身份登录，确认权限过滤和 3,600 次计数方式</td>
+<td>Rex Q2、Q3</td>
+</tr>
+<tr>
+<td>V2</td>
+<td><code>findMatchingContacts</code> 在有权限和无权限两种情况下的返回</td>
+<td>Rex Q2</td>
+</tr>
+<tr>
+<td>V3</td>
+<td>写入标签、关联关系、自定义字段</td>
+<td>Rex Q1</td>
+</tr>
+<tr>
+<td>V4</td>
+<td><code>contact_by_sms=false</code> 写入后，Rex 群发是否跳过</td>
+<td>短信 Q2</td>
+</tr>
+<tr>
+<td>V5</td>
+<td><code>Leads.read</code> 一条门户询盘，看字段；Leads 有没有 webhook 事件</td>
+<td>短信 Q3</td>
+</tr>
+<tr>
+<td>V6</td>
+<td>第三方能否调用 <code>ProspectingMap.*</code></td>
+<td>数据 Q1</td>
+</tr>
+<tr>
+<td>V7</td>
+<td><code>BatchRequests</code> 是否只算一次请求</td>
+<td>Rex Q3</td>
+</tr>
+<tr>
+<td>V8</td>
+<td>有没有能把短信记成活动的接口</td>
+<td>短信 Q1</td>
+</tr>
+</tbody></table>
+<h2>7. 需要外部调研的</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>事项</th>
+<th>对应问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>R1</td>
+<td>短信供应商对比表</td>
+<td>短信 Q2</td>
+</tr>
+<tr>
+<td>R2</td>
+<td>Pricefinder API 配额、数据延迟、事件推送</td>
+<td>数据 Q1</td>
+</tr>
+<tr>
+<td>R3</td>
+<td>G-NAF、DCDB、卫星影像的许可</td>
+<td>数据 Q2</td>
+</tr>
+<tr>
+<td>R4</td>
+<td>语音转写实测和比价</td>
+<td>App Q2</td>
+</tr>
+<tr>
+<td>R5</td>
+<td>DNCR 订阅能否由服务商共用</td>
+<td>第 10 节</td>
+</tr>
+</tbody></table>
+<h2>8. 需要先做的决策</h2>
+<ol>
+<li><strong>D1 改为每位中介用自己的 Rex 身份（OAuth）调用</strong>，集成账号只用于后台任务（Rex Q2）。</li>
+<li><strong>App 用 Capacitor 包装现有 Vue 代码</strong>，还是用 React Native 重写（App Q1）。</li>
+</ol>
+</main>
+<p class="foot">临时页面，仅供讨论 · 生成于 2026-11-05</p>
+</body></html>
