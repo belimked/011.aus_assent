@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "agentCollect",
+    "slug": "agentcollect",
+    "scheme": "agentcollect",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.placesunnybank.agentcollect",
+      "supportsTablet": false,
+      "infoPlist": { "NSMicrophoneUsageDescription": "agentCollect uses the microphone for voice capture." }
+    },
+    "android": {
+      "package": "com.placesunnybank.agentcollect",
+      "permissions": ["android.permission.RECORD_AUDIO"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      ["expo-splash-screen", { "image": "./assets/splash-icon.png", "imageWidth": 120, "resizeMode": "contain", "backgroundColor": "#0b5d8a" }],
+      ["expo-location", { "locationWhenInUsePermission": "agentCollect uses your location to show the property you're standing at.", "locationAlwaysAndWhenInUsePermission": false, "locationAlwaysPermission": false }],
+      "expo-font",
+      "expo-maps"
+    ],
+    "experiments": { "typedRoutes": true }
+  }
+}
