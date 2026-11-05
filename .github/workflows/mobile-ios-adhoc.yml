@@ -22,6 +22,8 @@ env:
   TEAM_ID: 8J42Q87M5P
   CI: 1
   EXPO_NO_TELEMETRY: 1
+  CF_PROJECT: agentcollect-install
+  CF_BASE_URL: https://agentcollect-install.pages.dev
 
 jobs:
   preflight:
@@ -182,12 +184,46 @@ jobs:
               -e "s#__BUNDLE_ID__#$BUNDLE_ID#g" -e "s#__DATE__#$DATE#g" "ci/install/$f" > "$SITE/$f"
           done
           echo "Install page: $BASE_URL/" >> "$GITHUB_STEP_SUMMARY"
+          # Second copy for Cloudflare Pages (github.io is unreachable from some networks, e.g. mainland China).
+          CF="$RUNNER_TEMP/site-cf"
+          mkdir -p "$CF"
+          cp "$SITE"/agentCollect.ipa "$SITE"/icon-*.png "$CF/"
+          for f in index.html manifest.plist; do
+            sed -e "s#__BASE_URL__#$CF_BASE_URL#g" -e "s#__VERSION__#$APP_VERSION#g" -e "s#__BUILD__#${{ github.run_number }}#g" \
+              -e "s#__BUNDLE_ID__#$BUNDLE_ID#g" -e "s#__DATE__#$DATE#g" "ci/install/$f" > "$CF/$f"
+          done
+          echo "Install page (Cloudflare): $CF_BASE_URL/" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: install-site-cf
+          path: ${{ runner.temp }}/site-cf
+          retention-days: 1
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ${{ runner.temp }}/site
       - name: Remove keychain
         if: always()
         run: security delete-keychain "$KEYCHAIN" 2>/dev/null || true
+
+  deploy-cloudflare:
+    needs: build
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: install-site-cf
+          path: site-cf
+      - name: Create Cloudflare Pages project if missing
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@3 pages project create "$CF_PROJECT" --production-branch main || true
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy site-cf --project-name ${{ env.CF_PROJECT }} --branch main --commit-dirty=true
 
   deploy:
     needs: build
