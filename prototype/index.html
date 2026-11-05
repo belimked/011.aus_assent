@@ -6,8 +6,9 @@
 <title>Rex Capture 原型 · Place Sunnybank</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="sunnybank-data.js"></script>
 <style>
-:root{--g:#16a34a;--r:#dc2626;--gr:#9ca3af;--o:#8b5cf6;--y:#f59e0b;--b:#0b5d8a;--bg:#eef1f5;--line:#e5e7eb;--mut:#6b7280;--ink:#111827}
+:root{--g:#16a34a;--r:#dc2626;--gr:#9ca3af;--o:#2563eb;--y:#f59e0b;--b:#0b5d8a;--bg:#eef1f5;--line:#e5e7eb;--mut:#6b7280;--ink:#111827}
 *{box-sizing:border-box}
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Noto Sans CJK SC",sans-serif;background:var(--bg);color:var(--ink)}
 button{font:inherit;cursor:pointer}
@@ -46,14 +47,27 @@ h2.pt{font-size:22px;margin:4px 0 10px}
 #map{flex:1}
 .cov{position:absolute;left:12px;top:12px;z-index:500;background:#fff;border-radius:10px;padding:6px 10px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .cov b{color:var(--g)}
-.legend{position:absolute;left:12px;bottom:12px;z-index:500;background:rgba(255,255,255,.95);border-radius:10px;padding:6px 10px;font-size:11px;line-height:1.7;box-shadow:0 2px 8px rgba(0,0,0,.15)}
-.fab{position:absolute;right:12px;bottom:14px;z-index:500;width:44px;height:44px;border-radius:50%;border:0;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2);font-size:18px}
+.legend{position:absolute;left:12px;bottom:40px;z-index:500;background:rgba(255,255,255,.95);border-radius:10px;padding:6px 10px;font-size:11px;line-height:1.7;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.fab{position:absolute;right:12px;bottom:24px;z-index:500;width:44px;height:44px;border-radius:50%;border:0;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2);font-size:18px}
 .pin{width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25);position:relative}
 .pin.green{background:var(--g)}.pin.red{background:var(--r)}.pin.grey{background:var(--gr)}.pin.other{background:var(--o)}
 .pin.known::after{content:"";position:absolute;left:3px;top:3px;width:4px;height:4px;border-radius:50%;background:#fff}
 .pin.pending{box-shadow:0 0 0 3px var(--y)}
 .pin.sel{transform:scale(1.5);z-index:999}
 .pin-dnk{font-size:13px;line-height:14px;text-align:center;width:16px;height:16px;background:#fff;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.3)}
+.d-amber{background:var(--y)}.pin.amber{background:var(--y)}
+.pw{position:relative;width:16px;height:16px;display:flex;align-items:center;justify-content:center}
+.hn{position:absolute;left:16px;top:0;font-size:10px;font-weight:700;line-height:14px;color:#111827;background:rgba(255,255,255,.9);border-radius:3px;padding:0 3px;white-space:nowrap;pointer-events:none}
+.pin-star{color:#eab308;font-size:19px;line-height:16px;text-shadow:0 0 2px #000,0 0 1px #000}
+.pin-place{width:18px;height:18px;flex:none;border-radius:4px;background:var(--b);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.3)}
+.pin-dnk.sel,.pin-star.sel,.pin-place.sel{transform:scale(1.4)}
+.lg-p{display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--b);color:#fff;font-size:8px;font-weight:800;text-align:center;line-height:12px;vertical-align:middle}
+.lg-star{color:#eab308}
+.zhint{position:absolute;left:50%;top:58px;transform:translateX(-50%);z-index:500;background:#111827;color:#fff;font-size:12px;border-radius:14px;padding:5px 12px;white-space:nowrap}
+.me{width:30px;height:30px;border-radius:50%;background:rgba(37,99,235,.18);border:2px solid #2563eb;display:flex;align-items:center;justify-content:center;font-size:17px;animation:mepulse 2s infinite}
+@keyframes mepulse{0%{box-shadow:0 0 0 0 rgba(37,99,235,.45)}70%{box-shadow:0 0 0 14px rgba(37,99,235,0)}100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}}
+.pinbtn{float:right;border:1px solid var(--line);background:#fff;border-radius:14px;padding:4px 10px;font-size:12px;margin-top:8px}
+.pinbtn.on{background:#fef9c3;border-color:#facc15;color:#854d0e}
 .pin-cx{width:22px;height:22px;border-radius:6px;background:#fff;border:2px solid #374151;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
 /* sheet */
 .shade{position:absolute;inset:0;background:rgba(0,0,0,.25);z-index:20;display:none}
@@ -181,7 +195,9 @@ table.t td{padding:9px 10px;border-bottom:1px solid #f3f4f6;vertical-align:top}
      <div style="position:relative;flex:1;display:flex">
        <div id="map"></div>
        <div class="cov" id="cov"></div>
-       <div class="legend"><span class="dot d-green"></span> Owner in Rex　<span class="dot d-red"></span> No owner<br><span class="dot d-grey"></span> Not matched　<span class="dot d-other"></span> Other agent<br>◉ Owner name known · ⛔ Do not knock · ▢ Units</div>
+       <div class="zhint" id="zhint" style="display:none">Zoom in to see properties</div>
+       <div class="legend"><span class="dot d-green"></span> Owner in Rex　<span class="dot d-red"></span> No contact yet<br><span class="dot d-other"></span> Other agent's contact<br><span class="lg-p">P</span> Place listing　<span class="dot d-amber"></span> Other agency listing<br><span class="lg-star">★</span> My pinned · ◉ Owner name known<br>⛔ Do not knock · ▢ Units</div>
+       <button class="fab" style="bottom:76px" id="satBtn" onclick="toggleSat()" title="Map / Satellite">🛰️</button>
        <button class="fab" onclick="nearMe()" title="Near me">➤</button>
      </div>
    </div>
@@ -325,7 +341,18 @@ const EN = {
  '住了 12 年的自住业主。明年春天可能卖，三月回访。':'Owner-occupier 12 years. May sell next spring. Call back in March.',
  '要求以后不要再上门。不出售。':'Asked us not to door-knock again. Not selling.',
  '租客应门。租约六月到期。业主住在悉尼，未提供联系方式。':'Tenant answered. Lease ends June. Owner lives in Sydney — no contact given.',
- '在 Runcorn 有房，明年可能出售。':'Has a house in Runcorn, may sell next year.'
+ '在 Runcorn 有房，明年可能出售。':'Has a house in Runcorn, may sell next year.',
+ '反馈第 2、4 节':'Feedback §2, §4',
+ '门牌号和地块边界来自昆州政府开放数据（QLD Spatial，CC BY 4.0），每个标记都在自己的地块内。':'House numbers and parcel boundaries come from Queensland Government open data (QLD Spatial, CC BY 4.0); every marker sits inside its own parcel.',
+ '放大到 17 级显示地块边界，18 级显示门牌号；右下角可切换卫星视图。':'Parcel boundaries appear from zoom 17 and house numbers from zoom 18; switch to satellite at bottom right.',
+ '🚶 是你的实时 GPS 位置；不在 Sunnybank 时显示演示位置。':'🚶 is your live GPS position; outside Sunnybank a demo position is shown.',
+ '◉ 白心红点 = RP Data/Pricefinder 有业主名；▢ 方块 = 单元楼，点开列出每个单元。':'◉ White-centred red dot = owner name from RP Data/Pricefinder; ▢ square = unit complex, tap to list each unit.',
+ '业主、笔记和状态仍是模拟数据。':'Owners, notes and statuses are still mock data.',
+ '还没有联系人':'No contact yet','其他中介的联系人':"Other agent's contact",'Place 在售':'Place listing','其他中介公司在售':'Other agency listing','我置顶的':'My pinned',
+ '放大地图查看房产':'Zoom in to see properties','地图 / 卫星':'Map / Satellite','处房产在视图中':'properties in view',
+ '演示位置（你不在 Sunnybank）':"Demo location (you're not in Sunnybank)",'仅显示前 200 条，搜索可缩小范围':'Showing the first 200 — search to narrow',
+ '搜索地址或区…':'Search address or suburb…','分层产权':'Strata','个单元':'units',
+ '置顶':'Pin','已置顶':'Pinned','已置顶 · 仅自己可见':'Pinned · only visible to you','已取消置顶':'Unpinned'
 };
 let lang = new URLSearchParams(location.search).get('lang');
 lang = ['zh','en'].includes(lang) ? lang : (localStorage.getItem('proto-lang') === 'en' ? 'en' : 'zh');
@@ -420,26 +447,27 @@ const ME = { name: 'Kevin Zhang', team: 'Team Owen Chen' };
 const TEAM = ['Kevin Zhang', 'Natalie Wong', 'Owen Chen'];
 const NAMES = ['Mary Chen','David Liu','Grace Huang','Peter Nguyen','Linda Wang','James Smith','Karen Lee','Michael Brown','Helen Zhou','Tony Tran','Susan Taylor','Wei Zhang','Emily Wilson','Jack Ho','Anna Lin','Robert Jones','Cindy Wu','Daniel Kim','Fiona Ma','George Chan'];
 const NOTE_TXT = ['Owner-occupier, happy where they are. Check again next year.','Spoke to wife, husband handles property matters.','Interested in recent sales on the street. Sent CMA.','Renovated kitchen 2023. Might upsize in 2 years.','Left card, no answer.','Investor owner, tenant on lease until March.','Asked about appraisal after Christmas.'];
-const STREETS = [
-  { name: 'Mains Rd', a: [-27.5702, 153.0566], b: [-27.5902, 153.0579], n: 22 },
-  { name: 'McCullough St', a: [-27.5756, 153.0525], b: [-27.5763, 153.0690], n: 24 },
-  { name: 'Gager St', a: [-27.5811, 153.0597], b: [-27.5816, 153.0706], n: 16 },
-  { name: 'Lister St', a: [-27.5851, 153.0587], b: [-27.5857, 153.0700], n: 16 },
-  { name: 'Turton St', a: [-27.5768, 153.0627], b: [-27.5900, 153.0634], n: 18 },
-  { name: 'Dillon St', a: [-27.5716, 153.0642], b: [-27.5719, 153.0722], n: 10 },
-];
+// Real addresses + parcels from QLD Spatial (sunnybank-data.js). Owners, notes and statuses below are still mock.
+const SB = window.SUNNYBANK;
+const clean = s => String(s ?? '').replace(/[<>"&`]/g, '');
+const dec = (x, y) => [SB.origin[1] + y / 1e6, SB.origin[0] + x / 1e6];
+const parcelByLp = new Map(SB.parcels.map(p => [p.lp, p]));
+const POSTCODE = { Sunnybank: '4109', 'Sunnybank Hills': '4109', Robertson: '4109', Macgregor: '4109', Runcorn: '4113' };
+const lotLabel = lp => { const m = /^(\d+)([A-Z]+\d+)$/.exec(lp || ''); return m ? `Lot ${m[1]} on ${m[2]}` : (lp || ''); };
+const pinned = new Set();
 const daysAgo = d => new Date(TODAY - d * 864e5);
 const fmt = d => d ? d.toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-AU', lang === 'zh' ? { year: 'numeric', month: 'long', day: 'numeric' } : { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 const props = []; let pid = 1;
-function mkProp(street, num, lat, lng, unit) {
+function mkProp(street, num, lat, lng, unit, suburb = 'Sunnybank', lp = '') {
   const x = rnd();
-  const status = x < .42 ? 'green' : x < .86 ? 'red' : x < .93 ? 'grey' : 'other';
-  const p = { id: pid++, street, num, unit, lat, lng, status, suburb: 'Sunnybank',
+  const status = x < .42 ? 'green' : x < .9 ? 'red' : 'other';
+  const p = { id: pid++, street, num, unit, lat, lng, status, suburb, lp,
     addr: (unit ? unit + '/' : '') + num + ' ' + street,
     tp: status !== 'grey' && rnd() < .72 ? pick(NAMES) : null,
     tpSale: new Date(1996 + Math.floor(rnd() * 29), Math.floor(rnd() * 12), 1 + Math.floor(rnd() * 27)),
     contacts: [], notes: [], lastVisit: rnd() < .55 ? daysAgo(Math.floor(rnd() * 200)) : null, lastResult: null,
-    dnk: rnd() < .04, junk: rnd() < .05, pending: false };
+    dnk: rnd() < .04, junk: rnd() < .05, pending: false, listing: null };
+  const l = rnd(); if (!unit) p.listing = l < .012 ? 'place' : l < .035 ? 'other' : null;
   if (status === 'green') {
     const owner = pick(TEAM);
     p.contacts.push({ name: p.tp && rnd() < .7 ? p.tp : pick(NAMES), role: rnd() < .8 ? 'Owner' : 'Landlord', mobile: '04' + Math.floor(10000000 + rnd() * 89999999), owner, dnc: rnd() < .06 });
@@ -452,23 +480,30 @@ function mkProp(street, num, lat, lng, unit) {
   if (p.lastVisit) p.lastResult = pick(['No answer', 'Spoke to owner', 'Left card', 'Not interested', 'Tenant answered']);
   return p;
 }
-STREETS.forEach(s => {
-  const dy = s.b[0] - s.a[0], dx = s.b[1] - s.a[1], L = Math.hypot(dx, dy), off = 0.00022;
-  for (let i = 0; i < s.n; i++) {
-    const t = (i + 0.5) / s.n, side = i % 2;
-    const lat = s.a[0] + dy * t + (side ? -1 : 1) * (dx / L) * off, lng = s.a[1] + dx * t + (side ? 1 : -1) * (dy / L) * off;
-    props.push(mkProp(s.name, side ? i + 1 + (i % 2 ? 0 : 1) : i + 1, lat, lng));
+// Units sharing one street address become a single strata-complex marker (tap to list the units).
+const complexes = new Map();
+SB.addresses.forEach(([unit, num, street, suburb, lp, x, y]) => {
+  const [lat, lng] = dec(x, y);
+  const p = mkProp(clean(street), clean(num), lat, lng, unit ? clean(unit) : undefined, clean(suburb), clean(lp));
+  if (unit) {
+    const key = `${p.num} ${p.street}|${p.suburb}`;
+    let c = complexes.get(key);
+    if (!c) complexes.set(key, c = { id: 'cx' + complexes.size, addr: p.num + ' ' + p.street, suburb: p.suburb, units: [], lat: 0, lng: 0 });
+    p.inCx = c.id; c.units.push(p);
   }
+  props.push(p);
 });
-props.forEach((p, i) => { p.num = String(2 * Math.floor(i % 30 / 2) + (i % 2) + 1); p.addr = p.num + ' ' + p.street; });
-// ensure unique numbers per street
-const seen = {}; props.forEach(p => { const k = p.street + p.num; let n = +p.num; while (seen[p.street + n]) n += 2; seen[p.street + n] = 1; p.num = String(n); p.addr = n + ' ' + p.street; });
-// strata complex 15 Gager St (units 1–6)
-const cx = { id: 'cx', addr: '15 Gager St', lat: -27.58085, lng: 153.0655, units: [] };
-for (let u = 1; u <= 6; u++) { const p = mkProp('Gager St', '15', cx.lat, cx.lng, u); p.addr = u + '/15 Gager St'; p.inCx = true; cx.units.push(p); props.push(p); }
+const cxs = [...complexes.values()];
+cxs.forEach(c => {
+  c.lat = c.units.reduce((s, u) => s + u.lat, 0) / c.units.length;
+  c.lng = c.units.reduce((s, u) => s + u.lng, 0) / c.units.length;
+  c.plan = c.units.map(u => u.lp.replace(/^\d+/, '')).find(Boolean) || '';
+  c.units.sort((a, b) => (parseInt(a.unit) || 0) - (parseInt(b.unit) || 0));
+});
+const cxById = id => cxs.find(c => c.id === id);
 // make a demo house that is obviously red + owner known
-const demo = props.find(p => p.street === 'Gager St' && !p.inCx && p.status === 'red') || props[40];
-Object.assign(demo, { status: 'red', tp: 'Mary Chen', dnk: false, contacts: [], notes: [{ date: daysAgo(210), author: 'Owen Chen', text: 'No answer. Two cars in driveway.' }] });
+const demo = props.find(p => p.street === 'Gager St' && !p.inCx && p.status === 'red') || props.find(p => !p.inCx);
+Object.assign(demo, { status: 'red', tp: 'Mary Chen', dnk: false, listing: null, contacts: [], notes: [{ date: daysAgo(210), author: 'Owen Chen', text: 'No answer. Two cars in driveway.' }] });
 
 const state = { online: true, tab: 'map', filter: 'all', sel: null, queue: [], otherMode: 'neutral', revoked: false,
   audit: [], exports: [{ at: '28 Oct 2026 16:02', who: 'Ping Han', what: 'Sunnybank · red only · 214 rows', fields: 'Rex fields only' }],
@@ -482,13 +517,12 @@ const state = { online: true, tab: 'map', filter: 'all', sel: null, queue: [], o
   ] };
 const AUD = (who, action, target, detail) => state.audit.unshift({ at: new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }), date: '2 Nov 2026', who, action, target, detail });
 [['Natalie Wong','Voice capture','8 Turton St','Contact created · linked Owner · note · reminder'],['Owen Chen','Quick result','11 Lister St','No answer'],['Jason Wu','OFI registration','12 Pinelands Rd','Visitor: Amy Xu · B&P report'],['Natalie Wong','Flag set','3 Dillon St','Do not knock · "asked not to visit"'],['Ping Han','Address linked','7 Mains Rd','Rex #48213 ↔ Lot 7 RP84512']].reverse().forEach(a => AUD(...a));
-const reviews = props.filter(p => p.status === 'grey').map((p, i) => ({ p, rex: p.addr.replace('St', 'Street').replace('Rd', 'Road') + (i % 2 ? '' : ', Sunnybank QLD'), cand: `Lot ${p.num} on RP${84000 + p.id * 7} · ${p.addr}`, score: 72 + (p.id * 7) % 20, kind: i % 3 === 0 ? 'Missing unit no.' : i % 3 === 1 ? 'Spelling' : 'Street type' }));
 
 
 /* ===================== NOTES ===================== */
 const NOTES = {
   login: ['登录', '安全 · 第 8–9 页', ['只用 Microsoft 365 单点登录 + MFA，不设独立密码。', '手机端用原生 MSAL（为以后接 Intune 留路）。', '角色（经纪人 / 团队负责人 / 管理员）从 Entra 用户组读取。']],
-  map: ['区域地图 + 业主状态颜色', 'MVP 第 1、2 项', ['颜色按“当前经纪人能在 Rex 看到的业主关联”计算：同一处房产，不同经纪人颜色可能不同。', '紫色 = 其他经纪人跟进（PDF 待定项，建议中性圆点）。', '◉ 白心红点 = RP Data/Pricefinder 有业主名，可在门口确认身份。', '▢ 方块 = 单元楼，点开列出每个单元各自的颜色。', '地图层不显示姓名电话；顶部显示覆盖率。'], '试试：点 Gager St 上带白心的红点 → 按住麦克风录入 → 确认后圆点变绿。右上角“4G”可切到离线。'],
+  map: ['区域地图 + 业主状态颜色', '反馈第 2、4 节', ['门牌号和地块边界来自昆州政府开放数据（QLD Spatial，CC BY 4.0），每个标记都在自己的地块内。', '放大到 17 级显示地块边界，18 级显示门牌号；右下角可切换卫星视图。', '🚶 是你的实时 GPS 位置；不在 Sunnybank 时显示演示位置。', '颜色按“当前经纪人能在 Rex 看到的业主关联”计算：同一处房产，不同经纪人颜色可能不同。', '◉ 白心红点 = RP Data/Pricefinder 有业主名；▢ 方块 = 单元楼，点开列出每个单元。', '业主、笔记和状态仍是模拟数据。'], '试试：点 Gager St 上带白心的红点 → 按住麦克风录入 → 确认后圆点变绿。右上角“4G”可切到离线。'],
   sheet: ['房产详情面板 + 快速录入', 'MVP 第 3、4、5、7 项', ['有权访问的联系人及角色、最近 3 条 Rex 笔记（日期 + 作者）。', '黄色卡片是第三方数据，只有业主名 + 最近成交日期，标明来源，不是 Rex 数据。', '快捷结果按钮：无人应答 / 不感兴趣 / 已留名片 / 租客应门。', '免打扰：勿上门、勿投广告标在房产上；勿致电标在联系人上。经纪人只能设置，取消要管理员。', '底部“按住说话”是主操作，单手可达。']],
   rec: ['按住说话', 'MVP 第 4 项', ['松开即上传，转写（英/普/粤混说）→ LLM 提取字段。', '原型里可选三段模拟口述，看不同提取结果（业主信息 / 勿上门 / 租客）。', '目标：4G 下 10 秒内出确认卡片。']],
   confirm: ['确认卡片', 'MVP 第 4 项 · 通用规则', ['所有字段可改；AI 不确定的字段标黄。', '去重：按手机 → 邮箱 → 姓名+地址匹配，只在本人权限内；队友的记录写入但归属不变。', '底部列出将对 Rex 执行的操作，确认后只由后台 Rex 连接器写入。', '离线时先存手机，恢复网络自动发送（带幂等键，不重复）。', '标签、邮件列表同意也在这里勾选。']],
@@ -504,8 +538,10 @@ function setNote(k) {
 }
 
 /* ===================== MOBILE CORE ===================== */
-let map, layer;
+let map, layer, parcelLayer, baseStreet, baseSat, meMarker, mePos, geoWatch, sat = false;
 const BASEMAP = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'; // 与 wasteid / Web 端一致
+const SATELLITE = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const SB_BOUNDS = L.latLngBounds(SB.addresses.map(a => dec(a[5], a[6])));
 function signIn() {
   login.classList.remove('on');
   AUD(ME.name, 'Sign in', 'iPhone 15', 'Entra SSO · MFA ok');
@@ -547,62 +583,114 @@ const vis = p => (state.otherMode === 'red' && p.status === 'other') ? 'red' : p
 const notVisited = (p, d) => !p.lastVisit || (TODAY - p.lastVisit) / 864e5 > d;
 function passFilter(p) {
   const f = state.filter, s = vis(p);
-  if (f === 'red' || f === 'green' || f === 'grey') return s === f;
+  if (f === 'red' || f === 'green') return s === f;
+  if (f === 'pin') return pinned.has(p.id);
   if (f === 'nv') return notVisited(p, 90);
   if (f === 'old') return p.tp && p.tpSale.getFullYear() <= 2016;
   if (f === 'flag') return p.dnk || p.junk;
   return true;
 }
 function renderChips(id) {
-  const C = [['all', 'All'], ['red', '● Red'], ['green', '● Green'], ['grey', '● Grey'], ['nv', 'Not visited 90d'], ['old', 'Sold 10+ yrs ago'], ['flag', '⛔ Flagged']];
+  const C = [['all', 'All'], ['red', '● Red'], ['green', '● Green'], ['pin', '★ Pinned'], ['nv', 'Not visited 90d'], ['old', 'Sold 10+ yrs ago'], ['flag', '⛔ Flagged']];
   document.getElementById(id).innerHTML = C.map(([k, l]) => `<button class="chip ${state.filter === k ? 'on' : ''}" onclick="setFilter('${k}')">${l}</button>`).join('');
 }
 function setFilter(f) { state.filter = f; renderChips('chipsMap'); drawMarkers(); if (state.tab === 'list') renderList(); }
-function coverage(list) { const l = list.filter(p => vis(p) !== 'grey'); return Math.round(100 * l.filter(p => vis(p) === 'green').length / l.length); }
+function coverage(list) { return list.length ? Math.round(100 * list.filter(p => vis(p) === 'green').length / list.length) : 0; }
 function initMap() {
   if (map) return;
-  map = L.map('map', { zoomControl: false }).setView([-27.5805, 153.0625], 16);
-  L.tileLayer(BASEMAP, { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
-  layer = L.layerGroup().addTo(map); drawMarkers();
+  map = L.map('map', { zoomControl: false, preferCanvas: true, maxZoom: 20 }).setView([demo.lat, demo.lng], 18);
+  const credit = 'Addresses &amp; parcels © State of Queensland (CC BY 4.0)';
+  baseStreet = L.tileLayer(BASEMAP, { maxZoom: 20, maxNativeZoom: 19, attribution: '© OpenStreetMap · ' + credit }).addTo(map);
+  baseSat = L.tileLayer(SATELLITE, { maxZoom: 20, maxNativeZoom: 19, attribution: 'Imagery © Esri · ' + credit });
+  parcelLayer = L.layerGroup().addTo(map);
+  layer = L.layerGroup().addTo(map);
+  map.on('moveend', drawMarkers);
   map.on('click', closeSheet);
+  drawMarkers(); locate(false);
 }
-function pinHtml(p) {
-  if (p.dnk) return `<div class="pin-dnk">⛔</div>`;
-  return `<div class="pin ${vis(p)} ${vis(p) === 'red' && p.tp ? 'known' : ''} ${p.pending ? 'pending' : ''} ${state.sel === p.id ? 'sel' : ''}"></div>`;
+function toggleSat() {
+  sat = !sat;
+  if (sat) { map.removeLayer(baseStreet); baseSat.addTo(map); } else { map.removeLayer(baseSat); baseStreet.addTo(map); }
+  satBtn.textContent = sat ? '🗺️' : '🛰️'; drawMarkers();
+}
+function pinHtml(p, label) {
+  const sel = state.sel === p.id ? 'sel' : '';
+  let core;
+  if (p.dnk) core = `<div class="pin-dnk ${sel}">⛔</div>`;
+  else if (pinned.has(p.id)) core = `<div class="pin-star ${sel}">★</div>`;
+  else if (p.listing === 'place') core = `<div class="pin-place ${sel}">P</div>`;
+  else { const c = p.listing === 'other' ? 'amber' : vis(p); core = `<div class="pin ${c} ${c === 'red' && p.tp ? 'known' : ''} ${p.pending ? 'pending' : ''} ${sel}"></div>`; }
+  return `<div class="pw">${core}${label ? `<span class="hn">${p.num}</span>` : ''}</div>`;
 }
 function drawMarkers() {
-  if (!layer) return; layer.clearLayers();
-  props.filter(p => !p.inCx && passFilter(p)).forEach(p => {
-    L.marker([p.lat, p.lng], { icon: L.divIcon({ className: '', html: pinHtml(p), iconSize: [16, 16] }) }).on('click', e => { L.DomEvent.stopPropagation(e); openSheet(p.id); }).addTo(layer);
-  });
-  const us = cx.units.filter(passFilter);
-  if (us.length) {
-    const g = cx.units.filter(u => vis(u) === 'green').length;
-    L.marker([cx.lat, cx.lng], { icon: L.divIcon({ className: '', html: `<div class="pin-cx" style="border-color:${g === 6 ? 'var(--g)' : '#374151'}">${cx.units.length}</div>`, iconSize: [22, 22] }) }).on('click', e => { L.DomEvent.stopPropagation(e); openCx(); }).addTo(layer);
+  if (!layer) return; layer.clearLayers(); parcelLayer.clearLayers();
+  const z = map.getZoom(), b = map.getBounds().pad(.1), inView = p => b.contains([p.lat, p.lng]);
+  const visible = props.filter(inView);
+  zhint.style.display = z < 16 ? '' : 'none';
+  if (z >= 17) {
+    // Parcel boundaries for every address in view; each marker sits inside its own lot.
+    new Set(visible.map(p => p.lp)).forEach(lp => {
+      const pc = parcelByLp.get(lp); if (!pc) return;
+      pc.r.forEach(r => {
+        const pts = []; for (let i = 0; i < r.length; i += 2) pts.push(dec(r[i], r[i + 1]));
+        L.polygon(pts, { color: sat ? '#fde68a' : '#64748b', weight: 1, fillOpacity: sat ? 0 : .04, interactive: false }).addTo(parcelLayer);
+      });
+    });
   }
-  const all = props.filter(p => p.suburb === 'Sunnybank');
-  cov.innerHTML = `Sunnybank: <b>${coverage(all)}% green</b> · ${STREETS.length} streets in view`;
+  if (z >= 16) {
+    const label = z >= 18;
+    visible.filter(p => !p.inCx && passFilter(p)).forEach(p => {
+      L.marker([p.lat, p.lng], { icon: L.divIcon({ className: '', html: pinHtml(p, label), iconSize: [16, 16] }) }).on('click', e => { L.DomEvent.stopPropagation(e); openSheet(p.id); }).addTo(layer);
+    });
+    cxs.filter(c => inView(c) && c.units.some(passFilter)).forEach(c => {
+      const g = c.units.filter(u => vis(u) === 'green').length;
+      L.marker([c.lat, c.lng], { icon: L.divIcon({ className: '', html: `<div class="pw" style="width:22px;height:22px"><div class="pin-cx" style="border-color:${g === c.units.length ? 'var(--g)' : '#374151'}">${c.units.length}</div>${label ? `<span class="hn" style="left:24px">${c.addr.split(' ')[0]}</span>` : ''}</div>`, iconSize: [22, 22] }) }).on('click', e => { L.DomEvent.stopPropagation(e); openCx(c.id); }).addTo(layer);
+    });
+  }
+  cov.innerHTML = `${visible.length} properties in view · <b>${coverage(visible)}% green</b>`;
 }
 function doSearch() {
   const q = document.getElementById('q').value.trim().toLowerCase(); if (!q) return;
-  const m = props.filter(p => p.addr.toLowerCase().includes(q));
+  const m = props.filter(p => (p.addr + ' ' + p.suburb).toLowerCase().includes(q));
   if (!m.length) return toast('No address found');
-  map.fitBounds(L.latLngBounds(m.map(p => [p.lat, p.lng])).pad(.3));
+  map.fitBounds(L.latLngBounds(m.map(p => [p.lat, p.lng])).pad(.3), { maxZoom: 19 });
+  if (m.length === 1 && !m[0].inCx) setTimeout(() => openSheet(m[0].id), 350);
   const g = m.filter(p => vis(p) === 'green').length; toast(`${m[0].street}: ${m.length} addresses · ${Math.round(100 * g / m.length)}% green`);
 }
-function nearMe() { map.setView([demo.lat, demo.lng], 18); toast('📍 Showing addresses near you'); }
+// Live GPS (walking person). Outside the data area, fall back to a demo position next to the demo house.
+function showMe(lat, lng) {
+  mePos = [lat, lng];
+  if (meMarker) return meMarker.setLatLng(mePos);
+  meMarker = L.marker(mePos, { icon: L.divIcon({ className: '', html: '<div class="me">🚶</div>', iconSize: [30, 30] }), zIndexOffset: 1000, interactive: false }).addTo(map);
+}
+function locate(center) {
+  const useDemo = () => { showMe(demo.lat + 0.00012, demo.lng); if (center) { map.setView(mePos, 19); toast("📍 Demo location (you're not in Sunnybank)"); } };
+  if (!navigator.geolocation) return useDemo();
+  navigator.geolocation.getCurrentPosition(pos => {
+    const here = [pos.coords.latitude, pos.coords.longitude];
+    if (!SB_BOUNDS.pad(.2).contains(here)) return useDemo();
+    showMe(...here); if (center) { map.setView(here, 19); toast('📍 Showing addresses near you'); }
+    if (geoWatch == null) geoWatch = navigator.geolocation.watchPosition(p => { const h = [p.coords.latitude, p.coords.longitude]; if (SB_BOUNDS.pad(.2).contains(h)) showMe(...h); }, () => {}, { enableHighAccuracy: true });
+  }, useDemo, { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 });
+}
+function nearMe() { locate(true); }
+function togglePin(id) {
+  if (pinned.has(id)) { pinned.delete(id); toast('Unpinned'); } else { pinned.add(id); toast('★ Pinned · only visible to you'); }
+  openSheet(id);
+}
 
 /* ===================== SHEET ===================== */
 const byId = id => props.find(p => p.id === id);
 function openSheet(id) {
   const p = byId(id); state.sel = id; drawMarkers();
   const s = vis(p), stLabel = { green: 'Owner linked in Rex', red: 'No owner you can see', grey: 'Not matched to Rex yet', other: 'Followed by another agent' }[s];
-  let body = `<div class="sh-addr">${p.addr}</div><div style="font-size:13px;color:var(--mut)">${p.suburb} QLD 4109 · Lot ${p.num} on RP${84000 + p.id * 7}</div>
-   <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span class="st"><span class="dot d-${s}"></span>${stLabel}</span>${p.lastVisit ? `<span class="st">Last visit ${fmt(p.lastVisit)} · ${p.lastResult}</span>` : '<span class="st">Never visited</span>'}${p.pending ? '<span class="st" style="background:#fef3c7">⏳ Waiting to send</span>' : ''}</div>`;
+  const area = parcelByLp.get(p.lp)?.area;
+  let body = `<button class="pinbtn ${pinned.has(p.id) ? 'on' : ''}" onclick="togglePin(${p.id})">${pinned.has(p.id) ? '★ Pinned' : '☆ Pin'}</button><div class="sh-addr">${p.addr}</div><div style="font-size:13px;color:var(--mut)">${p.suburb} QLD ${POSTCODE[p.suburb] || ''} · ${lotLabel(p.lp)}${area ? ` · ${area} m²` : ''}</div>
+   <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span class="st"><span class="dot d-${s}"></span>${stLabel}</span>${p.listing === 'place' ? '<span class="st"><span class="lg-p">P</span> Place listing</span>' : p.listing === 'other' ? '<span class="st"><span class="dot d-amber"></span> Other agency listing</span>' : ''}${p.lastVisit ? `<span class="st">Last visit ${fmt(p.lastVisit)} · ${p.lastResult}</span>` : '<span class="st">Never visited</span>'}${p.pending ? '<span class="st" style="background:#fef3c7">⏳ Waiting to send</span>' : ''}</div>`;
   if (s === 'grey') body += `<div class="banner b-warn" style="margin-top:10px">This address is not matched to a Rex property yet. It's in the admin review queue. You can still capture — the portal will create the Rex property and flag it for review.</div>`;
   if (s === 'other') body += `<div class="banner b-info" style="margin-top:10px">Another agent already follows this property. Details are hidden under Rex closed-database rules. Talk to the office before capturing to avoid duplicates.</div>`;
   if (s !== 'other') {
-    body += `<div class="sec"><h4>Contacts in Rex</h4>${p.contacts.length ? p.contacts.map(c => `<div class="card"><b>${c.name}</b> <span class="st">${c.role}</span>${c.dnc ? ' <span class="st" style="background:#fee2e2;color:#991b1b">📵 Do not call</span>' : ''}<div style="font-size:13px;color:var(--mut);margin-top:3px">${c.mobile.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3')} · ${c.owner === ME.name ? 'Your contact' : 'Owned by ' + c.owner + ' (' + ME.team + ')'}</div></div>`).join('') : '<div style="font-size:13px;color:var(--mut)">No linked contacts you can see.</div>'}</div>`;
+    body += `<div class="sec"><h4>Contacts in Rex</h4>${p.contacts.length ? p.contacts.map(c => `<div class="card"><b>${c.name}</b> <span class="st">${c.role}</span>${c.dnc ? ' <span class="st" style="background:#fee2e2;color:#991b1b">📵 Do not call</span>' : ''}<div style="font-size:13px;color:var(--mut);margin-top:3px">${c.mobile.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 ••••')} · ${c.owner === ME.name ? 'Your contact' : 'Owned by ' + c.owner + ' (' + ME.team + ')'}</div></div>`).join('') : '<div style="font-size:13px;color:var(--mut)">No linked contacts you can see.</div>'}</div>`;
     if (p.tp) body += `<div class="card tp"><b>${p.tp}</b><span class="src">${p.id % 2 ? 'RP Data' : 'Pricefinder'}</span><div style="font-size:12px;color:#92400e;margin-top:3px">Registered owner · last sale ${fmt(p.tpSale)}<br>Third-party data · not in Rex · confirm at the door before capturing</div></div>`;
     body += `<div class="sec"><h4>Latest Rex notes</h4>${p.notes.slice(0, 3).map(n => `<div class="note">${n.text}<small>${fmt(n.date)} · ${n.author}</small></div>`).join('') || '<div style="font-size:13px;color:var(--mut)">No notes you can see.</div>'}<button class="lnk" onclick="toast('Opens this property in Rex (rexsoftware.com)')">Open in Rex ↗</button></div>`;
   }
@@ -617,10 +705,11 @@ function openSheet(id) {
   sheet.classList.add('on'); shade.classList.remove('on');
   setNote('sheet');
 }
-function openCx() {
-  state.sel = null;
-  sheet.innerHTML = `<div class="grab"></div><div class="sh-body"><div class="sh-addr">15 Gager St</div><div style="font-size:13px;color:var(--mut)">Strata · 6 units on one lot (SP 21544)</div>
-   <div class="sec"><h4>Units</h4>${cx.units.map(u => `<div class="li" onclick="openSheet(${u.id})"><span class="dot d-${vis(u)}"></span><div class="a"><b>Unit ${u.unit}</b><span>${u.contacts[0] ? u.contacts[0].role + ': ' + u.contacts[0].name : u.tp ? 'Owner (3rd party): ' + u.tp : 'No owner info'}</span></div><div class="r">${u.lastVisit ? fmt(u.lastVisit) : 'Never'}</div></div>`).join('')}</div></div>`;
+function openCx(id) {
+  const c = cxById(id ?? state.cx); if (!c) return;
+  state.cx = c.id; state.sel = null;
+  sheet.innerHTML = `<div class="grab"></div><div class="sh-body"><div class="sh-addr">${c.addr}</div><div style="font-size:13px;color:var(--mut)">${c.suburb} QLD ${POSTCODE[c.suburb] || ''} · Strata · ${c.units.length} units${c.plan ? ' · ' + c.plan : ''}</div>
+   <div class="sec"><h4>Units</h4>${c.units.map(u => `<div class="li" onclick="openSheet(${u.id})"><span class="dot d-${vis(u)}"></span><div class="a"><b>Unit ${u.unit}</b><span>${u.contacts[0] ? u.contacts[0].role + ': ' + u.contacts[0].name : u.tp ? 'Owner (3rd party): ' + u.tp : 'No owner info'}</span></div><div class="r">${u.lastVisit ? fmt(u.lastVisit) : 'Never'}</div></div>`).join('')}</div></div>`;
   sheet.classList.add('on'); setNote('sheet');
 }
 function closeSheet() { sheet.classList.remove('on'); shade.classList.remove('on'); if (state.sel) { state.sel = null; drawMarkers(); } if (state.tab === 'map') setNote('map'); }
@@ -723,15 +812,21 @@ function applyWrite(w, fromQueue) {
 }
 
 /* ===================== LIST ===================== */
-let sortBy = 'addr';
+let sortBy = 'addr', listQuery = '';
+const LIST_MAX = 200;
 function renderList() {
-  const rows = props.filter(passFilter).sort((a, b) => sortBy === 'sale' ? a.tpSale - b.tpSale : sortBy === 'visit' ? (a.lastVisit || 0) - (b.lastVisit || 0) : a.street.localeCompare(b.street) || a.num - b.num || (a.unit || 0) - (b.unit || 0));
-  document.getElementById('pg-list').innerHTML = `<div class="srch"><input placeholder="Filter street…" oninput="listQ(this.value)"><button onclick="go('map')" title="Map">🗺️</button></div><div class="chips" id="chipsList"></div>
-   <div style="display:flex;justify-content:space-between;padding:6px 14px;font-size:12px;color:var(--mut);background:#f9fafb"><span>${rows.length} properties · ${coverage(rows) || 0}% green</span><select onchange="sortBy=this.value;renderList()" style="font-size:12px;border:0;background:none">${[['addr', 'Sort: address'], ['sale', 'Sort: oldest sale'], ['visit', 'Sort: least recent visit']].map(([k, l]) => `<option value="${k}" ${sortBy === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+  const q = listQuery.trim().toLowerCase();
+  const all = props.filter(p => passFilter(p) && (!q || (p.addr + ' ' + p.suburb).toLowerCase().includes(q)));
+  const rows = all.sort((a, b) => sortBy === 'sale' ? a.tpSale - b.tpSale : sortBy === 'visit' ? (a.lastVisit || 0) - (b.lastVisit || 0) : a.street.localeCompare(b.street) || (parseInt(a.num) || 0) - (parseInt(b.num) || 0) || a.num.localeCompare(b.num) || (parseInt(a.unit) || 0) - (parseInt(b.unit) || 0)).slice(0, LIST_MAX);
+  document.getElementById('pg-list').innerHTML = `<div class="srch"><input placeholder="Search address or suburb…" value="${clean(listQuery)}" oninput="listQ(this.value)"><button onclick="go('map')" title="Map">🗺️</button></div><div class="chips" id="chipsList"></div>
+   <div style="display:flex;justify-content:space-between;padding:6px 14px;font-size:12px;color:var(--mut);background:#f9fafb"><span>${all.length} properties · ${coverage(all)}% green${all.length > LIST_MAX ? ' · Showing the first 200 — search to narrow' : ''}</span><select onchange="sortBy=this.value;renderList()" style="font-size:12px;border:0;background:none">${[['addr', 'Sort: address'], ['sale', 'Sort: oldest sale'], ['visit', 'Sort: least recent visit']].map(([k, l]) => `<option value="${k}" ${sortBy === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
    <div class="scroll lst" id="lstBody">${rows.map(p => `<div class="li" data-a="${p.addr.toLowerCase()}" onclick="openSheet(${p.id})"><span class="dot d-${vis(p)}"></span><div class="a"><b>${p.addr}${p.dnk ? ' ⛔' : ''}${p.junk ? ' 📭' : ''}${p.pending ? ' ⏳' : ''}</b><span>${p.contacts[0] ? '👤 ' + p.contacts[0].name : p.tp && vis(p) !== 'other' ? '<i style="color:#b45309">' + p.tp + ' · 3rd party</i>' : '—'} · sold ${p.tpSale.getFullYear()}</span></div><div class="r">${p.lastVisit ? fmt(p.lastVisit) + '<br>' + p.lastResult : 'Never'}</div></div>`).join('')}</div>`;
   renderChips('chipsList'); document.querySelectorAll('#chipsList .chip').forEach(b => b.onclick = () => { setFilter(b.getAttribute('onclick').match(/'(\w+)'/)[1]); });
 }
-function listQ(v) { document.querySelectorAll('#lstBody .li').forEach(e => e.style.display = e.dataset.a.includes(v.toLowerCase()) ? '' : 'none'); }
+function listQ(v) {
+  listQuery = v; renderList();
+  const i = document.querySelector('#pg-list .srch input'); i.focus(); i.setSelectionRange(v.length, v.length);
+}
 
 /* ===================== OFI ===================== */
 const OFIS = [{ addr: '12 Pinelands Rd, Sunnybank Hills', time: 'Sat 2 Nov · 10:00–10:30', live: true, dist: '0.4 km', att: [{ n: 'Amy Xu', t: '10:04', bp: true }, { n: 'Ben Carter', t: '10:09' }] },
