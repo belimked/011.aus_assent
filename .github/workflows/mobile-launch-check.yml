@@ -1,0 +1,126 @@
+name: Mobile launch check
+
+# Builds mobile/ for the iOS simulator (no signing) and launches it on several iOS versions,
+# keeping the system log and any crash report. For "installs fine, won't open" reports from devices:
+# a Release build turns an unhandled JS error at start-up into SIGABRT with no message on the device.
+# Adapted from AusFlow's build.yml + launch-check.yml.
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/mobile-launch-check.yml']
+  workflow_dispatch:
+    inputs:
+      ios:
+        description: 'iOS runtimes, JSON list (e.g. ["18.6","26.0"])'
+        type: string
+        default: '["18.6", "26.0"]'
+
+permissions:
+  contents: read
+
+env:
+  CI: 1
+  EXPO_NO_TELEMETRY: 1
+
+jobs:
+  simulator:
+    runs-on: macos-26
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: npx expo prebuild -p ios --clean
+      - name: Build for simulator
+        run: |
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -1); SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd" CODE_SIGNING_ALLOWED=NO -quiet build
+          tar -czf "$RUNNER_TEMP/app.tgz" -C "$RUNNER_TEMP/dd/Build/Products/Release-iphonesimulator" "$SCHEME.app"
+          echo "APP_NAME=$SCHEME" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sim-app
+          path: ${{ runner.temp }}/app.tgz
+          retention-days: 7
+
+  launch:
+    needs: simulator
+    runs-on: macos-26
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        ios: ${{ fromJSON(inputs.ios || '["18.6", "26.0"]') }}
+    name: iOS ${{ matrix.ios }}
+    env:
+      IOS: ${{ matrix.ios }}
+      DEVICE: iPhone 13
+      BUNDLE_ID: com.placesunnybank.agentcollect
+      PROC: agentCollect
+    steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - uses: actions/download-artifact@v4
+        with:
+          name: sim-app
+          path: ${{ runner.temp }}/app
+      - run: tar -xzf "$RUNNER_TEMP/app/app.tgz" -C "$RUNNER_TEMP/app" && ls "$RUNNER_TEMP/app"
+      - name: Get the iOS runtime
+        run: |
+          have() { xcrun simctl list runtimes -j | jq -r '.runtimes[] | select(.platform == "iOS" and .isAvailable) | .version'; }
+          have | grep -qx "$IOS" || sudo xcodebuild -downloadPlatform iOS -buildVersion "$IOS"
+          have
+      - name: Boot simulator and install
+        run: |
+          RT=$(xcrun simctl list runtimes -j | jq -r --arg v "$IOS" '.runtimes[] | select(.platform == "iOS" and .version == $v) | .identifier')
+          DT=$(xcrun simctl list devicetypes -j | jq -r --arg n "$DEVICE" '.devicetypes[] | select(.name == $n) | .identifier')
+          UDID=$(xcrun simctl create launch-check "$DT" "$RT")
+          xcrun simctl boot "$UDID" && xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$RUNNER_TEMP/app/$PROC.app"
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+      - name: Launch and keep the log
+        run: |
+          LOG="$RUNNER_TEMP/launch.log"
+          xcrun simctl spawn "$UDID" log stream --style compact --level debug \
+            --predicate "process == \"$PROC\" OR eventMessage CONTAINS \"$PROC\" OR eventMessage CONTAINS \"$BUNDLE_ID\"" > "$LOG" 2>&1 &
+          STREAM=$!
+          sleep 3
+          xcrun simctl launch "$UDID" "$BUNDLE_ID" || true
+          sleep 25
+          xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/screen.png" || true
+          kill $STREAM || true
+          ALIVE=$(xcrun simctl spawn "$UDID" launchctl list 2>/dev/null | grep -c "$BUNDLE_ID" || true)
+          echo "::group::Launch log (filtered)"
+          grep -iE 'Unhandled|Exception|RCTFatal|Error:|Invariant|abort|crash|Terminating|SIGABRT|TurboModule|not found|undefined is not' "$LOG" | head -120 || true
+          echo "::endgroup::"
+          CRASHES=$(ls ~/Library/Logs/DiagnosticReports/$PROC* 2>/dev/null || true)
+          if [ -n "$CRASHES" ]; then
+            echo "::error::$PROC crashed on iOS $IOS"
+            for f in $CRASHES; do echo "== $f"; grep -E 'exceptionReason|Exception Type|Termination|Application Specific|"reason"' "$f" | head -30; done
+            mkdir -p "$RUNNER_TEMP/crashes" && cp $CRASHES "$RUNNER_TEMP/crashes/"
+            exit 1
+          fi
+          [ "$ALIVE" != 0 ] || { echo "::error::$PROC not running 25 s after launch and left no crash report"; exit 1; }
+          echo "$PROC is still running 25 s after launch on iOS $IOS"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: launch-ios${{ matrix.ios }}
+          path: |
+            ${{ runner.temp }}/launch.log
+            ${{ runner.temp }}/screen.png
+            ${{ runner.temp }}/crashes
+          if-no-files-found: ignore
