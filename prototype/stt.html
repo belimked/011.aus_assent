@@ -1,0 +1,1196 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>语音转文字（STT）供应商调研：价格、语言、数据存放地</title>
+<style>
+:root{--b:#0b5d8a}
+*{box-sizing:border-box}
+body{margin:0;background:#f3f5f8;color:#1f2937;font:15px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+header{background:#0f172a;color:#fff;padding:12px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+header b{font-size:16px} header a{color:#93c5fd;text-decoration:none;font-size:14px}
+main{max-width:920px;margin:20px auto;background:#fff;border-radius:14px;padding:24px 28px;box-shadow:0 1px 3px #0001}
+h1{font-size:24px;color:var(--b);margin-top:0} h2{font-size:20px;border-bottom:2px solid #e5e7eb;padding-bottom:6px;margin-top:2em}
+h3{font-size:16.5px;color:var(--b);margin-top:1.6em}
+table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:14px;margin:1em 0}
+th,td{border:1px solid #e5e7eb;padding:6px 10px;vertical-align:top;text-align:left} th{background:#f1f5f9}
+code{background:#f1f5f9;border-radius:4px;padding:1px 5px;font-size:13px;word-break:break-word}
+pre{background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:12px;overflow:auto} pre code{background:none;padding:0}
+blockquote{margin:1em 0;padding:8px 14px;border-left:4px solid var(--b);background:#eff6ff;color:#334155;border-radius:0 8px 8px 0}
+hr{border:0;border-top:1px solid #e5e7eb;margin:2em 0}
+.foot{color:#64748b;font-size:12px;text-align:center;margin:0 0 30px}
+@media(max-width:600px){main{margin:0;border-radius:0;padding:18px 16px}}
+</style></head><body>
+<header><b>agentCollect · 语音转文字供应商调研</b><a href="./answers">← 返回问题回答</a><a href="./">原型</a></header>
+<main><h1>语音转文字（STT）供应商调研：价格、语言、数据存放地</h1>
+<blockquote>
+<p>对应 <code>feedback-q11-answers.md</code> 中的 <strong>App Q2</strong> 和待办 <strong>R4</strong>。<br>抓取日期：<strong>2026-11-05</strong>（UTC）。价格均来自官网页面或官方价格 API，原文币种照录；没有核实的数字标 <strong>未核实</strong>。<br>汇率（ECB 数据，经 frankfurter.dev，2026-11-04）：<strong>1 USD = 1.4255 AUD</strong>，<strong>1 USD = 6.6723 CNY</strong>，<strong>1 CNY = 0.21364 AUD</strong>。<br>本文不是法律意见。APP 8 / PIPL 的结论需要律师确认。</p>
+</blockquote>
+<hr>
+<h2>1. 结论与推荐</h2>
+<h3>前三名（适合&quot;门口口述、中英粤混说、澳洲个人信息&quot;）</h3>
+<table>
+<thead>
+<tr>
+<th>排名</th>
+<th>方案</th>
+<th>为什么</th>
+<th>每音频小时（AUD）</th>
+<th>主要风险</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>1</strong></td>
+<td><strong>Microsoft Azure AI Speech，Australia East</strong></td>
+<td>Australia East 支持实时转写、Fast transcription 和批量转写（官方区域表已核实）；语言有 en-AU、zh-CN、zh-HK、yue-CN；企业合同和 DPA 成熟；按秒计费</td>
+<td>实时 1.43；Fast 0.51；批量 0.26</td>
+<td>每次请求一般要指定 locale，<strong>同一句话里中英混说的效果要实测</strong>（可以用连续语种识别或多语言模式，但对 zh/en 句内切换没有专门承诺）；实时转写最贵</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td><strong>Deepgram Nova-3 Multilingual，AU 端点 <code>api.au.deepgram.com</code></strong></td>
+<td>官方保证请求<strong>只在澳洲处理、不会回退到其他区域</strong>；<code>language=multi</code> 支持句内切换，Nova-3 多语种包含普通话、粤语（zh-HK）和 en-AU；按秒计费，没有最低时长；有 200 USD 赠送额度</td>
+<td>预录 0.45；流式 0.79</td>
+<td>默认参加 Model Improvement Program，<strong>必须每个请求加 <code>mip_opt_out=true</code></strong>；中文和粤语的实际准确率未知</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td><strong>Speechmatics，AU1（<code>au1.asr.api.speechmatics.com</code> / <code>au.rt.speechmatics.com</code>）</strong></td>
+<td>有澳洲区域，并且 Melia 1 在 AU1 可用；Melia 1 能自动切换语种（句中切换）；Enhanced 模型有 <code>cmn_en</code>（普通话+英语双语包），也支持粤语 <code>yue</code>；按秒计费；价格最低</td>
+<td>Melia 1：预录 0.17，实时 0.29；Enhanced：0.54 / 0.57</td>
+<td>Melia 1 的 56 种语言具体包括哪些（是否包括粤语）没有逐条核实；<code>cmn_en</code> 双语包不包括粤语</td>
+</tr>
+</tbody></table>
+<p><strong>备选（应该一起参加实测）：</strong></p>
+<ul>
+<li><strong>AWS Transcribe，悉尼 ap-southeast-2</strong>：数据在澳洲，价格低（批量 0.51 AUD/h），支持 en-AU、zh-CN、zh-HK（粤语），并有&quot;多语种识别（multi-language identification）&quot;。缺点是中英句内混说的效果一般需要实测。</li>
+<li><strong>OpenAI gpt-4o-transcribe / gpt-4o-mini-transcribe</strong>：业内普遍认为中英混说效果较好（<strong>未核实，需实测</strong>）。但它的&quot;澳洲数据驻留&quot;<strong>只保证存储在澳洲，推理不在澳洲</strong>（官方表格写的是 Processing: No），而且需要销售审批 MAM/ZDR。所以按 APP 8 仍然属于跨境披露，只建议用于对比测试，或在合同到位后再用。</li>
+<li><strong>中国大陆厂商（阿里、腾讯、讯飞、百度、火山）</strong>：中文、粤语、方言和中英混说是它们的强项，价格也最低，<strong>但数据在中国大陆处理</strong>。把澳洲居民的个人信息发过去，属于 APP 8 跨境披露，还会进入 PIPL 和数据出境制度的管辖范围。<strong>不建议用于生产环境</strong>。阿里云国际站新加坡（&quot;International&quot;部署范围）可以作为测试基准，但仍然是境外处理，而且供应商是中国公司。</li>
+</ul>
+<h3>必须实测：20–30 段测试方案（来自 App Q2）</h3>
+<p>价格和语言列表都不能说明<strong>混说的实际准确率</strong>。建议这样测：</p>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>数量</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A 澳洲英语</td>
+<td>6</td>
+<td>门口户外（风、车流），澳洲口音，包含门牌、街名（Sunnybank、Mains Rd 等）、电话号码、价格（&quot;1.2 million&quot;）</td>
+</tr>
+<tr>
+<td>B 普通话夹英语</td>
+<td>8</td>
+<td>&quot;明年 maybe sell&quot;、&quot;他说 open home 周六&quot;、&quot;budget 大概 one point five&quot;</td>
+</tr>
+<tr>
+<td>C 粤语夹英语</td>
+<td>6</td>
+<td>粤语为主，夹英语房产词汇和数字</td>
+</tr>
+<tr>
+<td>D 纯普通话</td>
+<td>3</td>
+<td>安静和嘈杂各有</td>
+</tr>
+<tr>
+<td>E 极端噪声或短句</td>
+<td>3–5</td>
+<td>10 秒左右的短句、强风、多人说话</td>
+</tr>
+</tbody></table>
+<ul>
+<li>**录音来源：**由员工或志愿者按真实场景扮演，<strong>不要用真实客户的录音</strong>，避免在选型阶段就发生跨境披露。用手机 App 实际的采样率和编码录音。</li>
+<li>**参考文本：**由双语人员人工转写，统一简繁体和数字写法。</li>
+<li>**指标：**混合错误率 MER（中文按字算 CER，英文按词算 WER）；<strong>关键字段准确率</strong>（姓名、电话、地址、价格、时间）；延迟（实时转写看首字和最终结果的时间，批量看整段返回时间）；按第 6 节估算的成本；交给 LLM 抽取字段后的最终字段正确率。</li>
+<li><strong>候选和配置：</strong><ul>
+<li>Azure：分别测 en-AU、zh-CN、zh-HK 单语，以及连续语种识别</li>
+<li>Deepgram：nova-3 <code>language=multi</code>，AU 端点</li>
+<li>Speechmatics：Melia 1，以及 Enhanced 的 <code>cmn_en</code>，AU1</li>
+<li>AWS：multi-language ID，悉尼</li>
+<li>OpenAI：gpt-4o-transcribe 和 mini（只用测试数据）</li>
+<li>可选：阿里 qwen3-asr-flash 新加坡（只用测试数据）</li>
+</ul>
+</li>
+<li>每个配置跑全部音频；记录配置和版本；结果写到 <code>docs/</code> 下。</li>
+</ul>
+<hr>
+<h2>2. 国际供应商对比表</h2>
+<p>&quot;每音频小时&quot;一列由原价换算（÷60 或 ×3600），AUD 按上面的汇率折算。</p>
+<table>
+<thead>
+<tr>
+<th>供应商 / 模型</th>
+<th>英语（en-AU）</th>
+<th>普通话</th>
+<th>粤语</th>
+<th>中英句内混说</th>
+<th>流式 / 批量</th>
+<th>官方计费单位与标价</th>
+<th>每音频小时（原币）</th>
+<th>≈AUD/h</th>
+<th>免费额度</th>
+<th>澳洲区域</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Azure AI Speech</strong> 标准实时（S1）</td>
+<td>✅ en-AU</td>
+<td>✅ zh-CN</td>
+<td>✅ zh-HK、yue-CN</td>
+<td>有语种识别和多语言模式；句内切换<strong>需实测</strong></td>
+<td>流式</td>
+<td><strong>按秒计费</strong>，标价 1.00 USD/小时</td>
+<td>1.00 USD</td>
+<td>1.43</td>
+<td>F0 层每月 5 小时</td>
+<td>✅ Australia East（实时、Fast、批量均支持）</td>
+</tr>
+<tr>
+<td>Azure Fast transcription</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>同上；Azure LLM Speech 可自动检测语种</td>
+<td>同步批量（快速返回）</td>
+<td>0.36 USD/小时（另有 Promo 档 0.10 USD/小时，生效日期 2026-09-01，结束日期未知）</td>
+<td>0.36 USD</td>
+<td>0.51</td>
+<td>—</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Azure 批量转写</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>同上</td>
+<td>异步批量</td>
+<td>0.18 USD/小时</td>
+<td>0.18 USD</td>
+<td>0.26</td>
+<td>—</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>AWS Transcribe</strong> 批量</td>
+<td>✅ en-AU</td>
+<td>✅ zh-CN</td>
+<td>✅ zh-HK（yue-HK）</td>
+<td>有 multi-language identification（批量和流式都支持），输出多语种转写</td>
+<td>批量</td>
+<td><strong>按秒，无最低时长</strong>；悉尼 0.0001 USD/秒（= 0.006 USD/分钟）</td>
+<td>0.36 USD</td>
+<td>0.51</td>
+<td>前 12 个月每月 60 分钟</td>
+<td>✅ ap-southeast-2 悉尼</td>
+</tr>
+<tr>
+<td>AWS Transcribe 流式</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>同上</td>
+<td>流式</td>
+<td>悉尼 0.0001667 USD/秒（= 0.01 USD/分钟）</td>
+<td>0.60 USD</td>
+<td>0.86</td>
+<td>同上</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>Google Cloud STT V2</strong>（含 Chirp / Chirp 2 / Chirp 3）</td>
+<td>✅ en-AU</td>
+<td>✅ cmn-Hans-CN</td>
+<td>✅ yue-Hant-HK（Chirp 3 中为 <strong>Preview</strong>）</td>
+<td>Chirp 3 可用 <code>auto</code> 自动检测&quot;主要语言&quot;，<strong>句内切换没有承诺</strong></td>
+<td>流式、同步、批量</td>
+<td><strong>按分钟标价，每次请求向上取整到 1 秒</strong>；0–50 万分钟 0.016 USD/分钟；Dynamic Batch 0.003 USD/分钟</td>
+<td>0.96 USD（动态批量 0.18）</td>
+<td>1.37（0.26）</td>
+<td>每月 60 分钟</td>
+<td>❌ <strong>没有澳洲区域</strong>。STT V2 的区域只有 us、eu、us-central1、europe-west4、asia-southeast1（新加坡，Chirp/Chirp 2）、global；Chirp 3 只在 us 和 eu 多区域</td>
+</tr>
+<tr>
+<td><strong>OpenAI gpt-4o-transcribe</strong></td>
+<td>✅（不分地区口音）</td>
+<td>✅</td>
+<td>支持（<strong>未核实</strong>）</td>
+<td>普遍认为较好（<strong>未核实，需实测</strong>）</td>
+<td>文件上传；Realtime 另计</td>
+<td>按 token：输入 2.50、输出 10.00 USD/百万 token；官方估算 0.006 USD/分钟</td>
+<td>≈0.36 USD</td>
+<td>≈0.51</td>
+<td>—</td>
+<td>⚠️ <code>au.api.openai.com</code>：<strong>只在澳洲存储，推理不在澳洲</strong>；需要 MAM 或 ZDR 审批（联系销售）</td>
+</tr>
+<tr>
+<td>OpenAI gpt-4o-mini-transcribe</td>
+<td>✅</td>
+<td>✅</td>
+<td>同上</td>
+<td>同上</td>
+<td>同上</td>
+<td>输入 1.25、输出 5.00 USD/百万 token；估算 0.003 USD/分钟</td>
+<td>≈0.18 USD</td>
+<td>≈0.26</td>
+<td>—</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>OpenAI gpt-transcribe（新）</td>
+<td>✅</td>
+<td>✅</td>
+<td><strong>未核实</strong></td>
+<td><strong>未核实</strong></td>
+<td>文件</td>
+<td>估算 0.0045 USD/分钟</td>
+<td>≈0.27 USD</td>
+<td>≈0.38</td>
+<td>—</td>
+<td>同上；数据驻留端点对 2026-03-05 之后发布的模型加价 10%</td>
+</tr>
+<tr>
+<td>OpenAI whisper-1</td>
+<td>✅</td>
+<td>✅</td>
+<td>支持（<strong>未核实</strong>）</td>
+<td>一般</td>
+<td>文件</td>
+<td>0.006 USD/分钟</td>
+<td>0.36 USD</td>
+<td>0.51</td>
+<td>—</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>OpenAI gpt-live-transcribe / gpt-realtime-whisper</td>
+<td>✅</td>
+<td>✅</td>
+<td><strong>未核实</strong></td>
+<td><strong>未核实</strong></td>
+<td>实时</td>
+<td>0.017 USD/分钟</td>
+<td>1.02 USD</td>
+<td>1.45</td>
+<td>—</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><strong>Deepgram Nova-3 Multilingual</strong></td>
+<td>✅ en-AU</td>
+<td>✅ zh / zh-CN</td>
+<td>✅ zh-HK</td>
+<td>✅ 文档写明 <code>language=multi</code> 支持句内切换（Nova-3 多语种共 55 种）</td>
+<td>预录和流式</td>
+<td><strong>按秒，无最低时长，不按块取整</strong>；按需付费：预录 0.0052、流式 0.0092 USD/分钟（Growth 档 0.0043 / 0.0078）</td>
+<td>预录 0.312 / 流式 0.552 USD</td>
+<td>0.45 / 0.79</td>
+<td>200 USD 赠送额度，不过期</td>
+<td>✅ <code>api.au.deepgram.com</code>，<strong>保证在澳洲处理，不回退到其他区域</strong>（Whisper 模型在 AU 端点不可用）</td>
+</tr>
+<tr>
+<td>Deepgram Nova-3 Monolingual</td>
+<td>✅</td>
+<td>✅（单语）</td>
+<td>✅（单语）</td>
+<td>❌</td>
+<td>预录和流式</td>
+<td>预录 0.0043、流式 0.0077 USD/分钟</td>
+<td>0.258 / 0.462 USD</td>
+<td>0.37 / 0.66</td>
+<td>同上</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>AssemblyAI Universal-3.5 Pro</strong></td>
+<td>✅ Australian English</td>
+<td>✅ Mandarin</td>
+<td>❌（只有 3.6 Pro Preview 和 Universal-2 支持粤语）</td>
+<td>✅ 原生句内切换，官方示例里有英语和普通话</td>
+<td>异步批量</td>
+<td>0.21 USD/小时</td>
+<td>0.21 USD</td>
+<td>0.30</td>
+<td>预录 185 小时，流式 333 小时</td>
+<td>❌ 只有 US（默认）和 EU</td>
+</tr>
+<tr>
+<td>AssemblyAI Universal-2</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅ yue</td>
+<td>有，需开启 <code>code_switching</code>（旧版）</td>
+<td>异步批量</td>
+<td>0.15 USD/小时</td>
+<td>0.15 USD</td>
+<td>0.21</td>
+<td>同上</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>AssemblyAI Universal-3.6 Pro Realtime</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅（32 种语言之一）</td>
+<td><strong>未核实</strong></td>
+<td>流式</td>
+<td>0.45 USD/小时（Universal-Streaming 0.15 USD/小时，只有英语和 6 种欧洲语言）</td>
+<td>0.45 USD</td>
+<td>0.64</td>
+<td>同上</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>Speechmatics Melia 1</strong></td>
+<td>✅（Global English，包含澳洲口音）</td>
+<td>✅</td>
+<td>是否在 Melia 的 56 种语言内<strong>未逐条核实</strong></td>
+<td>✅ &quot;switches language mid-sentence&quot;</td>
+<td>预录和实时</td>
+<td><strong>按秒计费（以 credit 结算）</strong>；预录 0.12 USD/小时，实时 0.20 USD/小时</td>
+<td>0.12 / 0.20 USD</td>
+<td>0.17 / 0.29</td>
+<td>100 USD 赠送额度</td>
+<td>✅ AU1（Melia 1 在 EU1、US1、AU1 可用）</td>
+</tr>
+<tr>
+<td>Speechmatics Enhanced</td>
+<td>✅</td>
+<td>✅ <code>cmn</code></td>
+<td>✅ <code>yue</code></td>
+<td>✅ <code>cmn_en</code> 普通话加英语双语包（不包括粤语）</td>
+<td>预录和实时</td>
+<td>0.38 / 0.40 USD/小时（Standard 0.23 USD/小时）</td>
+<td>0.38 / 0.40 USD</td>
+<td>0.54 / 0.57</td>
+<td>同上</td>
+<td>✅ AU1</td>
+</tr>
+<tr>
+<td><strong>ElevenLabs Scribe v2</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>✅（文档提到 Cantonese）</td>
+<td>有&quot;Smart language detection&quot;；句内切换<strong>未核实</strong></td>
+<td>批量</td>
+<td>0.22 USD/小时（keyterm 加 0.05 USD/小时）</td>
+<td>0.22 USD</td>
+<td>0.31</td>
+<td>订阅附带额度</td>
+<td>❌ 默认美国；企业版可选 EU、印度、新加坡</td>
+</tr>
+<tr>
+<td>ElevenLabs Scribe v2 Realtime</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td><strong>未核实</strong></td>
+<td>实时</td>
+<td>0.39 USD/小时</td>
+<td>0.39 USD</td>
+<td>0.56</td>
+<td>同上</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>Rev.ai</strong> Reverb Foreign Language</td>
+<td>英语用 Reverb 0.20 USD/小时</td>
+<td>✅ 页面写 Chinese</td>
+<td><strong>未核实</strong></td>
+<td><strong>未核实</strong></td>
+<td>批量</td>
+<td>0.30 USD/小时；<strong>按秒取整，每次最低 15 秒</strong></td>
+<td>0.30 USD</td>
+<td>0.43</td>
+<td>有免费额度（数量<strong>未核实</strong>）</td>
+<td>❌（区域<strong>未核实</strong>）</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>3. 中国大陆供应商对比表</h2>
+<p>注：&quot;元&quot;指人民币。&quot;每日用量梯度&quot;表示按当天总用量所在档位，对当天全部用量统一计价。</p>
+<table>
+<thead>
+<tr>
+<th>供应商 / 产品</th>
+<th>普通话</th>
+<th>粤语</th>
+<th>英语</th>
+<th>中英混说</th>
+<th>流式 / 批量</th>
+<th>官方计费单位与标价</th>
+<th>每音频小时（元）</th>
+<th>≈AUD/h</th>
+<th>免费额度</th>
+<th>资源包（节选）</th>
+<th>数据地域</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>阿里云 智能语音交互</strong> 实时语音识别</td>
+<td>✅</td>
+<td>✅（模型可选，<strong>未核实</strong>）</td>
+<td>✅</td>
+<td><strong>未核实</strong></td>
+<td>流式</td>
+<td>按小时，<strong>每日用量梯度</strong>：0–299 小时 3.50 元/小时，300–999 小时 3.00，…，5000 小时以上 1.20</td>
+<td>3.50</td>
+<td>0.75</td>
+<td>新用户部分服务试用 3 个月</td>
+<td>30 小时 100 元；1,000 小时 1,800 元（1.80 元/小时）；1 年有效</td>
+<td>中国大陆</td>
+</tr>
+<tr>
+<td>阿里云 录音文件识别 / 极速版 / 闲时版</td>
+<td>✅</td>
+<td>—</td>
+<td>✅</td>
+<td>—</td>
+<td>批量</td>
+<td>2.50 / 3.30 / 1.00 元/小时（每日梯度）</td>
+<td>2.50</td>
+<td>0.53</td>
+<td>同上</td>
+<td>40 小时 100 元；1,000 小时 1,200 元</td>
+<td>中国大陆</td>
+</tr>
+<tr>
+<td>阿里云 一句话识别</td>
+<td>✅</td>
+<td>—</td>
+<td>✅</td>
+<td>—</td>
+<td>短句（单次时长上限<strong>未核实</strong>，记忆为 60 秒）</td>
+<td><strong>按次</strong>：3.50 元/千次</td>
+<td>不按时长计</td>
+<td>—</td>
+<td>—</td>
+<td>30 千次 100 元</td>
+<td>中国大陆</td>
+</tr>
+<tr>
+<td><strong>阿里云百炼 Fun-ASR / qwen3-asr-flash</strong>（录音文件）</td>
+<td>✅</td>
+<td>支持方言和粤语（<strong>未核实</strong>）</td>
+<td>✅</td>
+<td>支持多语种混合（<strong>未核实</strong>）</td>
+<td>批量</td>
+<td><strong>按秒</strong>：北京 0.00022 元/秒；新加坡 0.00026 元/秒（国际站 0.000035 USD/秒）；qwen3-asr-flash 另有美国弗吉尼亚 0.000035 USD/秒</td>
+<td>北京 0.792 元；新加坡 0.126 USD</td>
+<td>0.17；0.18</td>
+<td>10 小时（36,000 秒），90 天内有效</td>
+<td>无</td>
+<td>北京 = 中国大陆；新加坡、美国 = 境外</td>
+</tr>
+<tr>
+<td>百炼 fun-asr-realtime / qwen3-asr-flash-realtime</td>
+<td>✅</td>
+<td><strong>未核实</strong></td>
+<td>✅</td>
+<td><strong>未核实</strong></td>
+<td>流式</td>
+<td>北京 0.00033 元/秒；新加坡 0.00066 元/秒（0.00009 USD/秒）</td>
+<td>北京 1.188 元；新加坡 0.324 USD</td>
+<td>0.25；0.46</td>
+<td>10 小时，90 天</td>
+<td>无</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>百炼 Paraformer-v2 / realtime-v2</td>
+<td>✅</td>
+<td><strong>未核实</strong></td>
+<td>✅</td>
+<td><strong>未核实</strong></td>
+<td>批量 / 流式</td>
+<td>0.00008 / 0.00024 元/秒（<strong>只有北京</strong>）</td>
+<td>0.288 / 0.864 元</td>
+<td>0.06 / 0.18</td>
+<td><strong>每月</strong> 10 小时</td>
+<td>无</td>
+<td>中国大陆</td>
+</tr>
+<tr>
+<td><strong>腾讯云 ASR</strong> 录音文件识别（大模型 2.0 版）</td>
+<td>✅</td>
+<td>见右</td>
+<td>✅</td>
+<td><code>16k_zh_en</code> 引擎：中文、英语、粤语和多种方言（官方文档）</td>
+<td>批量</td>
+<td>按小时：0.80 元/小时（无梯度，月结）</td>
+<td>0.80</td>
+<td>0.17</td>
+<td>标准录音文件识别每月 10 小时（大模型版无免费额度）</td>
+<td>60 小时 48 元；1,000 小时 780 元</td>
+<td>中国大陆</td>
+</tr>
+<tr>
+<td>腾讯云 实时语音识别（大模型 2.0 版）</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>同上</td>
+<td>流式</td>
+<td>1.0 元/小时（日结）；<strong>跨境版</strong> 2.5 元/小时</td>
+<td>1.0（跨境 2.5）</td>
+<td>0.21（0.53）</td>
+<td>无</td>
+<td>60 小时 60 元；1,000 小时 950 元</td>
+<td>中国大陆。&quot;跨境&quot;指在国内站为海外客户提供服务</td>
+</tr>
+<tr>
+<td>腾讯云 实时语音识别（标准）</td>
+<td>✅</td>
+<td>✅ <code>16k_yue</code></td>
+<td>✅ <code>16k_en</code></td>
+<td>单语引擎</td>
+<td>流式</td>
+<td>每日梯度 3.20 元/小时起；跨境 9.94 元/小时</td>
+<td>3.20</td>
+<td>0.68</td>
+<td>每月 5 小时</td>
+<td>30 小时 90 元；1,000 小时 1,800 元</td>
+<td>中国大陆</td>
+</tr>
+<tr>
+<td>腾讯云 录音文件识别（标准）</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>—</td>
+<td>批量</td>
+<td>每月梯度：0–12 万小时 1.75 元/小时</td>
+<td>1.75</td>
+<td>0.37</td>
+<td>每月 10 小时</td>
+<td>60 小时 90 元；1,000 小时 1,200 元</td>
+<td>中国大陆</td>
+</tr>
+<tr>
+<td>腾讯云 一句话识别</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>—</td>
+<td>短句</td>
+<td><strong>按次</strong>：3.20 元/千次（每日梯度）</td>
+<td>—</td>
+<td>—</td>
+<td>每月 5,000 次</td>
+<td>30 千次 90 元</td>
+<td>中国大陆</td>
+</tr>
+<tr>
+<td><strong>科大讯飞</strong> 实时语音转写大模型</td>
+<td>✅</td>
+<td>✅（&quot;中英文 + 202 种方言免切&quot;）</td>
+<td>✅</td>
+<td>✅ 页面写&quot;方言、语种免切&quot;</td>
+<td>流式</td>
+<td><strong>只卖时长套餐</strong>（1 年有效，同时限制并发路数）：40 小时 198 元；1,000 小时 4,000 元；5,000 小时 17,500 元；…；更大用量商务咨询</td>
+<td>4.95（40 小时包）/ 4.00（1,000 小时包）</td>
+<td>1.06 / 0.85</td>
+<td>个人 5 小时，企业 50 小时（1 年）</td>
+<td>见左</td>
+<td>中国大陆（国际站<strong>未核实</strong>）</td>
+</tr>
+<tr>
+<td>讯飞 录音文件转写大模型</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅（&quot;方言、语种免切&quot;）</td>
+<td>批量</td>
+<td>时长套餐：80 小时 198 元；2,000 小时 4,000 元；10,000 小时 17,500 元</td>
+<td>2.48 / 2.00</td>
+<td>0.53 / 0.43</td>
+<td>个人 5 小时，企业 50 小时</td>
+<td>见左</td>
+<td>中国大陆</td>
+</tr>
+<tr>
+<td>讯飞 语音识别大模型（≤60 秒短音频）</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>短句</td>
+<td><strong>按次套餐</strong>：中文 100 万次 2,300 元；多语种 40 万次 1,680 元</td>
+<td>—</td>
+<td>—</td>
+<td>个人 2 万次，企业 20 万次（页面另有&quot;36 元&quot;档，含义<strong>未核实</strong>）</td>
+<td>—</td>
+<td>中国大陆</td>
+</tr>
+<tr>
+<td>讯飞 实时转写标准版 / 语音听写</td>
+<td>✅</td>
+<td>方言需另开（<strong>未核实</strong>）</td>
+<td>✅</td>
+<td>—</td>
+<td>流式</td>
+<td>标准版：40 小时 198 元，600 小时 2,000 元；听写：50 万次 1,300 元</td>
+<td>4.95 / 3.33</td>
+<td>—</td>
+<td>5 小时 / 50 小时</td>
+<td>—</td>
+<td>中国大陆</td>
+</tr>
+<tr>
+<td><strong>百度智能云</strong> 实时语音识别（普通话、英语）</td>
+<td>✅</td>
+<td>价格页没列出粤语</td>
+<td>✅</td>
+<td><strong>未核实</strong></td>
+<td>流式</td>
+<td>后付费 3 元/小时（另一档 3.3 元/小时，对应哪个接口页面未能确认）</td>
+<td>3.0</td>
+<td>0.64</td>
+<td>有测试额度（数量<strong>未核实</strong>）</td>
+<td>1,000 小时 1,800 元</td>
+<td>中国大陆</td>
+</tr>
+<tr>
+<td>百度 音频文件转写</td>
+<td>✅</td>
+<td>—</td>
+<td>✅</td>
+<td><strong>未核实</strong></td>
+<td>批量</td>
+<td>后付费 2 元/小时</td>
+<td>2.0</td>
+<td>0.43</td>
+<td>同上</td>
+<td>1,000 小时 1,200 元</td>
+<td>中国大陆</td>
+</tr>
+<tr>
+<td>百度 短语音识别标准版</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>❌（每次请求选一种语言）</td>
+<td>短句</td>
+<td><strong>按次</strong>，每月阶梯：≤6,000 千次 3.4 元/千次（极速版 4.2）</td>
+<td>—</td>
+<td>—</td>
+<td>同上</td>
+<td>1,000 千次 2,400 元</td>
+<td>中国大陆</td>
+</tr>
+<tr>
+<td><strong>火山引擎</strong> 豆包流式语音识别模型 2.0</td>
+<td>✅</td>
+<td>✅（默认模型包括粤语和多种方言）</td>
+<td>✅（文档只写 en-US）</td>
+<td>✅ 默认就是&quot;中英文&quot;模型</td>
+<td>流式</td>
+<td>1 元/小时</td>
+<td>1.0</td>
+<td>0.21</td>
+<td><strong>未核实</strong></td>
+<td>30 小时 28 元；1,000 小时 900 元</td>
+<td>中国大陆（BytePlus 国际版<strong>未核实</strong>）</td>
+</tr>
+<tr>
+<td>火山 豆包录音文件识别模型 2.0</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>批量</td>
+<td>0.8 元/小时</td>
+<td>0.8</td>
+<td>0.17</td>
+<td><strong>未核实</strong></td>
+<td>30 小时 23 元；1,000 小时 750 元</td>
+<td>中国大陆</td>
+</tr>
+<tr>
+<td>火山 大模型流式 / 录音文件识别（1.0）</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>流式 / 批量</td>
+<td>4.5 / 2.3 元/小时</td>
+<td>4.5 / 2.3</td>
+<td>0.96 / 0.49</td>
+<td>—</td>
+<td>1,000 小时 4,000 / 2,000 元</td>
+<td>中国大陆</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>4. 计费方式说明</h2>
+<table>
+<thead>
+<tr>
+<th>计费方式</th>
+<th>采用的供应商</th>
+<th>对本场景（10–90 秒短音频）的影响</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>按秒</strong>（无最低时长）</td>
+<td>AWS（官方原话：&quot;one-second increments, no minimum&quot;）、Azure（&quot;per second billing&quot;）、Google V2（每次请求向上取整到 1 秒）、Deepgram（明确不按块取整）、Speechmatics（&quot;billed to the second&quot;）、阿里百炼（元/秒）、OpenAI whisper（按分钟标价，实际计量<strong>未核实</strong>）</td>
+<td>最适合短音频，没有浪费</td>
+</tr>
+<tr>
+<td><strong>按秒取整、单次最低 15 秒</strong></td>
+<td>Rev.ai</td>
+<td>10–14 秒的短句会按 15 秒算；平均 45 秒时影响很小</td>
+</tr>
+<tr>
+<td><strong>按音频 token</strong></td>
+<td>OpenAI gpt-4o(-mini)-transcribe（输入音频 token 加输出文本 token）；阿里 qwen-audio-3.1 系列</td>
+<td>成本随说话密度和输出长度变化，只能用官方&quot;估算每分钟&quot;价格</td>
+</tr>
+<tr>
+<td><strong>按小时，每日用量梯度</strong></td>
+<td>阿里智能语音交互、腾讯实时识别</td>
+<td>按当天总用量所在档位统一计价；本场景每天约 7.5 小时，始终在最低档</td>
+</tr>
+<tr>
+<td><strong>按小时，每月用量梯度</strong></td>
+<td>腾讯录音文件识别（0–12 万小时 1.75 元）</td>
+<td>同上，始终在最低档</td>
+</tr>
+<tr>
+<td><strong>按次 / 千次</strong></td>
+<td>阿里和腾讯一句话识别、百度短语音、讯飞语音识别大模型和听写</td>
+<td>13,200 次/月 × 约 3.2–3.5 元/千次，约 42–46 元/月；<strong>单次有时长上限（常见 60 秒，未核实）</strong>，90 秒的音频要切段</td>
+</tr>
+<tr>
+<td><strong>预付时长包或次数包</strong>（1 年有效）</td>
+<td>讯飞（只卖套餐）、腾讯、阿里、百度、火山</td>
+<td>必须预估全年用量；讯飞包同时限定并发路数</td>
+</tr>
+<tr>
+<td><strong>并发 / QPS 月费</strong></td>
+<td>腾讯：实时识别 100–200 元/路/月；阿里极速版超过 10 路后 200 元/路/月；火山有并发增购包</td>
+<td>默认并发够用时不产生；高峰需要多路时要加钱</td>
+</tr>
+<tr>
+<td><strong>Commitment tier（承诺用量）</strong></td>
+<td>Azure（例如 2K 小时/月档）</td>
+<td>本场景约 165 小时/月，用不上</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>5. 数据存储与合规</h2>
+<h3>5.1 国际供应商</h3>
+<table>
+<thead>
+<tr>
+<th>供应商</th>
+<th>能否在澳洲处理</th>
+<th>默认数据保留 / 训练</th>
+<th>能否关闭</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Azure Speech</strong></td>
+<td>✅ Australia East：实时、Fast、批量转写都支持（官方区域表）</td>
+<td>实时和 Fast 转写不保存音频（<strong>未核实，来自记忆</strong>）；批量转写的结果放在自己指定的存储里</td>
+<td>企业 DPA</td>
+<td><strong>首选</strong>：在澳洲处理，资源归自己的订阅</td>
+</tr>
+<tr>
+<td><strong>AWS Transcribe</strong></td>
+<td>✅ 悉尼</td>
+<td>AWS 可能用内容改进 AI 服务（<strong>未核实，来自记忆</strong>）</td>
+<td>可以在 AWS Organizations 设置 AI services opt-out policy（<strong>未核实</strong>）</td>
+<td>可用；上线前必须设置 opt-out</td>
+</tr>
+<tr>
+<td><strong>Google STT V2</strong></td>
+<td>❌ 没有澳洲区域（最近的是新加坡 asia-southeast1，只有 Chirp/Chirp 2）</td>
+<td>V1 价格表区分 &quot;with data logging&quot;（0.016 USD/分钟）和 &quot;without data logging&quot;（0.024 USD/分钟）</td>
+<td>可以不开 data logging</td>
+<td>属于跨境（新加坡、美国或欧盟）</td>
+</tr>
+<tr>
+<td><strong>OpenAI</strong></td>
+<td>⚠️ <code>au.api.openai.com</code>：<strong>只在澳洲存储，推理不在澳洲</strong></td>
+<td><code>/v1/audio/transcriptions</code>：不用于训练；滥用监控保留为 &quot;None&quot;；可开 ZDR</td>
+<td>澳洲驻留需要 MAM 或 ZDR 审批，以及修改合同</td>
+<td>属于跨境（推理在境外）</td>
+</tr>
+<tr>
+<td><strong>Deepgram</strong></td>
+<td>✅ <code>api.au.deepgram.com</code>，<strong>保证在澳洲处理，不回退</strong></td>
+<td><strong>默认参加 Model Improvement Program</strong>（会保留部分数据用于训练）</td>
+<td>每个请求加 <code>mip_opt_out=true</code>，之后只在处理期间保留。opt-out 是否加价<strong>未核实</strong></td>
+<td>可用；必须加 opt-out</td>
+</tr>
+<tr>
+<td><strong>AssemblyAI</strong></td>
+<td>❌ 只有 US 和 EU；账户和用量数据存在美国；排障时可能由境外人员访问</td>
+<td>—</td>
+<td>—</td>
+<td>跨境</td>
+</tr>
+<tr>
+<td><strong>Speechmatics</strong></td>
+<td>✅ AU1（批量和实时都有）</td>
+<td><strong>未核实</strong></td>
+<td><strong>未核实</strong></td>
+<td>可用；要看 DPA</td>
+</tr>
+<tr>
+<td><strong>ElevenLabs</strong></td>
+<td>❌ 默认美国；企业版可选 EU、印度、新加坡</td>
+<td>有 Zero Retention Mode（企业或医疗场景）</td>
+<td>企业版</td>
+<td>跨境</td>
+</tr>
+<tr>
+<td><strong>Rev.ai</strong></td>
+<td>❌（<strong>未核实</strong>）</td>
+<td><strong>未核实</strong></td>
+<td>—</td>
+<td>跨境</td>
+</tr>
+</tbody></table>
+<p>**APP 8 的要点：**数据只要在澳洲境外被&quot;访问或处理&quot;，一般就算跨境披露（&quot;只存储在澳洲&quot;并不够）。APP entity 要合理确保境外接收方遵守 APP，并且要对境外接收方的违规承担责任（s16C）。在澳洲处理的选项（Azure Australia East、AWS 悉尼、Deepgram AU、Speechmatics AU1）能大大降低这方面的风险。不论选哪家，隐私政策都要写明使用第三方语音转写服务，并签 DPA。</p>
+<h3>5.2 中国大陆供应商</h3>
+<table>
+<thead>
+<tr>
+<th>供应商</th>
+<th>境内处理</th>
+<th>境外节点</th>
+<th>风险</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>阿里云百炼</td>
+<td>北京（华北 2）</td>
+<td><strong>有</strong>：新加坡（&quot;International&quot;部署范围）、美国弗吉尼亚（只有 qwen3-asr-flash）；国际站有美元价格</td>
+<td>用国际站新加坡：属于 APP 8 跨境（新加坡），但不经过中国大陆；供应商是中国公司，要评估中国法律下的数据调取风险</td>
+</tr>
+<tr>
+<td>阿里云智能语音交互（NLS）</td>
+<td>中国大陆</td>
+<td>国际站有没有同等服务<strong>未核实</strong></td>
+<td>境内</td>
+</tr>
+<tr>
+<td>腾讯云 ASR</td>
+<td>中国大陆（示例区域 ap-shanghai）</td>
+<td>国际站 tencentcloud.com 有 ASR 文档，价格<strong>未抓取</strong>；国内站的&quot;跨境&quot;版只是&quot;为海外客户提供服务&quot;的定价，<strong>不等于在境外处理</strong></td>
+<td>境内</td>
+</tr>
+<tr>
+<td>科大讯飞</td>
+<td>中国大陆</td>
+<td>国际站<strong>未核实</strong></td>
+<td>境内</td>
+</tr>
+<tr>
+<td>百度智能云</td>
+<td>中国大陆</td>
+<td><strong>未核实</strong></td>
+<td>境内</td>
+</tr>
+<tr>
+<td>火山引擎</td>
+<td>中国大陆</td>
+<td>BytePlus 国际版有没有 ASR <strong>未核实</strong></td>
+<td>境内</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>⚠️ **风险提示：**把澳洲居民的语音（包含姓名、电话、地址、出售意向等个人信息）发到中国大陆服务器：</p>
+<ol>
+<li>属于 <strong>APP 8 跨境披露</strong>，agentCollect 和中介公司要对境外违规负责；隐私政策还必须披露数据会发往中国。</li>
+<li>数据进入中国境内后，受 <strong>PIPL、数据安全法和网络安全法</strong>管辖（包括政府调取数据的可能性）；如果以后需要把转写结果传回澳洲，还可能涉及<strong>数据出境</strong>规则（安全评估、标准合同或认证。豁免条件要律师确认）。</li>
+<li>涉及华人社区客户，舆论和信任风险也较高。<br><strong>建议：<strong>大陆厂商只用于</strong>不含真实个人信息</strong>的测试对比，不进入生产环境。</li>
+</ol>
+</blockquote>
+<hr>
+<h2>6. 场景月费估算</h2>
+<p>场景：20 名中介 × 每天 30 段 × 平均 45 秒 × 每月 22 个工作日 = <strong>每月 13,200 段，594,000 秒 = 165 音频小时</strong>。<br>上面这些供应商大多按秒计费，所以计费时长就是 165 小时。Rev 每段最低 15 秒，平均 45 秒时基本不增加费用；如果有很多 10 秒左右的短句，最多多算约 50%（这部分短句）。下表<strong>没有扣除免费额度</strong>，用标价，汇率见文首。</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>单价</th>
+<th>月费（原币）</th>
+<th>月费 ≈AUD</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Speechmatics Melia 1 预录（AU1）</td>
+<td>0.12 USD/h</td>
+<td>19.80 USD</td>
+<td><strong>28</strong></td>
+<td>实时 0.20 USD/h：33 USD，约 47 AUD</td>
+</tr>
+<tr>
+<td>阿里百炼 fun-asr / qwen3-asr 新加坡</td>
+<td>0.126 USD/h</td>
+<td>20.79 USD</td>
+<td>30</td>
+<td>跨境</td>
+</tr>
+<tr>
+<td>AssemblyAI Universal-3.5 Pro</td>
+<td>0.21 USD/h</td>
+<td>34.65 USD</td>
+<td>49</td>
+<td>跨境（US/EU）</td>
+</tr>
+<tr>
+<td>ElevenLabs Scribe v2</td>
+<td>0.22 USD/h</td>
+<td>36.30 USD</td>
+<td>52</td>
+<td>跨境</td>
+</tr>
+<tr>
+<td>Azure 批量（Australia East）</td>
+<td>0.18 USD/h</td>
+<td>29.70 USD</td>
+<td><strong>42</strong></td>
+<td>异步，延迟可能是分钟级</td>
+</tr>
+<tr>
+<td>Azure Fast transcription（Australia East）</td>
+<td>0.36 USD/h</td>
+<td>59.40 USD</td>
+<td><strong>85</strong></td>
+<td>适合&quot;录完马上出结果&quot;</td>
+</tr>
+<tr>
+<td>Azure 实时（Australia East）</td>
+<td>1.00 USD/h</td>
+<td>165.00 USD</td>
+<td><strong>235</strong></td>
+<td>边说边出字</td>
+</tr>
+<tr>
+<td>AWS Transcribe 批量（悉尼）</td>
+<td>0.36 USD/h</td>
+<td>59.40 USD</td>
+<td>85</td>
+<td>流式 0.60 USD/h：99 USD，约 141 AUD</td>
+</tr>
+<tr>
+<td>Deepgram Nova-3 Multi 预录（AU）</td>
+<td>0.312 USD/h</td>
+<td>51.48 USD</td>
+<td><strong>73</strong></td>
+<td>流式 0.552 USD/h：91 USD，约 130 AUD；200 USD 赠送额度约够前 3.9 个月</td>
+</tr>
+<tr>
+<td>OpenAI gpt-4o-transcribe</td>
+<td>≈0.36 USD/h</td>
+<td>≈59.40 USD</td>
+<td>85</td>
+<td>mini 约 30 USD，约 42 AUD</td>
+</tr>
+<tr>
+<td>Google STT V2 标准</td>
+<td>0.96 USD/h</td>
+<td>158.40 USD</td>
+<td>226</td>
+<td>Dynamic Batch 约 30 USD，约 42 AUD（延迟高）</td>
+</tr>
+<tr>
+<td>Rev.ai Reverb Foreign Language</td>
+<td>0.30 USD/h</td>
+<td>49.50 USD</td>
+<td>71</td>
+<td>15 秒最低计费</td>
+</tr>
+<tr>
+<td>腾讯 录音文件识别大模型 2.0</td>
+<td>0.8 元/h</td>
+<td>132 元</td>
+<td>28</td>
+<td>境内</td>
+</tr>
+<tr>
+<td>腾讯 实时识别大模型 2.0</td>
+<td>1.0 元/h</td>
+<td>165 元</td>
+<td>35</td>
+<td>境内</td>
+</tr>
+<tr>
+<td>火山 豆包录音文件识别 2.0 / 流式 2.0</td>
+<td>0.8 / 1.0 元/h</td>
+<td>132 / 165 元</td>
+<td>28 / 35</td>
+<td>境内</td>
+</tr>
+<tr>
+<td>阿里 智能语音交互 实时</td>
+<td>3.5 元/h</td>
+<td>577.5 元</td>
+<td>123</td>
+<td>买 1,000 小时包（1,800 元/年）折合约 300 元/月，约 64 AUD</td>
+</tr>
+<tr>
+<td>讯飞 实时转写大模型</td>
+<td>全年约 1,980 小时，需要 2 个 1,000 小时包，共 8,000 元/年</td>
+<td>约 667 元/月</td>
+<td>约 142</td>
+<td>录音文件转写大模型：2,000 小时包 4,000 元/年，约 333 元/月，约 71 AUD</td>
+</tr>
+<tr>
+<td>百度 实时 / 音频文件转写</td>
+<td>3.0 / 2.0 元/h</td>
+<td>495 / 330 元</td>
+<td>106 / 71</td>
+<td>境内</td>
+</tr>
+<tr>
+<td>按次计费（阿里、腾讯一句话识别、百度短语音）</td>
+<td>3.2–3.5 元/千次</td>
+<td>42–46 元</td>
+<td>9–10</td>
+<td>单次有时长上限（<strong>未核实</strong>），90 秒音频要切段</td>
+</tr>
+</tbody></table>
+<p>**结论：**本场景用量很小，各家月费都在 <strong>30–240 AUD</strong> 之间。**价格不是决定因素，数据地域和混说准确率才是。**推荐的三家（Azure、Deepgram AU、Speechmatics AU1）月费约 28–235 AUD，差别主要在用实时还是批量。</p>
+<hr>
+<h2>7. 来源与核实状态</h2>
+<p>抓取日期都是 2026-11-05（UTC），汇率数据日期是 2026-11-04。✅ = 从官方页面或 API 直接读到；⚠️ = 部分内容未读到；❌ = 页面打不开，或价格不公开。</p>
+<table>
+<thead>
+<tr>
+<th>供应商</th>
+<th>来源 URL</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Azure 价格</td>
+<td><code>https://prices.azure.com/api/retail/prices?$filter=armRegionName eq &#39;australiaeast&#39; and contains(productName,&#39;Speech&#39;)</code>（Retail Prices API，Australia East，USD）</td>
+<td>✅（S1 STT 1.00、Batch 0.18、Fast 0.36、Fast Promo 0.10、Custom 1.20 USD/h）。官网价格页 <code>azure.microsoft.com/.../speech-services/</code> 的价格是前端渲染的，静态 HTML 显示为 &quot;$-&quot;，但能确认&quot;per second billing&quot;和 F0 每月 5 小时</td>
+</tr>
+<tr>
+<td>Azure 语言 / 区域</td>
+<td><code>learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support</code>、<code>.../regions</code></td>
+<td>✅ en-AU、zh-CN、zh-HK、yue-CN；australiaeast 支持实时、Fast、批量</td>
+</tr>
+<tr>
+<td>AWS 价格</td>
+<td><code>https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/transcribe/current/region_index.json</code>，以及 ap-southeast-2 的 index（publicationDate 2026-09-11）；<code>aws.amazon.com/transcribe/pricing/</code></td>
+<td>✅ 悉尼批量 0.0001 USD/秒、流式 0.0001667 USD/秒；按秒、无最低时长；免费 60 分钟/月（12 个月）</td>
+</tr>
+<tr>
+<td>AWS 语言</td>
+<td><code>docs.aws.amazon.com/transcribe/latest/dg/supported-languages.html</code>、<code>lang-id-batch.html</code>、<code>lang-id-stream.html</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>AWS 数据 opt-out</td>
+<td>—</td>
+<td><strong>未核实</strong>（来自记忆）</td>
+</tr>
+<tr>
+<td>Google 价格</td>
+<td><code>cloud.google.com/speech-to-text/pricing</code></td>
+<td>✅（V2 0.016 USD/分钟起；Dynamic Batch 0.003；按 1 秒取整；60 分钟免费）</td>
+</tr>
+<tr>
+<td>Google 区域 / 语言</td>
+<td><code>cloud.google.com/speech-to-text/v2/docs/speech-to-text-supported-languages</code>、<code>.../chirp_3-model</code></td>
+<td>✅（没有澳洲区域；Chirp 3 只在 us/eu；粤语为 Preview）。<code>/docs/locations</code> 页面只介绍 Locations API，没有静态列表</td>
+</tr>
+<tr>
+<td>OpenAI 价格</td>
+<td><code>platform.openai.com/docs/pricing</code></td>
+<td>✅（<code>openai.com/api/pricing/</code> 被拦截，没有内容）</td>
+</tr>
+<tr>
+<td>OpenAI 数据</td>
+<td><code>platform.openai.com/docs/guides/your-data</code></td>
+<td>✅（澳洲：Storage Yes / Processing No；transcriptions 符合 ZDR 条件）</td>
+</tr>
+<tr>
+<td>OpenAI 粤语、混说效果</td>
+<td>—</td>
+<td><strong>未核实</strong></td>
+</tr>
+<tr>
+<td>Deepgram 价格</td>
+<td><code>deepgram.com/pricing</code>（页面内嵌的 schema.org Offer 数据）</td>
+<td>✅（第一次连接 SSL 失败，重试后成功）</td>
+</tr>
+<tr>
+<td>Deepgram 区域 / 语言 / MIP</td>
+<td><code>developers.deepgram.com/reference/regional-endpoints.md</code>、<code>/docs/models-languages-overview</code>、<code>/docs/multilingual-code-switching</code>、<code>/docs/the-deepgram-model-improvement-partnership-program.md</code></td>
+<td>✅。<code>/docs/deepgram-australia-endpoint</code> 返回 404。MIP opt-out 是否影响价格<strong>未核实</strong></td>
+</tr>
+<tr>
+<td>AssemblyAI</td>
+<td><code>assemblyai.com/pricing</code>、<code>/docs/pre-recorded-audio/select-the-region.md</code>、<code>/docs/pre-recorded-audio/code-switching.md</code>、<code>/docs/pre-recorded-audio/supported-languages</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Speechmatics</td>
+<td><code>speechmatics.com/pricing</code>、<code>docs.speechmatics.com/speech-to-text/languages</code>、<code>docs.speechmatics.com/get-started/authentication</code></td>
+<td>✅（Melia 1 具体支持哪些语言没有逐条核实；数据保留<strong>未核实</strong>）</td>
+</tr>
+<tr>
+<td>ElevenLabs</td>
+<td><code>elevenlabs.io/pricing/api</code>、<code>/docs/overview/administration/data-residency</code>、<code>/docs/overview/capabilities/speech-to-text</code></td>
+<td>✅（第一次 SSL 失败，重试成功；句内切换<strong>未核实</strong>）</td>
+</tr>
+<tr>
+<td>Rev.ai</td>
+<td><code>rev.ai/pricing</code></td>
+<td>✅ 价格和 15 秒最低计费；区域、粤语支持<strong>未核实</strong></td>
+</tr>
+<tr>
+<td>阿里云 智能语音交互</td>
+<td><code>help.aliyun.com/zh/isi/product-overview/billing-10</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>阿里云百炼（中国站 / 国际站）</td>
+<td><code>help.aliyun.com/zh/model-studio/model-pricing</code>、<code>alibabacloud.com/help/en/model-studio/model-pricing</code></td>
+<td>✅ 价格。语言能力页（<code>qwen-speech-recognition</code>）没能提取到语种列表，粤语和混说支持<strong>未核实</strong></td>
+</tr>
+<tr>
+<td>腾讯云 ASR</td>
+<td><code>cloud.tencent.com/document/product/1093/35686</code>（计费）、<code>/1093/48982</code>（实时识别引擎）</td>
+<td>✅（第一次抓到压缩内容，加 <code>--compressed</code> 后成功）。国际站价格<strong>未抓取</strong></td>
+</tr>
+<tr>
+<td>科大讯飞</td>
+<td><code>xfyun.cn/services/rtasr</code>、<code>/services/lfasr</code>、<code>/services/speech_big_model</code>、<code>/services/voicedictation</code></td>
+<td>✅ 套餐价。按量计费不公开，大用量要&quot;商务咨询&quot;；国际站<strong>未核实</strong></td>
+</tr>
+<tr>
+<td>百度智能云</td>
+<td><code>cloud.baidu.com/doc/SPEECH/s/Tldjm0i4c</code>（文档更新时间 2025-12-11）</td>
+<td>✅ 价格。3.3 元/小时那一档对应哪个接口未能确认；混说<strong>未核实</strong></td>
+</tr>
+<tr>
+<td>火山引擎</td>
+<td><code>volcengine.com/docs/6561/1359370</code>（计费）、<code>/docs/6561/1354869</code>（大模型识别 API）</td>
+<td>✅ 价格和语种参数；免费额度、BytePlus <strong>未核实</strong></td>
+</tr>
+<tr>
+<td>汇率</td>
+<td><code>api.frankfurter.dev/v1/latest?base=USD&amp;symbols=AUD,CNY</code>（ECB，2026-11-04）</td>
+<td>✅</td>
+</tr>
+</tbody></table>
+<p><strong>打不开、需要重试，或价格不公开的：</strong><code>openai.com/api/pricing</code>（被拦截，改用 platform 文档）；<code>deepgram.com</code>、<code>elevenlabs.io</code>、<code>cloud.google.com</code>、<code>docs.cloud.google.com</code>、<code>api.frankfurter.app</code> 偶尔 SSL 握手失败，重试或换域名后成功；讯飞大用量价格只能商务咨询；Azure 官网价格页的价格由前端渲染（改用 Retail Prices API）。全程直连，没有用 SOCKS 代理。</p>
+</main>
+<p class="foot">临时页面，仅供讨论 · 生成于 2026-11-05</p>
+</body></html>
