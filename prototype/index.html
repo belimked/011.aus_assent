@@ -74,6 +74,7 @@ h2.pt{font-size:22px;margin:4px 0 10px}
 .shade.on{display:block}
 .sheet{position:absolute;left:0;right:0;bottom:0;max-height:80%;background:#fff;border-radius:18px 18px 0 0;z-index:21;transform:translateY(105%);transition:transform .25s;display:flex;flex-direction:column;box-shadow:0 -6px 20px rgba(0,0,0,.15)}
 .sheet.on{transform:none}
+.photo-strip{height:92px;border-radius:12px;background:linear-gradient(120deg,#dbeafe,#94a3b8);display:grid;place-items:center;color:#334155;font-size:18px}.tenure{display:inline-block;border-radius:10px;padding:2px 8px;font-size:11px;margin-left:4px}.tag-group{margin:9px 0}.tag-group small{display:block;color:var(--mut);margin-bottom:4px}.tag.visit.on{background:#fce7f3;border-color:#f9a8d4}.tag.intent.on{background:#fef3c7;border-color:#fbbf24}.tag.restrict.on{background:#dc2626;border-color:#dc2626;color:white}.tag.black.on{background:#111;color:white}.tag.follow.on{background:#dbeafe;border-color:#93c5fd}.tag.capture.on{background:#dcfce7;border-color:#86efac}.entry-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.entry-grid button{height:82px;background:white;border:1px solid var(--line);border-radius:14px;font-weight:600}.entry-grid button span{display:block;font-size:25px;margin-bottom:4px}.tabbar button.center-mic{flex:0 0 68px;color:#dc2626}.tabbar button.center-mic i{background:#dc2626;color:white;width:60px;height:60px;border-radius:50%;display:grid;place-items:center;position:absolute;bottom:25px;box-shadow:0 4px 12px #991b1b66}.mic-symbol{display:inline-block;width:12px;height:19px;background:currentColor;border-radius:8px;position:relative;margin-right:10px;vertical-align:middle}.mic-symbol::before{content:'';position:absolute;left:-4px;top:7px;width:16px;height:17px;border:2px solid currentColor;border-top:0;border-radius:0 0 12px 12px}.mic-symbol::after{content:'';position:absolute;left:4px;top:22px;width:4px;height:6px;background:currentColor}.center-mic .mic-symbol{margin:0;color:white;transform:scale(1.1)}.action-row{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.action-row button{border:1px solid var(--line);background:#f8fafc;border-radius:9px;padding:9px 2px;font-size:12px}.action-row button:disabled{opacity:.4}
 .grab{width:40px;height:5px;border-radius:3px;background:#d1d5db;margin:8px auto 2px;flex:none}
 .sh-body{overflow:auto;padding:4px 16px 16px}
 .sh-addr{font-size:19px;font-weight:700;margin:6px 0 2px}
@@ -189,7 +190,8 @@ table.t td{padding:9px 10px;border-bottom:1px solid #f3f4f6;vertical-align:top}
  <div class="phone"><div class="screen" id="screen">
   <div class="status"><span>9:41</span><span class="net" id="net" onclick="toggleNet()" title="点击切换在线/离线">4G ●</span></div>
   <div class="app">
-   <div class="page on" id="pg-map">
+   <div class="page on" id="pg-home"></div>
+   <div class="page" id="pg-map">
      <div class="srch"><input id="q" placeholder="Search street, e.g. Gager St" onkeydown="if(event.key==='Enter')doSearch()"><button onclick="doSearch()">🔍</button><button onclick="go('list')" title="List">☰</button></div>
      <div class="chips" id="chipsMap"></div>
      <div style="position:relative;flex:1;display:flex">
@@ -352,7 +354,8 @@ const EN = {
  '放大地图查看房产':'Zoom in to see properties','地图 / 卫星':'Map / Satellite','处房产在视图中':'properties in view',
  '演示位置（你不在 Sunnybank）':"Demo location (you're not in Sunnybank)",'仅显示前 200 条，搜索可缩小范围':'Showing the first 200 — search to narrow',
  '搜索地址或区…':'Search address or suburb…','分层产权':'Strata','个单元':'units',
- '置顶':'Pin','已置顶':'Pinned','已置顶 · 仅自己可见':'Pinned · only visible to you','已取消置顶':'Unpinned'
+ '置顶':'Pin','已置顶':'Pinned','已置顶 · 仅自己可见':'Pinned · only visible to you','已取消置顶':'Unpinned',
+ '首页':'Home','你在这里':'You’re at','更换':'Change','房产':'Property','业主入口':'Owner','标签入口':'Tag','笔记入口':'Note','通话记录':'Log call','快速添加':'Quick add','名字':'First name','姓氏':'Last name','身份':'Role','买家':'Buyer','自定义':'Custom','明天':'Tomorrow','一周':'1 week','一月':'1 month','三月':'3 months','保存':'Save','查找地址':'Find address','使用并更新':'Use & update','在 Rex 找到：':'Found in Rex: ','照片':'Photo','标签':'Tags','拜访':'Visit','销售意向':'Selling intent','限制':'Restrictions','已采集':'Captured','跟进':'Follow-up','出售原因':'Reason for sale','不在家':'Not at home','友好':'Friendly','热门':'Hot','温和':'Warm','冷淡':'Cold','已提供邮箱':'Email provided','已提供电话':'Phone provided','市场更新':'Market update','已预约估价':'Appraisal booked','搬家为学校':'Moving for school','搬迁':'Relocating','换大房':'Upsizing','更新记录':'Update record','预约估价':'Book appraisal','拨打':'Call','短信':'Text','电邮':'Email','设置提醒':'Remind','已选择退出短信':'OPTED OUT OF TEXTS','购买于':'Purchased','持有':'held','年':'yrs','最后更新：':'Last updated by ','呼叫':'Calling ','添加跟进？':'Add a follow-up?','是':'Yes','否':'No','短信模板':'Message template','不在家留卡':'Not at home left card','感谢聊天':'Thanks for the chat','市场信息邀约':'Market update offer','从手机发送':'Send from my phone','回电':'Call back','其他':'Other','分配给':'Assign to','时间':'Time','日期':'Date','现场':'In person','视频':'Video','可用时间':'Free slot','我的任务':'My tasks','逾期':'Overdue','即将到来':'Upcoming','笔记已添加至 Rex':'Note added to Rex','已同步 Rex · 推送提醒已设置':'Synced to Rex · push notification set','已写入 Rex 和日历 · 已发确认短信 · 前一天提醒':'Written to Rex & calendar · confirmation SMS sent · reminder day before','结果':'Outcome','已和业主交谈':'Spoke to owner','详情':'Details','免打扰':'Do not contact','缩小住房':'Downsizing','提醒事项':'Reminder','姓名或笔记必填':'Name or note required','创建或更新联系人':'Update / Create contact','添加后续笔记':'Add a follow-up note','已发出':'Saved to Rex','确认并保存':'Check & save to Rex'
 };
 let lang = new URLSearchParams(location.search).get('lang');
 lang = ['zh','en'].includes(lang) ? lang : (localStorage.getItem('proto-lang') === 'en' ? 'en' : 'zh');
@@ -420,7 +423,8 @@ function setLang(next) {
     if (f_note.value === oldNote) f_note.value = T(notes[recSample]);
   }
   // Re-render the current view without navigating away or resetting draft/queue.
-  if (state.tab === 'map') { renderChips('chipsMap'); drawMarkers(); }
+  if (state.tab === 'home') renderHome();
+  else if (state.tab === 'map') { renderChips('chipsMap'); drawMarkers(); }
   else if (state.tab === 'list') {
     const query = document.querySelector('#pg-list .srch input')?.value || '';
     renderList(); if (query) { document.querySelector('#pg-list .srch input').value = query; listQ(query); }
@@ -505,7 +509,7 @@ const cxById = id => cxs.find(c => c.id === id);
 const demo = props.find(p => p.street === 'Gager St' && !p.inCx && p.status === 'red') || props.find(p => !p.inCx);
 Object.assign(demo, { status: 'red', tp: 'Mary Chen', dnk: false, listing: null, contacts: [], notes: [{ date: daysAgo(210), author: 'Owen Chen', text: 'No answer. Two cars in driveway.' }] });
 
-const state = { online: true, tab: 'map', filter: 'all', sel: null, queue: [], otherMode: 'neutral', revoked: false,
+const state = { online: true, tab: 'home', tasks: [{type:'Call back',date:'2026-11-01',pid:demo.id,done:false},{type:'Market update',date:'2026-11-02',pid:demo.id,done:false},{type:'Appraisal',date:'2026-11-05',pid:demo.id,done:false},{type:'Other',date:'2026-11-12',pid:demo.id,done:false}], filter: 'all', sel: null, queue: [], otherMode: 'neutral', revoked: false,
   audit: [], exports: [{ at: '28 Oct 2026 16:02', who: 'Ping Han', what: 'Sunnybank · red only · 214 rows', fields: 'Rex fields only' }],
   users: [
     { name: 'Kevin Zhang', team: 'Team Owen Chen', role: 'Agent', last: 'now', dev: 'iPhone 15', st: 'active' },
@@ -545,19 +549,20 @@ const SB_BOUNDS = L.latLngBounds(SB.addresses.map(a => dec(a[5], a[6])));
 function signIn() {
   login.classList.remove('on');
   AUD(ME.name, 'Sign in', 'iPhone 15', 'Entra SSO · MFA ok');
-  initMap(); renderTabs(); go('map');
+  initMap(); renderTabs(); go('home');
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='220' height='120'><text x='10' y='70' transform='rotate(-25 110 60)' font-size='14' font-family='sans-serif'>${ME.name} · 2 Nov 2026</text></svg>`;
   wm.style.backgroundImage = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 function renderTabs() {
-  const T = [['map', '🗺️', 'Map'], ['list', '☰', 'List'], ['ofi', '🏡', 'Open home'], ['cap', '📷', 'Photo'], ['me', '👤', 'Me']];
-  tabbar.innerHTML = T.map(([k, i, l]) => `<button class="${state.tab === k ? 'on' : ''}" onclick="go('${k}')"><i>${i}</i>${l}${k === 'me' && state.queue.length ? `<span class="badge">${state.queue.length}</span>` : ''}</button>`).join('');
+  const tabs = [['home','⌂','Home'],['map','◇','Map'],['mic','<span class="mic-symbol"></span>',''],['ofi','⌂','Open home'],['me','◎','Me']];
+  tabbar.innerHTML = tabs.map(([k,i,l]) => `<button class="${state.tab === k ? 'on' : ''} ${k === 'mic' ? 'center-mic' : ''}" onclick="${k === 'mic' ? 'startRec(homeId())' : `go('${k}')`}"><i>${i}</i>${l}${k === 'me' && state.queue.length ? `<span class="badge">${state.queue.length}</span>` : ''}</button>`).join('');
 }
 function go(t) {
   state.tab = t; closeSheet();
   document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
   document.getElementById('pg-' + t).classList.add('on');
   renderTabs();
+  if (t === 'home') renderHome();
   if (t === 'map') { renderChips('chipsMap'); setTimeout(() => map.invalidateSize(), 30); }
   if (t === 'list') renderList();
   if (t === 'ofi') renderOfi();
@@ -679,40 +684,66 @@ function togglePin(id) {
   openSheet(id);
 }
 
+/* ===================== HOME & ACTIONS ===================== */
+let chosenHome = null;
+const homeId = () => chosenHome || (mePos ? props.reduce((a,b) => (a.lat-mePos[0])**2+(a.lng-mePos[1])**2 < (b.lat-mePos[0])**2+(b.lng-mePos[1])**2 ? a : b).id : demo.id);
+const years = p => Math.max(0,TODAY.getFullYear()-p.tpSale.getFullYear()-(TODAY < new Date(TODAY.getFullYear(),p.tpSale.getMonth(),p.tpSale.getDate()) ? 1 : 0));
+function tenure(p) { const n=years(p), bg=n<4?'#e5e7eb':n<8?'#9ca3af':n<15?'#4b5563':'#0b5d8a'; return `<span class="tenure" style="background:${bg};color:${n>=8?'white':'#111827'}">${n} yrs</span>`; }
+const TAG_GROUPS = [['Visit','visit',['Not at home','Left card','Friendly']],['Selling intent','intent',['🚩 Potential seller','Hot','Warm','Cold','Not interested']],['Restrictions','restrict',['Do not contact','No junk mail']],['Captured','capture',['Email provided','Phone provided']],['Follow-up','follow',['Market update','Appraisal booked']],['Reason for sale','follow',['Downsizing','Upsizing','Moving for school','Relocating','Investor']]];
+function ensureTags(p) { if (!p.tags) p.tags=new Set([...(p.dnk?['Do not contact']:[]),...(p.junk?['No junk mail']:[])]); return p.tags; }
+function tagMarkup(p) { const tags=ensureTags(p); return TAG_GROUPS.map(([g,cls,items])=>`<div class="tag-group"><small>${g}</small>${items.map(t=>`<button class="tag ${cls} ${t==='Not interested'?'black':''} ${tags.has(t)?'on':''}" onclick="toggleTag(${p.id},'${t}')">${t}</button>`).join('')}</div>`).join(''); }
+function toggleTag(id,t) { const p=byId(id), tags=ensureTags(p); if(t==='Do not contact' && tags.has(t)) return toast('Only an admin can remove a flag (in the web app)'); tags.has(t)?tags.delete(t):tags.add(t); p.dnk=tags.has('Do not contact'); p.junk=tags.has('No junk mail'); AUD(ME.name,'Tag update',p.addr,t); drawMarkers(); const scroll=sheet.querySelector('.sh-body')?.scrollTop||0; openSheet(id); sheet.querySelector('.sh-body').scrollTop=scroll; }
+function renderHome() { const p=byId(homeId()); document.getElementById('pg-home').innerHTML=`<div class="scroll"><h2 class="pt">Home</h2><div class="card"><button class="lnk" style="float:right" onclick="changeHome()">Change</button><b>You’re at</b><div class="sh-addr">${p.addr}</div><div>${p.suburb} QLD ${POSTCODE[p.suburb]||''}</div><div style="margin-top:8px"><span class="dot d-${vis(p)}"></span> ${p.contacts[0]?.name||p.tp||'No contact yet'} · held ${years(p)} yrs</div></div><button class="micbtn" style="background:#dc2626;height:110px;margin:8px 0 20px;font-size:22px" onclick="startRec(${p.id})"><span class="mic-symbol"></span>Hold to talk</button><div class="entry-grid">${[['⌂','Property',`openSheet(${p.id})`],['◎','Owner',`quickAdd(${p.id})`],['◆','Tag',`openSheet(${p.id},true)`],['✎','Note',`quickAdd(${p.id},true)`],['▣','Photo',"go('cap')"],['☎','Log call',`logCall(${p.id})`]].map(([icon,label,action])=>`<button onclick="${action}"><span>${icon}</span>${label}</button>`).join('')}</div></div>`; }
+function changeHome() { modal.innerHTML=`<div class="mhead"><button onclick="closeModal()">Back</button><b>Find address</b></div><div class="scroll"><div class="fld"><input placeholder="Search address or suburb…" oninput="searchHome(this.value)"></div><div id="homeResults"></div></div>`; modal.classList.add('on'); searchHome(''); }
+function searchHome(q) { homeResults.innerHTML=props.filter(p=>(p.addr+' '+p.suburb).toLowerCase().includes(q.toLowerCase())).slice(0,15).map(p=>`<div class="li" onclick="chosenHome=${p.id};closeModal();renderHome()">${p.addr} · ${p.suburb}</div>`).join(''); }
+const fld=(label,id,value='',type='text')=>`<div class="fld"><label>${label}</label><input id="${id}" type="${type}" value="${clean(value)}"></div>`;
+const dateChips=()=>`<div class="flags">${[['Tomorrow',1],['1 week',7],['1 month',30],['3 months',90]].map(([s,d])=>`<button class="chip" onclick="this.parentNode.querySelectorAll('button').forEach(x=>x.classList.remove('on'));this.classList.add('on');document.getElementById('actionDate').value=new Date(TODAY.getTime()+${d}*864e5).toISOString().slice(0,10)">${s}</button>`).join('')}</div>${fld('Custom','actionDate','','date')}`;
+function quickAdd(id,noteFocus=false) { const p=byId(id),c=p.contacts[0]; modal.innerHTML=`<div class="mhead"><button onclick="closeModal()">Back</button><b>Quick add</b></div><div class="scroll">${fld('Property','qaProperty',p.addr)}<div id="qaSuggestions"></div>${fld('Mobile','qaMobile',c?.mobile||'','tel')}<div id="qaHit"></div><div class="row2">${fld('First name','qaFirst',c?.name.split(' ')[0]||'')}${fld('Last name','qaLast',c?.name.split(' ').slice(1).join(' ')||'')}</div>${fld('Email','qaEmail',c?.email||'','email')}<div class="fld"><label>Role</label>${['Owner','Buyer','Tenant','Landlord','Investor'].map(r=>`<button class="tag ${c?.role===r?'on':''}" onclick="this.classList.toggle('on')">${r}</button>`).join('')}</div><div class="fld"><label>Tags</label>${tagMarkup(p)}</div><div class="fld"><label>Note</label><textarea id="qaNote" rows="3"></textarea></div><label>Reminder</label>${dateChips()}<div class="sec"><h4>Will write to Rex</h4><div id="qaSummary">Update / Create contact · Link to ${p.addr} · Add note (author: ${ME.name})</div></div></div><div class="mfoot"><button class="btn pri" onclick="previewQuick(this)">Check & save to Rex</button></div>`; modal.classList.add('on'); qaMobile.oninput=lookupMobile; qaProperty.oninput=()=>{qaSuggestions.innerHTML=props.filter(x=>x.addr.toLowerCase().includes(qaProperty.value.toLowerCase())).slice(0,5).map(x=>`<div class="li" onclick="qaProperty.value='${x.addr}';qaSuggestions.innerHTML='';quickPid=${x.id}">${x.addr}</div>`).join('')}; quickPid=id; if(noteFocus) qaNote.focus(); }
+let quickPid;
+function lookupMobile() { const m=qaMobile.value.replace(/\D/g,''); const match=m.length>=8 && props.flatMap(p=>p.contacts.map(c=>({p,c}))).find(({c})=>c.mobile.replace(/\D/g,'').includes(m)); qaHit.innerHTML=match?`<button class="banner b-ok" onclick="qaFirst.value='${clean(match.c.name.split(' ')[0])}';qaLast.value='${clean(match.c.name.split(' ').slice(1).join(' '))}';qaEmail.value='${clean(match.c.email||'')}';this.remove()">Found in Rex: ${clean(match.c.name)} · ${clean(match.p.addr)} — Use & update</button>`:''; }
+function previewQuick(button) { const p=byId(quickPid),name=(qaFirst.value+' '+qaLast.value).trim();qaSummary.textContent=`${p.contacts.some(c=>c.mobile===qaMobile.value.replace(/\s/g,''))?'Update':'Create'} contact ${name||p.tp||'Unknown'} · Link to ${p.addr} · Add note (author: ${ME.name})${actionDate.value?' · Reminder for '+actionDate.value:''}`;button.textContent=state.online?'Confirm & save to Rex':'Save on phone (offline)';button.onclick=saveQuick; }
+function saveQuick() { const p=byId(quickPid), name=(qaFirst.value+' '+qaLast.value).trim(); if(!name && !qaNote.value.trim()) return toast('Name or note required'); const roles=[...modal.querySelectorAll('.fld .tag.on')].map(x=>x.textContent).filter(x=>['Owner','Buyer','Tenant','Landlord','Investor'].includes(x)); const w={id:p.id,name:name||p.contacts[0]?.name||p.tp||'Unknown',mobile:qaMobile.value,email:qaEmail.value,rel:roles[0]||'Owner',roles,note:qaNote.value,fu:actionDate.value,dnk:false,key:'quick-'+Date.now()}; if(!state.online){state.queue.push(w);p.pending=true;toast('Saved on phone · will send to Rex when back online')} else {applyWrite(w);toast('Saved to Rex')} AUD(ME.name,'Quick add',p.addr,w.key);closeModal();if(state.tab==='home')renderHome();else openSheet(p.id); }
+function addNote(p,text,action='Note') {p.notes.unshift({date:TODAY,author:ME.name,text});p.lastVisit=TODAY;AUD(ME.name,action,p.addr,text);}
+function actionModal(title,body,button,fn) {modal.innerHTML=`<div class="mhead"><button onclick="closeModal()">Back</button><b>${title}</b></div><div class="scroll">${body}</div><div class="mfoot"><button class="btn pri" id="actionSubmit">${button}</button></div>`;modal.classList.add('on');actionSubmit.onclick=fn;}
+function followPrompt(id) { actionModal('Add a follow-up?',`<div class="action-row"><button onclick="remind(${id})">Yes</button><button onclick="closeModal();openSheet(${id})">No</button></div>`,'No',()=>{closeModal();openSheet(id)}); }
+function callContact(id) {const p=byId(id),c=p.contacts[0];if(!c)return toast('No linked contacts you can see.');actionModal('Call',`<div class="banner b-info">Calling ${c.mobile.replace(/(\d{4})(\d{3})(\d{3})/,'$1 $2 $3')}…</div>`,'Call',()=>{addNote(p,'Call to '+c.name,'Number revealed + call');followPrompt(id)});}
+const TEMPLATES=['Not at home left card','Thanks for the chat','Market update offer'];
+function message(id,kind) { const p=byId(id),c=p.contacts[0];if(!c)return toast('No linked contacts you can see.');const text=(i)=>[`Hi {first}, I dropped by {street} and left my card. {myname}`,`Hi {first}, thanks for the chat at {street}. {myname}`,`Hi {first}, would you like a market update for {street}? {myname}`][i].replace('{first}',c.name.split(' ')[0]).replace('{street}',p.addr).replace('{myname}',ME.name);actionModal(kind,`<div class="fld"><label>Message template</label><select id="templatePick" onchange="messageBody.value=this.selectedOptions[0].dataset.body;countMessage()">${TEMPLATES.map((t,i)=>`<option data-body="${text(i)}">${t}</option>`).join('')}</select></div><textarea class="trans" style="width:100%;height:130px" id="messageBody" oninput="countMessage()">${text(0)}</textarea><div id="charCount"></div>`,'Send from my phone',()=>{addNote(p,kind+' sent: '+messageBody.value,kind);toast('Saved to Rex');followPrompt(id)});countMessage();}
+function countMessage(){const s=messageBody.value;charCount.textContent=`${s.length} / ${/[^\x00-\x7f]/.test(s)?70:160}`;}
+function remind(id) {actionModal('Remind',`<div class="fld"><label>Type</label><select id="taskType">${['Call back','Appraisal','Market update','Other'].map(x=>`<option>${x}</option>`).join('')}</select></div>${dateChips()}${fld('Time','taskTime','09:00','time')}<div class="fld"><label>Assign to</label><select id="taskAgent">${TEAM.map(x=>`<option>${x}</option>`).join('')}</select></div>`,'Save',()=>{state.tasks.push({pid:id,type:taskType.value,date:actionDate.value||'2026-11-03',time:taskTime.value,agent:taskAgent.value,done:false});AUD(ME.name,'Reminder',byId(id).addr,taskType.value);closeModal();toast('Synced to Rex · push notification set');openSheet(id)});}
+function appraisal(id) {const dates=Array.from({length:7},(_,i)=>new Date(TODAY.getTime()+(i+1)*864e5).toISOString().slice(0,10));actionModal('Book appraisal',`<div class="fld"><label>Date</label><select id="appDate">${dates.map(d=>`<option>${d}</option>`).join('')}</select></div><div class="fld"><label>Free slot</label><select id="appSlot"><option>09:00</option><option>11:30</option><option>14:00</option></select></div><div class="fld"><label>Agent</label><select id="appAgent">${TEAM.map(x=>`<option>${x}</option>`).join('')}</select></div><div class="fld"><label>Method</label><select id="appMethod"><option>In person</option><option>Phone</option><option>Video</option></select></div>`,'Book appraisal',()=>{const p=byId(id);state.tasks.push({pid:id,type:'Appraisal',date:appDate.value,time:appSlot.value,agent:appAgent.value,done:false});ensureTags(p).add('Appraisal booked');addNote(p,'Appraisal booked · '+appDate.value+' '+appSlot.value+' · '+appMethod.value,'Appraisal');closeModal();openSheet(id);toast('Written to Rex & calendar · confirmation SMS sent · reminder day before')});}
+function logCall(id){actionModal('Log call',`<div class="fld"><label>Outcome</label><select id="callOutcome"><option>Spoke to owner</option><option>Not at home</option><option>Left card</option></select></div><div class="fld"><label>Note</label><textarea id="callNote"></textarea></div>`,'Save',()=>{addNote(byId(id),'Call: '+callOutcome.value+' · '+callNote.value,'Call log');closeModal();toast('Saved to Rex')});}
 /* ===================== SHEET ===================== */
 const byId = id => props.find(p => p.id === id);
-function openSheet(id) {
+function openSheet(id,scrollTags=false) {
   const p = byId(id); state.sel = id; drawMarkers();
   const s = vis(p), stLabel = { green: 'Owner linked in Rex', red: 'No owner you can see', grey: 'Not matched to Rex yet', other: 'Followed by another agent' }[s];
   const area = parcelByLp.get(p.lp)?.area;
-  let body = `<button class="pinbtn ${pinned.has(p.id) ? 'on' : ''}" onclick="togglePin(${p.id})">${pinned.has(p.id) ? '★ Pinned' : '☆ Pin'}</button><div class="sh-addr">${p.addr}</div><div style="font-size:13px;color:var(--mut)">${p.suburb} QLD ${POSTCODE[p.suburb] || ''} · ${lotLabel(p.lp)}${area ? ` · ${area} m²` : ''}</div>
+  let body = `<div class="photo-strip">⌂ Photo</div><button class="pinbtn ${pinned.has(p.id) ? 'on' : ''}" onclick="togglePin(${p.id})">${pinned.has(p.id) ? '★ Pinned' : '☆ Pin'}</button><div class="sh-addr">${p.addr}</div><div style="font-size:13px;color:var(--mut)">${p.suburb} QLD ${POSTCODE[p.suburb] || ''} · ${lotLabel(p.lp)}${area ? ` · ${area} m²` : ''}</div>
    <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span class="st"><span class="dot d-${s}"></span>${stLabel}</span>${p.listing === 'place' ? '<span class="st"><span class="lg-p">P</span> Place listing</span>' : p.listing === 'other' ? '<span class="st"><span class="dot d-amber"></span> Other agency listing</span>' : ''}${p.lastVisit ? `<span class="st">Last visit ${fmt(p.lastVisit)} · ${p.lastResult}</span>` : '<span class="st">Never visited</span>'}${p.pending ? '<span class="st" style="background:#fef3c7">⏳ Waiting to send</span>' : ''}</div>`;
   if (s === 'grey') body += `<div class="banner b-warn" style="margin-top:10px">This address is not matched to a Rex property yet. It's in the admin review queue. You can still capture — the portal will create the Rex property and flag it for review.</div>`;
   if (s === 'other') body += `<div class="banner b-info" style="margin-top:10px">Another agent already follows this property. Details are hidden under Rex closed-database rules. Talk to the office before capturing to avoid duplicates.</div>`;
+  if (p.optOutSms || ensureTags(p).has('Do not contact')) body += '<div class="banner b-bad" style="margin-top:8px">OPTED OUT OF TEXTS</div>';
+  body += `<div class="sec" id="sheetTags"><h4>Tags</h4>${tagMarkup(p)}</div>`;
   if (s !== 'other') {
-    body += `<div class="sec"><h4>Contacts in Rex</h4>${p.contacts.length ? p.contacts.map(c => `<div class="card"><b>${c.name}</b> <span class="st">${c.role}</span>${c.dnc ? ' <span class="st" style="background:#fee2e2;color:#991b1b">📵 Do not call</span>' : ''}<div style="font-size:13px;color:var(--mut);margin-top:3px">${c.mobile.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 ••••')} · ${c.owner === ME.name ? 'Your contact' : 'Owned by ' + c.owner + ' (' + ME.team + ')'}</div></div>`).join('') : '<div style="font-size:13px;color:var(--mut)">No linked contacts you can see.</div>'}</div>`;
+    body += `<div class="sec"><h4>Contacts in Rex</h4>${p.contacts.length ? p.contacts.map(c => `<div class="card"><b>${c.name}</b> <span class="st">${c.role}</span>${tenure(p)}<div style="font-size:12px">Purchased ${fmt(p.tpSale)} · held ${years(p)} yrs</div>${c.dnc ? ' <span class="st" style="background:#fee2e2;color:#991b1b">📵 Do not call</span>' : ''}<div style="font-size:13px;color:var(--mut);margin-top:3px">${c.mobile.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 ••••')} · ${c.email ? c.email.replace(/^(.{2}).*(@.*)$/, '$1••••$2')+' · ' : ''}${c.owner === ME.name ? 'Your contact' : 'Owned by ' + c.owner + ' (' + ME.team + ')'}</div></div>`).join('') : '<div style="font-size:13px;color:var(--mut)">No linked contacts you can see.</div>'}</div>`;
     if (p.tp) body += `<div class="card tp"><b>${p.tp}</b><span class="src">${p.id % 2 ? 'RP Data' : 'Pricefinder'}</span><div style="font-size:12px;color:#92400e;margin-top:3px">Registered owner · last sale ${fmt(p.tpSale)}<br>Third-party data · not in Rex · confirm at the door before capturing</div></div>`;
-    body += `<div class="sec"><h4>Latest Rex notes</h4>${p.notes.slice(0, 3).map(n => `<div class="note">${n.text}<small>${fmt(n.date)} · ${n.author}</small></div>`).join('') || '<div style="font-size:13px;color:var(--mut)">No notes you can see.</div>'}<button class="lnk" onclick="toast('Opens this property in Rex (rexsoftware.com)')">Open in Rex ↗</button></div>`;
+    body += `<div style="font-size:11px;color:var(--mut)">Last updated by ${p.notes[0]?.author||ME.name}, ${fmt(p.notes[0]?.date||TODAY)}</div><div class="sec"><h4>Latest Rex notes</h4>${p.notes.slice(0, 3).map(n => `<div class="note">${n.text}<small>${fmt(n.date)} · ${n.author}</small></div>`).join('') || '<div style="font-size:13px;color:var(--mut)">No notes you can see.</div>'}<button class="lnk" onclick="toast('Opens this property in Rex (rexsoftware.com)')">Open in Rex ↗</button></div>`;
   }
-  body += `<div class="sec"><h4>Quick result</h4><div class="qr">${['🚪 No answer', '🙅 Not interested', '📇 Left card', '🏠 Tenant answered'].map(x => `<button onclick="quick(${p.id},'${x.slice(2).trim()}')">${x}</button>`).join('')}</div></div>
-   <div class="sec"><h4>Do-not-contact flags</h4><div class="flags">
-    <button class="flag ${p.dnk ? 'on' : ''}" onclick="flag(${p.id},'dnk')">⛔ Do not knock</button>
-    <button class="flag ${p.junk ? 'on' : ''}" onclick="flag(${p.id},'junk')">📭 No junk mail</button>
-    ${p.contacts[0] ? `<button class="flag ${p.contacts[0].dnc ? 'on' : ''}" onclick="flag(${p.id},'dnc')">📵 Do not call (${p.contacts[0].name.split(' ')[0]})</button>` : ''}
-   </div></div>
-   <div class="mic"><button class="micbtn" onpointerdown="startRec(${p.id})">🎙️ Hold to talk</button></div>`;
+  body += `<div class="sec action-row">${[['Update record',`quickAdd(${p.id})`],['Book appraisal',`appraisal(${p.id})`],['Call',`callContact(${p.id})`],['Text',`message(${p.id},'Text')`],['Email',`message(${p.id},'Email')`],['Remind',`remind(${p.id})`]].map(([label,fn])=>`<button ${label==='Text'&&(p.optOutSms||ensureTags(p).has('Do not contact'))?'disabled':''} onclick="${fn}">${label}</button>`).join('')}</div><div class="mic"><button class="micbtn" onclick="startRec(${p.id})"><span class="mic-symbol"></span>Hold to talk</button></div>`;
   sheet.innerHTML = `<div class="grab"></div><div class="sh-body">${body}</div>`;
-  sheet.classList.add('on'); shade.classList.remove('on');
+  sheet.style.transform='';sheet.classList.add('on'); shade.classList.remove('on');
+  if(scrollTags) sheet.querySelector('#sheetTags')?.scrollIntoView({block:'start'});
   setNote('sheet');
 }
 function openCx(id) {
   const c = cxById(id ?? state.cx); if (!c) return;
   state.cx = c.id; state.sel = null;
   sheet.innerHTML = `<div class="grab"></div><div class="sh-body"><div class="sh-addr">${c.addr}</div><div style="font-size:13px;color:var(--mut)">${c.suburb} QLD ${POSTCODE[c.suburb] || ''} · Strata · ${c.units.length} units${c.plan ? ' · ' + c.plan : ''}</div>
-   <div class="sec"><h4>Units</h4>${c.units.map(u => `<div class="li" onclick="openSheet(${u.id})"><span class="dot d-${vis(u)}"></span><div class="a"><b>Unit ${u.unit}</b><span>${u.contacts[0] ? u.contacts[0].role + ': ' + u.contacts[0].name : u.tp ? 'Owner (3rd party): ' + u.tp : 'No owner info'}</span></div><div class="r">${u.lastVisit ? fmt(u.lastVisit) : 'Never'}</div></div>`).join('')}</div></div>`;
-  sheet.classList.add('on'); setNote('sheet');
+   <div class="sec"><h4>Units</h4>${c.units.map(u => `<div class="li" onclick="openSheet(${u.id})"><span class="dot d-${vis(u)}"></span><div class="a"><b>Unit ${u.unit}</b><span>${u.contacts[0] ? u.contacts[0].role + ': ' + u.contacts[0].name : u.tp ? 'Owner (3rd party): ' + u.tp : 'No owner info'}</span></div><div class="r">${tenure(u)}<br>${u.lastVisit ? fmt(u.lastVisit) : 'Never'}</div></div>`).join('')}</div></div>`;
+  sheet.style.transform='';sheet.classList.add('on'); setNote('sheet');
 }
-function closeSheet() { sheet.classList.remove('on'); shade.classList.remove('on'); if (state.sel) { state.sel = null; drawMarkers(); } if (state.tab === 'map') setNote('map'); }
+function closeSheet() { sheet.classList.remove('on'); sheet.style.transform='translateY(105%)'; shade.classList.remove('on'); if (state.sel) { state.sel = null; drawMarkers(); } if (state.tab === 'map') setNote('map'); }
 function quick(id, r) {
   const p = byId(id); p.lastVisit = TODAY; p.lastResult = r;
   p.notes.unshift({ date: TODAY, author: ME.name, text: 'Door-knock: ' + r + '.' });
@@ -803,7 +834,12 @@ function confirmWrite() {
 }
 function applyWrite(w, fromQueue) {
   const p = byId(w.id); p.pending = false;
-  if (!p.contacts.find(c => c.name === w.name)) p.contacts.unshift({ name: w.name, role: w.rel, mobile: (w.mobile || '0400000000').replace(/\s/g, ''), owner: ME.name });
+  let contact=p.contacts.find(c=>c.name===w.name || (w.mobile && c.mobile===w.mobile.replace(/\s/g,'')));
+  if (!contact) { contact={name:w.name,role:w.rel,mobile:(w.mobile||'0400000000').replace(/\s/g,''),owner:ME.name};p.contacts.unshift(contact); }
+  else {contact.name=w.name;contact.mobile=(w.mobile||contact.mobile).replace(/\s/g,'');contact.role=w.rel;}
+  if(w.email) contact.email=w.email;
+  if(w.roles) contact.roles=w.roles;
+  if(w.fu) state.tasks.push({pid:p.id,type:'Call back',date:w.fu,agent:ME.name,done:false});
   if (['Owner', 'Landlord'].includes(w.rel) && p.status !== 'other') p.status = 'green';
   if (p.status === 'grey') p.status = w.rel === 'Owner' ? 'green' : 'red';
   if (w.dnk) p.dnk = true;
@@ -820,7 +856,7 @@ function renderList() {
   const rows = all.sort((a, b) => sortBy === 'sale' ? a.tpSale - b.tpSale : sortBy === 'visit' ? (a.lastVisit || 0) - (b.lastVisit || 0) : a.street.localeCompare(b.street) || (parseInt(a.num) || 0) - (parseInt(b.num) || 0) || a.num.localeCompare(b.num) || (parseInt(a.unit) || 0) - (parseInt(b.unit) || 0)).slice(0, LIST_MAX);
   document.getElementById('pg-list').innerHTML = `<div class="srch"><input placeholder="Search address or suburb…" value="${clean(listQuery)}" oninput="listQ(this.value)"><button onclick="go('map')" title="Map">🗺️</button></div><div class="chips" id="chipsList"></div>
    <div style="display:flex;justify-content:space-between;padding:6px 14px;font-size:12px;color:var(--mut);background:#f9fafb"><span>${all.length} properties · ${coverage(all)}% green${all.length > LIST_MAX ? ' · Showing the first 200 — search to narrow' : ''}</span><select onchange="sortBy=this.value;renderList()" style="font-size:12px;border:0;background:none">${[['addr', 'Sort: address'], ['sale', 'Sort: oldest sale'], ['visit', 'Sort: least recent visit']].map(([k, l]) => `<option value="${k}" ${sortBy === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
-   <div class="scroll lst" id="lstBody">${rows.map(p => `<div class="li" data-a="${p.addr.toLowerCase()}" onclick="openSheet(${p.id})"><span class="dot d-${vis(p)}"></span><div class="a"><b>${p.addr}${p.dnk ? ' ⛔' : ''}${p.junk ? ' 📭' : ''}${p.pending ? ' ⏳' : ''}</b><span>${p.contacts[0] ? '👤 ' + p.contacts[0].name : p.tp && vis(p) !== 'other' ? '<i style="color:#b45309">' + p.tp + ' · 3rd party</i>' : '—'} · sold ${p.tpSale.getFullYear()}</span></div><div class="r">${p.lastVisit ? fmt(p.lastVisit) + '<br>' + p.lastResult : 'Never'}</div></div>`).join('')}</div>`;
+   <div class="scroll lst" id="lstBody">${rows.map(p => `<div class="li" data-a="${p.addr.toLowerCase()}" onclick="openSheet(${p.id})"><span class="dot d-${vis(p)}"></span><div class="a"><b>${p.addr}${p.dnk ? ' ⛔' : ''}${p.junk ? ' 📭' : ''}${p.pending ? ' ⏳' : ''}</b><span>${p.contacts[0] ? '👤 ' + p.contacts[0].name : p.tp && vis(p) !== 'other' ? '<i style="color:#b45309">' + p.tp + ' · 3rd party</i>' : '—'} · sold ${p.tpSale.getFullYear()}</span></div><div class="r">${tenure(p)}<br>${p.lastVisit ? fmt(p.lastVisit) + '<br>' + p.lastResult : 'Never'}</div></div>`).join('')}</div>`;
   renderChips('chipsList'); document.querySelectorAll('#chipsList .chip').forEach(b => b.onclick = () => { setFilter(b.getAttribute('onclick').match(/'(\w+)'/)[1]); });
 }
 function listQ(v) {
@@ -877,7 +913,7 @@ let capStage = 0;
 const CAPROWS = [['Lily Tan', '0421 778 902', 'lily.t@outlook.com', true, false, []], ['王建国 (Jianguo Wang)', '0435 11? 456', '', false, true, ['mobile']], ['Sam Patel', '0402 334 120', 'sam.patel@gmail.com', false, false, []], ['Grace Huang', '0418 902 555', 'grace.h@??.com', true, false, ['email']], ['M. Robinson', '', '', false, false, ['name']]];
 function renderCap() {
   const el = document.getElementById('pg-cap');
-  if (capStage === 0) el.innerHTML = `<div class="scroll"><h2 class="pt">Paper capture</h2><div style="font-size:13px;color:var(--mut);margin-bottom:12px">Open-home sheets or handwritten notes. English &amp; 中文, print or handwriting.</div>
+  if (capStage === 0) el.innerHTML = `<div class="scroll"><button class="lnk" onclick="go('home')">‹ Back</button><h2 class="pt">Paper capture</h2><div style="font-size:13px;color:var(--mut);margin-bottom:12px">Open-home sheets or handwritten notes. English &amp; 中文, print or handwriting.</div>
    <button class="btn pri" style="width:100%;margin-bottom:8px" onclick="capGo()">📷 Take photo</button><button class="btn sec2" style="width:100%;margin-bottom:8px" onclick="capGo()">🖼️ Choose from library</button><button class="btn sec2" style="width:100%" onclick="capGo()">📄 Upload scanned PDF</button>
    <div class="sec"><h4>Recent</h4><div class="li"><span>🗒️</span><div class="a"><b>8 Albert St · OFI sheet</b><span>12 Oct · 7 records · confirmed</span></div></div></div></div>`;
   else if (capStage === 1) el.innerHTML = `<div class="scroll"><div class="paper"><b>OPEN HOME REGISTER — 12 Pinelands Rd</b> &nbsp; 2/11<table><tr><th>Name</th><th>Phone</th><th>Email</th><th>B&P</th><th>Selling?</th></tr>${CAPROWS.map(r => `<tr><td>${r[0]}</td><td>${r[1] || '~~'}</td><td>${r[2]}</td><td>${r[3] ? '✓' : ''}</td><td>${r[4] ? '✓' : ''}</td></tr>`).join('')}</table></div>
@@ -900,10 +936,11 @@ function renderMe() {
    <div class="card"><b>${ME.name}</b><div style="font-size:13px;color:var(--mut)">Sales agent · ${ME.team} · kevin.zhang@placesunnybank.com.au</div></div>
    <div class="sec"><h4>Sync</h4><div class="card">Network: <b>${state.online ? 'Online' : 'Offline'}</b> <button class="ab" onclick="toggleNet()">${state.online ? 'Simulate offline' : 'Go online'}</button>
     <div style="margin-top:8px">Waiting to send: <b>${state.queue.length}</b></div>${state.queue.map(q => `<div class="note">${byId(q.id).addr} · ${q.name}<small>key ${q.key}</small></div>`).join('')}</div></div>
-   <div class="sec"><h4>Security</h4><div class="card" style="font-size:13px;line-height:1.7">🔐 Data on this phone expires in <b>23 h 41 m</b> (even offline)<br>🧾 Everything you save is logged with your name<br>🚫 No export, copy or share in this app</div></div>
+   <div class="sec"><h4>My tasks</h4>${[['Overdue',t=>t.date<'2026-11-02'],['Today',t=>t.date==='2026-11-02'],['Upcoming',t=>t.date>'2026-11-02']].map(([title,filter])=>`<div class="card"><b>${title}</b>${state.tasks.map((t,i)=>!t.done&&filter(t)?`<div class="li"><input type="checkbox" aria-label="Complete task" onchange="completeTask(${i})"><div class="a"><b>${t.type}</b><span>${byId(t.pid)?.addr||''} · ${t.date}</span></div></div>`:'').join('')}</div>`).join('')}</div><div class="sec"><h4>Security</h4><div class="card" style="font-size:13px;line-height:1.7">🔐 Data on this phone expires in <b>23 h 41 m</b> (even offline)<br>🧾 Everything you save is logged with your name<br>🚫 No export, copy or share in this app</div></div>
    <div class="sec"><h4>Today</h4><div class="card" style="font-size:13px">Doors knocked: <b>${props.filter(p => +p.lastVisit === +TODAY).length}</b> · Captures: <b>${state.audit.filter(a => a.who === ME.name && /capture|Quick/.test(a.action)).length}</b></div></div>
    <button class="btn sec2" style="width:100%" onclick="location.reload()">Sign out</button></div>`;
 }
+function completeTask(i) { const t=state.tasks[i];t.done=true;AUD(ME.name,'Task complete',byId(t.pid)?.addr||'',t.type);byId(t.pid)?.notes.unshift({date:TODAY,author:ME.name,text:'Completed: '+t.type});renderMe();toast('Note added to Rex'); }
 function renderRevoked() {
   const n = Number(revoked.dataset.synced || 0);
   revMsg.innerHTML = `${T('您的访问权限已被管理员撤销。')}<br><br>${n ? `✓ ${T('此手机上待发送的 {n} 条录入已先同步到 Rex。', { n })}<br>` : ''}✓ ${T('此手机上的地图、笔记及业主数据已删除。')}<br><br>${T('如果这是误操作，请联系办公室。')}`;
