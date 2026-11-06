@@ -81,6 +81,8 @@ h2.pt{font-size:22px;margin:4px 0 10px}
 .photo-strip{height:92px;border-radius:12px;background:linear-gradient(120deg,#dbeafe,#94a3b8);display:grid;place-items:center;color:#334155;font-size:18px}.tenure{display:inline-block;border-radius:10px;padding:2px 8px;font-size:11px;margin-left:4px}.tag-group{margin:9px 0}.tag-group small{display:block;color:var(--mut);margin-bottom:4px}.tag.visit.on{background:#fce7f3;border-color:#f9a8d4}.tag.intent.on{background:#fef3c7;border-color:#fbbf24}.tag.restrict.on{background:#dc2626;border-color:#dc2626;color:white}.tag.black.on{background:#111;color:white}.tag.follow.on{background:#dbeafe;border-color:#93c5fd}.tag.capture.on{background:#dcfce7;border-color:#86efac}.entry-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.entry-grid button{height:82px;background:white;border:1px solid var(--line);border-radius:14px;font-weight:600}.entry-grid button span{display:block;font-size:25px;margin-bottom:4px}.tabbar button.center-mic{flex:0 0 68px;color:#dc2626}.tabbar button.center-mic i{background:#dc2626;color:white;width:60px;height:60px;border-radius:50%;display:grid;place-items:center;position:absolute;bottom:25px;box-shadow:0 4px 12px #991b1b66}.mic-symbol{display:inline-block;width:12px;height:19px;background:currentColor;border-radius:8px;position:relative;margin-right:10px;vertical-align:middle}.mic-symbol::before{content:'';position:absolute;left:-4px;top:7px;width:16px;height:17px;border:2px solid currentColor;border-top:0;border-radius:0 0 12px 12px}.mic-symbol::after{content:'';position:absolute;left:4px;top:22px;width:4px;height:6px;background:currentColor}.center-mic .mic-symbol{margin:0;color:white;transform:scale(1.1)}.action-row{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.action-row button{border:1px solid var(--line);background:#f8fafc;border-radius:9px;padding:9px 2px;font-size:12px}.action-row button:disabled{opacity:.4}
 .grab{width:40px;height:5px;border-radius:3px;background:#d1d5db;margin:8px auto 2px;flex:none}
 .sh-body{overflow:auto;padding:4px 16px 16px}
+.grab{position:relative;touch-action:none}.grab::after{content:'';position:absolute;inset:-12px -90px}
+.sh-x{position:absolute;top:6px;right:10px;width:30px;height:30px;border-radius:50%;border:0;background:#f1f5f9;color:#334155;font-size:15px;line-height:30px;z-index:2;cursor:pointer}
 .sh-addr{font-size:19px;font-weight:700;margin:6px 0 2px}
 .st{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:2px 8px;border-radius:10px;background:#f3f4f6}
 .sec{margin-top:12px}
@@ -761,6 +763,7 @@ function logCall(id){actionModal('Log call',`<div class="fld"><label>Outcome</la
 const byId = id => props.find(p => p.id === id);
 // Deterministic demo wash across the linked contacts.
 props.forEach((p,i)=>p.contacts.forEach(c=>{c.dncr=['Registered','Not registered','Unchecked','Registered'][i%4];c.dncrDate=i%7===0?daysAgo(45):i%4===2?null:daysAgo(3);}));
+const SH_HEAD = '<div class="grab"></div><button class="sh-x" onclick="closeSheet()" aria-label="Close">✕</button>';
 function openSheet(id,scrollTags=false) {
   const p = byId(id); state.sel = id; drawMarkers();
   const s = vis(p), stLabel = { green: 'Owner linked in Rex', red: 'No owner you can see', grey: 'Not matched to Rex yet', other: 'Followed by another agent' }[s];
@@ -778,7 +781,7 @@ function openSheet(id,scrollTags=false) {
     body += `<div style="font-size:11px;color:var(--mut)">Last updated by ${p.notes[0]?.author||ME.name}, ${fmt(p.notes[0]?.date||TODAY)}</div><div class="sec"><h4>Latest Rex notes</h4>${p.notes.slice(0, 3).map(n => `<div class="note"><span class="trans">${clean(n.text)}</span><small>${fmt(n.date)} · ${n.author}</small></div>`).join('') || '<div style="font-size:13px;color:var(--mut)">No notes you can see.</div>'}<button class="lnk" onclick="toast('Opens this property in Rex (rexsoftware.com)')">Open in Rex ↗</button></div>`;
   }
   body += `<div class="sec action-row">${[['Update record',`quickAdd(${p.id})`],['Book appraisal',`appraisal(${p.id})`],['Call',`callContact(${p.id})`],['Text',`message(${p.id},'Text')`],['Email',`message(${p.id},'Email')`],['Remind',`remind(${p.id})`],['Circle SMS',`circleSms(${p.id})`]].map(([label,fn])=>`<button ${label==='Text'&&(p.optOutSms||ensureTags(p).has('Do not contact'))?'disabled':''} onclick="${fn}">${label}</button>`).join('')}</div><div class="mic"><button class="micbtn" onclick="startRec(${p.id})"><span class="mic-symbol"></span>Hold to talk</button></div>`;
-  sheet.innerHTML = `<div class="grab"></div><div class="sh-body">${body}</div>`;
+  sheet.innerHTML = `${SH_HEAD}<div class="sh-body">${body}</div>`;
   sheet.style.transform='';sheet.classList.add('on'); shade.classList.remove('on');
   if(scrollTags) sheet.querySelector('#sheetTags')?.scrollIntoView({block:'start'});
   setNote('sheet');
@@ -786,7 +789,7 @@ function openSheet(id,scrollTags=false) {
 function openCx(id) {
   const c = cxById(id ?? state.cx); if (!c) return;
   state.cx = c.id; state.sel = null;
-  sheet.innerHTML = `<div class="grab"></div><div class="sh-body"><div class="sh-addr">${c.addr}</div><div style="font-size:13px;color:var(--mut)">${c.suburb} QLD ${POSTCODE[c.suburb] || ''} · Strata · ${c.units.length} units${c.plan ? ' · ' + c.plan : ''}</div>
+  sheet.innerHTML = `${SH_HEAD}<div class="sh-body"><div class="sh-addr">${c.addr}</div><div style="font-size:13px;color:var(--mut)">${c.suburb} QLD ${POSTCODE[c.suburb] || ''} · Strata · ${c.units.length} units${c.plan ? ' · ' + c.plan : ''}</div>
    <div class="sec"><h4>Units</h4>${c.units.map(u => `<div class="li" onclick="openSheet(${u.id})"><span class="dot d-${vis(u)}"></span><div class="a"><b>Unit ${u.unit}</b><span>${u.contacts[0] ? u.contacts[0].role + ': ' + u.contacts[0].name : u.tp ? 'Owner (3rd party): ' + u.tp : 'No owner info'}</span></div><div class="r">${tenure(u)}<br>${u.lastVisit ? fmt(u.lastVisit) : 'Never'}</div></div>`).join('')}</div></div>`;
   sheet.style.transform='';sheet.classList.add('on'); setNote('sheet');
 }
@@ -807,7 +810,7 @@ function flag(id, k) {
 }
 
 /* ===================== VOICE ===================== */
-let recSample = 0, recTimer;
+let recSample = 0, recTimer, recUp = null, recSeq = 0;
 const SAMPLES = [
   ['业主信息（中英混说）', p => `业主是 ${p.tp || 'Mary Chen'}，mobile 0412 345 678，住了 12 年，明年春天 maybe sell，三月再 call back。Tag as downsizer。`],
   ['要求勿上门（粤语+英文）', p => `${p.tp || 'Mary Chen'} 係業主，佢話 please don't knock again，唔想再有人上門。Not selling.`],
@@ -825,14 +828,14 @@ function startRec(id) {
   modal.classList.add('on'); setNote('rec');
   recTimer = setInterval(() => { sec++; const e = document.getElementById('rt'); if (e) e.textContent = '0:' + String(sec).padStart(2, '0'); }, 1000);
   const fin = () => { document.removeEventListener('pointerup', up); finishRec(id); };
-  const up = e => { if (e.target.closest && e.target.closest('.samples')) return; fin(); };
+  const up = e => { if (e.target.closest && e.target.closest('.samples')) return; fin(); }; recUp = up;
   setTimeout(() => document.addEventListener('pointerup', up, { once: true }), 50);
   document.getElementById('recDone').onclick = fin;
 }
 function finishRec(id) {
   clearInterval(recTimer);
   modal.innerHTML = `<div class="rec" style="background:#fff;color:#111"><div class="spin"></div><div>Transcribing (EN / 普通话 / 粵語)…</div><div style="font-size:12px;color:var(--mut)">${state.online ? 'Australian region · provider keeps no audio' : 'Offline — audio saved on phone, will transcribe when online'}</div></div>`;
-  setTimeout(() => showConfirm(id), state.online ? 1400 : 700);
+  const seq = recSeq; setTimeout(() => { if (seq === recSeq) showConfirm(id); }, state.online ? 1400 : 700);
 }
 function extract(p, i) {
   const n = p.tp || 'Mary Chen';
@@ -882,7 +885,7 @@ function showMaryConfirm(p){
 function approveMary(){const p=byId(draft.id), rows=[...modal.querySelectorAll('.mary-row')],has=i=>rows.some(r=>Number(r.dataset.index)===i);const value=i=>rows.find(r=>Number(r.dataset.index)===i)?.querySelector('input').value||'';const mobile=value(0).match(/04[\d\s]{8,}/)?.[0].replace(/\s/g,'')||'0412555019';const w={id:p.id,name:has(0)?value(0).split(' · ')[0]+' '+p.contacts.find(c=>c.name.startsWith('John ')).name.split(' ').slice(1).join(' '):'',mobile:has(0)?mobile:'',rel:'Owner',note:has(2)?value(2):'',tags:has(2)?['Potential seller','Warm','Downsizing']:[],relationships:has(1)?[{name:'Mary',type:value(1).split(';')[0].trim(),target:'John'},{name:'Mary',type:'Co-owner with',target:p.addr}]:[],taskType:has(3)?value(3):null,consent:readConsent(),key:'mary-'+Date.now()};if(!has(0)){w.name='Mary';w.skipContact=true;} const result=submitWrite(w);AUD(ME.name,'Multi-record capture',p.addr,result);closeModal();openSheet(p.id);toast(result==='failed'?'Rex API limit reached / Rex unavailable — retrying':result==='offline'?'Saved on phone · will sync':'Saved to Rex');}
 function addRelated(id){actionModal('Related contacts',`${fld('Name','relatedName')}${fld('Mobile','relatedMobile','','tel')}<div class="fld"><label>Relationship</label><select id="relatedType">${relationshipTypes.map(r=>`<option value="${r}">${r}</option>`).join('')}</select></div><small>Rex relationship types, managed by Ping</small>`,'Save',()=>{const p=byId(id);if(!relatedName.value.trim())return toast('Name or note required');const relation={name:relatedName.value,mobile:relatedMobile.value,type:relatedType.value};writeAction(id,'Related contact',()=>{(p.relationships??=[]).push(relation);});AUD(ME.name,'Related contact',p.addr,relatedName.value);closeModal();openSheet(id);});}
 function mergeDuplicate(id){const p=byId(id),pair=p.contacts.filter(c=>c.name==='Grace Huang').slice(-2);actionModal('Compare duplicate records',`<div class="banner b-warn">Possible duplicate · Grace Huang · your records only</div>${['name','mobile','email','role'].map(field=>`<div class="card"><b>${field}</b><div class="compare">${pair.map((c,i)=>`<label><input type="radio" name="merge-${field}" value="${i}" ${i===0?'checked':''}>${clean(c[field]||'—')}</label>`).join('')}</div></div>`).join('')}`,'Merge',()=>{const keep={...pair[0]};for(const field of ['name','mobile','email','role'])keep[field]=pair[Number(modal.querySelector(`input[name="merge-${field}"]:checked`).value)][field];writeAction(id,'Merge',()=>{p.contacts=p.contacts.filter(c=>!pair.includes(c));p.contacts.push(keep);p.duplicate=false;});AUD(ME.name,'Dedupe.combineRecords',p.addr,'Grace Huang');closeModal();openSheet(id);toast('Merged in Rex (Dedupe.combineRecords)');});}
-function closeModal() { modal.classList.remove('on'); setNote(state.sel ? 'sheet' : state.tab); }
+function closeModal() { clearInterval(recTimer); if (recUp) { document.removeEventListener('pointerup', recUp); recUp = null; } recSeq++; modal.classList.remove('on'); setNote(state.sel ? 'sheet' : state.tab); }
 function confirmWrite() {
   if(recSample===3)return approveMary();
   const p = byId(draft.id), w = { id: p.id, name: f_name.value, mobile: f_mobile.value, rel: f_rel.value, note: f_note.value, fu: f_fu.value, dnk: draft.x.dnk, consent:readConsent(), key: 'cap-' + Date.now() };
@@ -1050,6 +1053,46 @@ function translatorMic(side){const Recognition=window.SpeechRecognition||window.
 function saveTranslator(){if(!translatorLog.length)return toast('Nothing to save');addNote(byId(homeId()),translatorLog.join(' · '),'Translator note');closeTranslator();toast('Note added to Rex');}
 // revocation poll (simulates ≤1 min)
 setInterval(() => { if (state.revoked && !revoked.classList.contains('on') && vMobile.style.display !== 'none') showRevoked(); }, 1000);
+/* ---------- back navigation: browser/phone back, Esc, swipe-down ---------- */
+// One guard history entry while any layer is open; each back press closes the top layer.
+let navGuard = false, navSkip = 0, navT;
+const isOn = el => el.classList.contains('on');
+function navOpen() {
+  if (isOn(login) || isOn(revoked) || vMobile.style.display === 'none') return false;
+  return isOn(translator) || isOn(modal) || isOn(sheet) || state.tab !== 'home';
+}
+function navBack() {
+  if (isOn(login) || isOn(revoked)) return;
+  if (isOn(translator)) closeTranslator();
+  else if (isOn(modal)) closeModal();
+  else if (isOn(sheet)) closeSheet();
+  else if (state.tab !== 'home') go(state.tab === 'list' ? 'map' : 'home');
+}
+function navSync() {
+  clearTimeout(navT);
+  navT = setTimeout(() => {
+    if (navSkip) return;
+    const o = navOpen();
+    if (o && !navGuard) { history.pushState({ ac: 1 }, ''); navGuard = true; }
+    else if (!o && navGuard) { navGuard = false; navSkip++; history.back(); }
+  }, 0);
+}
+addEventListener('popstate', () => {
+  if (navSkip) { navSkip--; navSync(); return; }
+  navGuard = false; navBack(); navSync();
+});
+addEventListener('keydown', e => { if (e.key === 'Escape' && navOpen()) { e.preventDefault(); navBack(); } });
+const navObs = new MutationObserver(navSync);
+[sheet, modal, translator, login, revoked].forEach(el => navObs.observe(el, { attributes: true, attributeFilter: ['class'] }));
+const _go = go; go = t => { _go(t); navSync(); };
+// swipe the sheet down by its grab handle
+sheet.addEventListener('touchstart', e => {
+  if (!e.target.closest('.grab')) return;
+  const y0 = e.touches[0].clientY; let dy = 0; sheet.style.transition = 'none';
+  const mv = ev => { dy = Math.max(0, ev.touches[0].clientY - y0); sheet.style.transform = `translateY(${dy}px)`; };
+  sheet.addEventListener('touchmove', mv, { passive: true });
+  sheet.addEventListener('touchend', () => { sheet.removeEventListener('touchmove', mv); sheet.style.transition = ''; if (dy > 80) closeSheet(); else sheet.style.transform = ''; }, { once: true });
+}, { passive: true });
 setNote('login');
 </script>
 </body>
