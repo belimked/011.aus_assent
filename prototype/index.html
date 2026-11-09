@@ -166,7 +166,7 @@ a{color:var(--azure)}
 .chip.green{background:#DDF3E8;color:#146B47} .chip.red{background:#FBE1E5;color:#9E1B2C} .chip.blue{background:#DDEEFD;color:#135A9E} .chip.amber{background:#FFF0CC;color:#7A4D00}
 .chip.hot{background:#FFE1D3;color:#B33A0E} .chip.warm{background:#FFF0CC;color:#7A4D00} .chip.cold{background:#DDEEFD;color:#135A9E}
 .chip.pink{background:var(--pink);color:#8A2A3D} .chip.steel{background:var(--surface3);color:var(--fg2)} .chip.flag{background:#FFF0CC;color:#13233F;font-weight:500}
-.chip.ban{background:#FBE1E5;color:#9E1B2C;font-weight:500} .chip.src{font-family:var(--mono);color:var(--muted)}
+.chip.ban{background:#FBE1E5;color:#9E1B2C;font-weight:500} .chip.mine{background:#EEE9FF;color:#4B3FA6} .chip.zone{background:#E3EEF6;color:#2C4A66;font-family:var(--mono);font-size:11px} .linkbtn{background:none;border:0;padding:0;color:var(--muted);font-size:inherit;text-decoration:underline;cursor:pointer} .chip.src{font-family:var(--mono);color:var(--muted)}
 .chip.sel{box-shadow:inset 0 0 0 2px var(--fg)}
 .role{font-size:12px;line-height:16px;padding:0 6px;border-radius:4px;background:var(--surface2);color:var(--muted)}
 .yrs{display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:500;background:var(--yr0);color:var(--fg2)}
@@ -438,7 +438,7 @@ const I18N = {
     dups:"Possible duplicates", dup_same:"same agent", dup_other:"another agent's contact", compare:"Compare & merge", merge_title:"Merge duplicates", keep:"Keep", merge_do:"Merge · write to Rex", merged_ok:"Merged · duplicate removed from Rex", merge_lists:"Notes, tags, roles, relationships and history are combined. Opt-outs win.",
     wm_note:"Name-and-date watermark on every screen; screenshots blocked on Android, detected and logged on iPhone.",
     fu_after_sms:"Text logged to Rex", fu_after_knock:"Knock logged to Rex", fu_after_email:"Email logged to Rex",
-    sort:"Sort", sort_no:"Street number", sort_years:"Years owned", sort_last:"Last contact", all_suburbs:"All suburbs",
+    sort:"Sort", sort_no:"Street number", sort_years:"Years owned", sort_last:"Last contact", all_suburbs:"All suburbs", all_tags:"All tags", g_mine:"My tags · user defined", tag_new_ph:"New tag, e.g. Spring 2027", tag_add:"Add", tag_created:"Tag created", tag_rex_note:"All tags, including your own, are written to Rex as contact tags (related.contact_tags), so they can be searched in Rex and here.", tag_del:"Remove from my list (contacts keep it)", zone_tag_note:"Rex has no areas. Each area is written to Rex as a contact tag on every owner inside it:", zone_tagged:"owners tagged in Rex", tag_filter:"Tag",
     referrals:"Referral requests", ref_sent:"Sent", ref_contacted:"Contacted", ref_done:"Done", ref_mark_contacted:"Mark contacted", ref_mark_done:"Mark done", ref_note:"When the partner marks it contacted or done, it is added to the attendee's Rex note so the listing agent can see the follow-up happened.",
     email_title:"Email", unsub_footer:"Unsubscribe (one click)", unsub_sim:"Simulate unsubscribe click", opted_out_email:"OPTED OUT OF EMAIL", em_market:"Market update", em_listings:"Listings for you", em_thanks:"Thanks for today", send_email:"Open in Mail · send", email_logged:"Email logged to Rex",
     dncr:"Do Not Call Register", dncr_checked:"checked", dncr_clear:"not listed", dncr_listed:"On Do Not Call Register", dncr_recheck:"Re-checking (last check over 30 days old)…", dncr_reason:"Confirm why this call is allowed", dncr_r1:"Existing client", dncr_r2:"Consent given", dncr_r3:"They enquired", dncr_pick:"Pick a reason to dial", compliance:"Compliance",
@@ -510,7 +510,7 @@ const I18N = {
     dups:"疑似重复", dup_same:"同一中介", dup_other:"其他中介的联系人", compare:"对比并合并", merge_title:"合并重复联系人", keep:"保留", merge_do:"合并 · 写入 Rex", merged_ok:"已合并 · 重复项已从 Rex 移除", merge_lists:"备注、标签、角色、关系和历史自动合并。退订优先。",
     wm_note:"每个页面都有姓名加日期水印；Android 禁止截屏，iPhone 检测并记录。",
     fu_after_sms:"短信已记录到 Rex", fu_after_knock:"敲门已记录到 Rex", fu_after_email:"邮件已记录到 Rex",
-    sort:"排序", sort_no:"门牌号", sort_years:"持有年数", sort_last:"最近联系", all_suburbs:"全部区",
+    sort:"排序", sort_no:"门牌号", sort_years:"持有年数", sort_last:"最近联系", all_suburbs:"全部区", all_tags:"全部标签", g_mine:"我的标签 · 自定义", tag_new_ph:"新标签，如 Spring 2027", tag_add:"添加", tag_created:"已创建标签", tag_rex_note:"所有标签（包括自定义的）都以联系人标签（related.contact_tags）写入 Rex，在 Rex 和这里都能搜到。", tag_del:"从我的列表移除（联系人上保留）", zone_tag_note:"Rex 没有区域功能。每个区域会作为联系人标签写到区域内每位业主的 Rex 记录上：", zone_tagged:"位业主已在 Rex 打标签", tag_filter:"标签",
     referrals:"转介请求", ref_sent:"已发出", ref_contacted:"已联系", ref_done:"已完成", ref_mark_contacted:"标记已联系", ref_mark_done:"标记已完成", ref_note:"合作方标记已联系或已完成后，会追加到到场者的 Rex 备注，挂牌中介可以看到跟进已发生。",
     email_title:"邮件", unsub_footer:"退订（一键）", unsub_sim:"模拟点击退订", opted_out_email:"已退订邮件", em_market:"市场更新", em_listings:"为您挑选的房源", em_thanks:"感谢今天", send_email:"在邮件 App 打开 · 发送", email_logged:"邮件已记录到 Rex",
     dncr:"Do Not Call Register", dncr_checked:"已核查", dncr_clear:"未登记", dncr_listed:"在 Do Not Call Register 名单上", dncr_recheck:"重新核查中（上次核查超过 30 天）…", dncr_reason:"确认本次通话的合规理由", dncr_r1:"现有客户", dncr_r2:"已获同意", dncr_r3:"对方主动询问", dncr_pick:"选择理由后才能拨号", compliance:"合规",
@@ -570,12 +570,19 @@ const TAG_GROUPS=[
   {id:"g_reason", tags:[["Downsizing","blue"],["Upsizing","blue"],["Moving for school","blue"],["Relocating","blue"],["Investor","blue"]]}
 ];
 const TAG_CLASS={}; TAG_GROUPS.forEach(g=>g.tags.forEach(([n,c])=>TAG_CLASS[n]=c));
+const AREA_PFX="Area: ";
+function tagCls(x){ if(TAG_CLASS[x]) return TAG_CLASS[x]; if(x.startsWith(AREA_PFX)) return "zone"; if((S.myTags||[]).some(m=>m.n===x)) return "mine"; return "mine"; }
+function myTags(){ return (S.myTags||[]).filter(m=>m.by===ME()); }
+function addMyTag(n){ n=n.trim().replace(/\s+/g," "); if(!n) return null; if(TAG_CLASS[n]||n.startsWith(AREA_PFX)) return n; if(!(S.myTags||[]).some(m=>m.n.toLowerCase()===n.toLowerCase())){ S.myTags.push({n, by:ME(), d:TODAY}); audit("Tag", t("tag_created")+" · "+n); } return (S.myTags.find(m=>m.n.toLowerCase()===n.toLowerCase())||{n}).n; }
+function zoneTag(z){ return AREA_PFX+z.name; }
+function applyZoneTag(z){ let n=0; zoneProps(z).forEach(p=>ownersOf(p).forEach(c=>{ if(!c.tags.includes(zoneTag(z))){ c.tags.push(zoneTag(z)); touch(c); n++; } })); if(n) audit("Tags", `${zoneTag(z)} → ${n} ${t("zone_owners")}`); return n; }
+function removeZoneTag(z){ S.contacts.forEach(c=>{ if(c.tags.includes(zoneTag(z))){ c.tags=c.tags.filter(x=>x!==zoneTag(z)); touch(c); } }); }
 const REASONS=["Downsizing","Upsizing","Moving for school","Relocating","Investor"];
 const REL_TYPES=["Partner of","Co-owner with","Family member of","Tenant of","Previous owner of","Buyer for","Purchaser of","Lawyer / conveyancer for","Trades for"];
 function seed(){
   return { v:5, auth:null, audit:[], leads:[], zones:[], referrals:[{id:"rf1", type:"broker", to:"Lisa Tran (Axleo Finance)", contactId:"c6", propertyId:"p2", d:"2026-11-01", status:"sent"}], syncq:[], rexDown:false,
     contacts:[
-      {id:"c1", first:"Mary", last:"Chen", mobile:"0412 555 019", email:"mary.chen@example.com", roles:["owner"], owner:"Owen Chen", tags:["Potential seller","Warm","Downsizing","Friendly"], reason:"Downsizing", flags:{}, optedOut:false, rels:[{type:"Partner of",name:"John Chen"},{type:"Co-owner with",name:"John Chen"}], updated:{by:"Owen Chen",d:"2026-08-14"}, notes:[
+      {id:"c1", first:"Mary", last:"Chen", mobile:"0412 555 019", email:"mary.chen@example.com", roles:["owner"], owner:"Owen Chen", tags:["Potential seller","Warm","Downsizing","Friendly","Cantonese speaking","Spring 2027"], reason:"Downsizing", flags:{}, optedOut:false, rels:[{type:"Partner of",name:"John Chen"},{type:"Co-owner with",name:"John Chen"}], updated:{by:"Owen Chen",d:"2026-08-14"}, notes:[
         {d:"2026-08-14", a:"Owen Chen", t:"Spoke at door. Kids moved out, thinking of downsizing next year."},
         {d:"2025-11-02", a:"Natalie Wong", t:"Market update sent. Happy to stay in touch."}], buyerProfile:null, history:[]},
       {id:"c2", first:"John", last:"Lee", mobile:"0433 221 877", email:"john.lee@example.com", roles:["buyer","owner"], owner:"Owen Chen", tags:["Investor","Warm"], reason:"", flags:{}, optedOut:false, rels:[], updated:{by:"Owen Chen",d:"2026-10-25"}, notes:[
@@ -652,6 +659,7 @@ try{ S = JSON.parse(localStorage.getItem("ax_state")||"null"); }catch(e){}
 if(!S || !S.contacts || S.v!==5) S = seed();
 S.properties.forEach(p=>{ if(!p.ll && COORDS[p.id]) p.ll=COORDS[p.id]; });
 S.leads = S.leads || []; S.zones = S.zones || []; S.referrals = S.referrals || []; S.syncq = S.syncq || []; S.rexDown = !!S.rexDown;
+S.myTags = S.myTags || [{n:"Cantonese speaking", by:"Owen Chen", d:"2026-10-02"},{n:"Call after 6pm", by:"Owen Chen", d:"2026-10-14"},{n:"Spring 2027", by:"Owen Chen", d:"2026-10-20"},{n:"School catchment", by:"Natalie Wong", d:"2026-10-05"}];
 if(!S.zones.length && COORDS.p1 && COORDS.p4){ const a=[COORDS.p1,COORDS.p2,COORDS.p3,COORDS.p4].filter(Boolean); const la=a.map(x=>x[0]), lo=a.map(x=>x[1]); const pad=0.00025; S.zones.push({id:"z1", name:"Gager West", pts:[[Math.min(...la)-pad,Math.min(...lo)-pad],[Math.min(...la)-pad,Math.max(...lo)+pad],[Math.max(...la)+pad,Math.max(...lo)+pad],[Math.max(...la)+pad,Math.min(...lo)-pad]]}); }
 S.contacts.forEach(c=>{ if(!c.dncr) c.dncr={d:addDays(-10), listed:false}; });
 S.contacts.forEach(c=>{ if(!c.consent){ const off=c.flags&&c.flags.dnc; c.consent={email:off?0:1, sms:(off||c.optedOut)?0:1, phone:off?0:1, letter:off?0:1}; } c.optedOut = c.consent.sms===0; });
@@ -674,7 +682,7 @@ function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&l
 function normMobile(m){ return (m||"").replace(/\D/g,""); }
 function mask(m){ if(!m) return "—"; const d=normMobile(m); if(d.length<8) return m; return d.slice(0,4)+" "+d.slice(4,7)+" ••••"; }
 function maskEmail(e){ if(!e) return "—"; const [u,d]=e.split("@"); return u.slice(0,2)+"••••@"+d; }
-function tagChip(x,extra=""){ const cls=TAG_CLASS[x]||""; return `<span class="chip ${cls} ${extra}">${cls==="ban"?ic("ban","s"):""}${esc(x)}</span>`; }
+function tagChip(x,extra=""){ const cls=tagCls(x); return `<span class="chip ${cls} ${extra}">${cls==="ban"?ic("ban","s"):""}${esc(x)}</span>`; }
 // Mirrors Rex contacts/find-matching-contacts: email and/or phone → unique | multiple | none
 function matchContacts({mobile,email}){
   const nm = normMobile(mobile); const em=(email||"").toLowerCase(); const list=[];
@@ -931,6 +939,8 @@ SCREENS.dk = () => {
   const zone=view.zone&&byId(S.zones,view.zone); const listMode=view.dkList;
   let props=(zone?zoneProps(zone):listMode?S.properties.slice():st[view.street].slice());
   if(listMode && view.lsub) props=props.filter(p=>p.suburb===view.lsub);
+  if(listMode && view.ltag) props=props.filter(p=>ownersOf(p).some(c=>c.tags.includes(view.ltag)));
+  const tagOpts=[...new Set([...myTags().map(m=>m.n), ...S.zones.map(zoneTag), ...TAG_GROUPS.flatMap(g=>g.tags.map(x=>x[0]))])];
   const lastC=p=>{ const n=ownersOf(p).flatMap(c=>c.notes).map(n=>n.d).sort().pop()||""; const v=lastVisit(p); return [n,v?v.d:""].sort().pop()||""; };
   const srt=view.lsort||"no"; props.sort((a,b)=> srt==="years"?(a.lastSale||"9")<(b.lastSale||"9")?-1:1 : srt==="last"?(lastC(b)<lastC(a)?-1:1) : (a.street===b.street?parseInt(a.no)-parseInt(b.no):a.street<b.street?-1:1));
   if(view.gps===undefined) view.gps=true;
@@ -970,7 +980,7 @@ SCREENS.dk = () => {
       <button class="${f==="unvisited"?"on":""}" data-act="dkf" data-f="unvisited">30d</button>
       ${S.zones.map(z=>`<button class="${view.zone===z.id?"on":""}" data-act="zonef" data-id="${z.id}">${ic("pencil","s")} ${esc(z.name)}</button>`).join("")}
     </div>
-    ${listMode?`<div class="row"><div class="chips grow"><button class="${!view.lsub?"on":""}" data-act="lsub" data-v="">${t("all_suburbs")}</button>${suburbs.map(sb=>`<button class="${view.lsub===sb?"on":""}" data-act="lsub" data-v="${esc(sb)}">${esc(sb)}</button>`).join("")}</div><select id="lsort" data-act="lsort" style="width:auto;flex:none">${[["no","sort_no"],["years","sort_years"],["last","sort_last"]].map(([k,l])=>`<option value="${k}" ${srt===k?"selected":""}>${t(l)}</option>`).join("")}</select></div>`:""}
+    ${listMode?`<div class="row"><div class="chips grow"><button class="${!view.lsub?"on":""}" data-act="lsub" data-v="">${t("all_suburbs")}</button>${suburbs.map(sb=>`<button class="${view.lsub===sb?"on":""}" data-act="lsub" data-v="${esc(sb)}">${esc(sb)}</button>`).join("")}</div><select id="ltag" style="width:auto;flex:none;max-width:130px"><option value="">${t("all_tags")}</option>${tagOpts.map(x=>`<option value="${esc(x)}" ${view.ltag===x?"selected":""}>${esc(x)}</option>`).join("")}</select><select id="lsort" data-act="lsort" style="width:auto;flex:none">${[["no","sort_no"],["years","sort_years"],["last","sort_last"]].map(([k,l])=>`<option value="${k}" ${srt===k?"selected":""}>${t(l)}</option>`).join("")}</select></div>`:""}
     <div class="rows">${shown.map(p=>{ const o=ownerLine(p); const v=lastVisit(p); const ln=ownersOf(p).flatMap(c=>c.notes)[0]; const tags=ownersOf(p).flatMap(c=>c.tags).slice(0,2); return `
       <button class="hrow ${p.id===at.id?"on":""} ${p.flags.dnc?"skip":""}" data-act="setat" data-id="${p.id}">
         <span class="plate"><span class="dot ${propColor(p)}"></span>${p.no}</span>
@@ -1576,7 +1586,7 @@ const FB_SHEET = {
   listen:[{s:"3",st:"ok",en:"Hold to speak; EN / 普通话 / 粤语",zh:"按住说话；EN / 普通话 / 粤语"},{s:"11",st:"sim",en:"Kevin Q (voice 2): which speech service, cost per minute",zh:"Kevin 问题（语音第 2 问）：用哪家语音服务、每分钟成本"}],
   cmd:[{s:"3b",st:"ok",en:"One box: live search or record as a note",zh:"一个框：实时搜索或记录为备注"}],
   confirm:[{s:"3",st:"ok",en:"Check before it goes to Rex: transcript split into fields, edit, approve",zh:"写入 Rex 前核对：转写拆成字段，可改，再批准"},{s:"rex",st:"ok",en:"Rex duplicate check + consent flags on the same sheet",zh:"同一弹层里做 Rex 查重 + 同意标记"}],
-  tags:[{s:"5",st:"ok",en:"Tag groups: Visit, Seller intent, Restrictions, Captured, Follow-up, Reason",zh:"标签组：到访、卖意、限制、已收集、跟进、原因"},{s:"6",st:"ok",en:"Not at home + Left card → 'Not at home, left card' template suggested",zh:"不在家 + 留卡 → 推荐“不在家已留卡”模板"}],
+  tags:[{s:"5",st:"ok",en:"Tag groups: Visit, Seller intent, Restrictions, Captured, Follow-up, Reason",zh:"标签组：到访、卖意、限制、已收集、跟进、原因"},{s:"5",st:"ok",en:"My tags · user defined (feedback 9 Nov): agents keep their own tagging system; written to Rex as contact tags",zh:"我的标签 · 自定义（11 月 9 日反馈）：经纪人保留自己的标签体系；作为联系人标签写入 Rex"},{s:"6",st:"ok",en:"Not at home + Left card → 'Not at home, left card' template suggested",zh:"不在家 + 留卡 → 推荐“不在家已留卡”模板"}],
   change:[{s:"3",st:"ok",en:"Change: smart suggestions from map addresses; owner, years, distance, status; Pick on map",zh:"Change：地图地址智能建议；业主、年数、距离、状态；地图选点"}],
   quickadd:[{s:"3",st:"ok",en:"Quick add by hand: property from the top card, mobile first",zh:"手动快速添加：房产取自顶部卡，先填手机"}],
   remind:[{s:"5",st:"ok",en:"Remind by voice or tap: type, date, time, assign; synced to Rex",zh:"语音或点选设提醒：类型、日期、时间、指派；同步 Rex"}],
@@ -1590,7 +1600,7 @@ const FB_SHEET = {
   approve:[{s:"8",st:"ok",en:"Daily clean-up: previous owner, 'Do we know who bought it?', seller re-tagged Likely buyer",zh:"每日清理：前业主、“知道谁买了吗？”、卖家改标 Likely buyer"}],
   exchange:[{s:"8",st:"ok",en:"Contract joins buyer and seller; ownership moves to history",zh:"合同汇合买卖双方；所有权进入历史"}],
   rel:[{s:"5",st:"ok",en:"Nine Rex relationship types Ping will create",zh:"Ping 将创建的九种 Rex 关系类型"}],
-  zones:[{s:"4",st:"ok",en:"Zones: draw any shape, name it, can cross suburbs; Draw and text skips opted-out and Do not contact",zh:"区域：任意形状、命名、可跨 suburb；画圈群发跳过退订和 Do not contact"},{s:"8",st:"sim",en:"Mass update of owner data when a zone is drawn (Pricefinder)",zh:"画区域时批量刷新业主数据（Pricefinder）"}],
+  zones:[{s:"4",st:"ok",en:"Zones: draw any shape, name it, can cross suburbs; Draw and text skips opted-out and Do not contact",zh:"区域：任意形状、命名、可跨 suburb；画圈群发跳过退订和 Do not contact"},{s:"rex",st:"ok",en:"Rex has no areas (feedback 9 Nov): each area is sent to Rex as an 'Area: name' contact tag on every owner inside",zh:"Rex 没有区域（11 月 9 日反馈）：每个区域以 “Area: 名称” 联系人标签写到区内每位业主"},{s:"8",st:"sim",en:"Mass update of owner data when a zone is drawn (Pricefinder)",zh:"画区域时批量刷新业主数据（Pricefinder）"}],
   zonename:[{s:"4",st:"ok",en:"Name the zone",zh:"给区域命名"}],
   merge:[{s:"5",st:"ok",en:"Side-by-side compare and merge for duplicates owned by the same user",zh:"同一负责人的重复记录并排对比与合并"},{s:"11",st:"sim",en:"Kevin Q2: can merge be done through the Rex API?",zh:"Kevin 第 2 问：能否通过 Rex API 合并？"}],
   translate:[{s:"7",st:"ok",en:"'Talk to me' translator: split screen, EN / Mandarin / Cantonese, nothing to Rex unless saved",zh:"“Talk to me” 翻译：分屏、英 / 普 / 粤，不保存就不进 Rex"}],
@@ -1714,7 +1724,11 @@ function renderSheet(){
   if(K==="tags"){
     const c=byId(S.contacts,sheet.cid); const sel=sheet.sel;
     inner=`<h3>${ic("tag")} ${t("tags_title")} · ${c?cname(c):shortAddr(byId(S.properties,sheet.propId))}</h3>
-      <div class="taggrp">${TAG_GROUPS.map(g=>`<div class="g">${t(g.id)}</div><div class="tagrow">${g.tags.map(([n,cl])=>`<button class="chip ${cl} ${sel.includes(n)?"sel":""}" data-act="tagsel" data-tag="${esc(n)}">${cl==="ban"?ic("ban","s"):""}${n}</button>`).join("")}</div>`).join("")}</div>
+      <div class="taggrp">${TAG_GROUPS.map(g=>`<div class="g">${t(g.id)}</div><div class="tagrow">${g.tags.map(([n,cl])=>`<button class="chip ${cl} ${sel.includes(n)?"sel":""}" data-act="tagsel" data-tag="${esc(n)}">${cl==="ban"?ic("ban","s"):""}${n}</button>`).join("")}</div>`).join("")}
+        <div class="g">${t("g_mine")}</div><div class="tagrow">${myTags().map(m=>`<button class="chip mine ${sel.includes(m.n)?"sel":""}" data-act="tagsel" data-tag="${esc(m.n)}">${esc(m.n)}</button>`).join("")}${sel.filter(x=>!TAG_CLASS[x]&&!myTags().some(m=>m.n===x)).map(x=>`<button class="chip ${tagCls(x)} sel" data-act="tagsel" data-tag="${esc(x)}">${esc(x)}</button>`).join("")}</div>
+        <div class="row" style="margin-top:6px"><input id="tagnew" class="grow" placeholder="${t("tag_new_ph")}" maxlength="40"><button class="btn sm" data-act="tagadd">${ic("plus","s")} ${t("tag_add")}</button></div>
+        ${myTags().length?`<div class="small muted" style="margin-top:4px">${t("tag_del")}: ${myTags().map(m=>`<button class="linkbtn" data-act="tagrm" data-tag="${esc(m.n)}">${esc(m.n)} ✕</button>`).join(" · ")}</div>`:""}
+        <div class="small muted" style="margin-top:6px">${t("tag_rex_note")}</div></div>
       <div class="btns"><button class="btn primary grow" data-act="tagsave">${t("save_rex")}</button><button class="btn ghost" data-act="closesheet">${t("cancel")}</button></div>`;
   }
   if(K==="note"){
@@ -1798,12 +1812,14 @@ function renderSheet(){
   }
   if(K==="zones"){
     inner=`<h3>${ic("pencil")} ${t("zones")}</h3><div class="stack">${S.zones.map(z=>{ const zp=zoneProps(z); const subs=[...new Set(zp.map(p=>p.suburb))]; return `<div class="row"><div class="grow"><b>${esc(z.name)}</b><div class="small muted">${zp.length} · ${zp.filter(p=>p.ownerIds.length).length} ${t("zone_owners")} · ${subs.join(", ")}</div></div><button class="btn sm ${view.zone===z.id?"primary":""}" data-act="zonef" data-id="${z.id}">${t("zone_filter")}</button><button class="btn sm ghost" data-act="noop2">${ic("msg","s")}</button><button class="btn sm ghost" data-act="zonedel" data-id="${z.id}">${ic("ban","s")}</button></div>`;}).join("")||`<div class="muted small">${t("none")}</div>`}</div>
+      <div class="small muted" style="margin-top:8px">${t("zone_tag_note")} ${S.zones.map(z=>tagChip(zoneTag(z))).join(" ")||"—"}</div>
       <div class="small muted" style="margin-top:8px">${t("zone_text")}: phase 2 · ${t("lg_ban")} and opted-out owners are skipped.</div>
       <div class="btns" style="margin-top:8px"><button class="btn primary grow" data-act="zonestart">${ic("pencil","s")} ${t("zone_new")}</button><button class="btn ghost" data-act="closesheet">${t("close")}</button></div>`;
   }
   if(K==="zonename"){
     const n=(view.drawPts||[]).length; const zp=zoneProps({pts:view.drawPts||[]});
     inner=`<h3>${ic("pencil")} ${t("zone_name")}</h3><div class="field"><input id="zn" placeholder="Gager West" value="${esc(sheet.name||"")}"></div><div class="small muted">${n} corners · ${zp.length} properties · ${zp.filter(p=>p.ownerIds.length).length} ${t("zone_owners")} · ${[...new Set(zp.map(p=>p.suburb))].join(", ")||"—"}</div>
+      <div class="small muted" style="margin-top:4px">${t("zone_tag_note")} <span class="chip zone">${AREA_PFX}…</span></div>
       <div class="btns" style="margin-top:8px"><button class="btn primary grow" data-act="zonesave">${t("save_rex")}</button><button class="btn ghost" data-act="zonecancel">${t("cancel")}</button></div>`;
   }
   if(K==="merge"){
@@ -1983,6 +1999,8 @@ document.addEventListener("click", ev => {
     if(tile==="update"){ sheet={kind:"cmd", ctx:"dk", text:""}; renderSheet(); setTimeout(()=>document.getElementById("tx")?.focus(),30); return; } }
   if(a==="pickaddr"){ view.gps=false; view.at=id; const p=byId(S.properties,id); view.street=p.street+", "+p.suburb; sheet=null; view.tab="dk"; view.stack=[]; return render(); }
   if(a==="pickmap"){ sheet.map=!sheet.map; return renderSheet(); }
+  if(a==="tagadd"){ const inp=document.getElementById("tagnew"); const n=addMyTag(inp?inp.value:""); if(!n) return; if(!sheet.sel.includes(n)) sheet.sel.push(n); persist(); renderSheet(); setTimeout(()=>{ const i=document.getElementById("tagnew"); if(i) i.focus(); },0); return; }
+  if(a==="tagrm"){ const x=el.dataset.tag; S.myTags=S.myTags.filter(m=>!(m.n===x&&m.by===ME())); sheet.sel=sheet.sel.filter(y=>y!==x); persist(); return renderSheet(); }
   if(a==="tagsel"){ const x=el.dataset.tag; sheet.sel=sheet.sel.includes(x)?sheet.sel.filter(y=>y!==x):[...sheet.sel,x]; return renderSheet(); }
   if(a==="tagsave"){ let c=sheet.cid&&byId(S.contacts,sheet.cid); const p=sheet.propId&&byId(S.properties,sheet.propId);
     if(!c){ const r=upsertContact({first:p?p.pfOwner.split(" ").pop():"Owner", last:"", relation:"owner", tags:[]}); c=r.c; if(p) linkOwner(c,p); }
@@ -2031,8 +2049,8 @@ document.addEventListener("click", ev => {
   if(a==="zonestart"){ sheet=null; view.drawing=true; view.drawPts=[]; view.dkMap=true; view.dkList=false; toast(t("zone_draw_hint")); return render(); }
   if(a==="zonecancel"){ view.drawing=false; view.drawPts=[]; sheet=null; return render(); }
   if(a==="zonefinish"){ if((view.drawPts||[]).length<3) return toast(t("zone_need3")); sheet={kind:"zonename", name:""}; renderSheet(); setTimeout(()=>document.getElementById("zn")?.focus(),30); return; }
-  if(a==="zonesave"){ const nm=(document.getElementById("zn")?.value||"").trim()||("Area "+(S.zones.length+1)); const z={id:uid("z"), name:nm, pts:view.drawPts.slice(), by:ME(), d:TODAY}; S.zones.push(z); view.drawing=false; view.drawPts=[]; view.zone=z.id; audit("Area", `${nm} · ${zoneProps(z).length} properties`); persist(); sheet=null; toast(t("zone_saved")+" · "+nm); return render(); }
-  if(a==="zonedel"){ S.zones=S.zones.filter(z=>z.id!==id); if(view.zone===id) view.zone=null; persist(); sheet={kind:"zones"}; render(); return; }
+  if(a==="zonesave"){ const nm=(document.getElementById("zn")?.value||"").trim()||("Area "+(S.zones.length+1)); const z={id:uid("z"), name:nm, pts:view.drawPts.slice(), by:ME(), d:TODAY}; S.zones.push(z); view.drawing=false; view.drawPts=[]; view.zone=z.id; audit("Area", `${nm} · ${zoneProps(z).length} properties`); const tn=applyZoneTag(z); z.tagged=true; persist(); sheet=null; toast(t("zone_saved")+" · "+nm+" · "+tn+" "+t("zone_tagged")); return render(); }
+  if(a==="zonedel"){ const zz=byId(S.zones,id); if(zz) removeZoneTag(zz); S.zones=S.zones.filter(z=>z.id!==id); if(view.zone===id) view.zone=null; persist(); sheet={kind:"zones"}; render(); return; }
   if(a==="lsub"){ view.lsub=el.dataset.v||""; return render(); }
   // merge duplicates
   if(a==="mergeopen"){ sheet={kind:"merge", a:el.dataset.a, b:el.dataset.b, pick:{}}; return renderSheet(); }
@@ -2121,7 +2139,7 @@ document.addEventListener("click", ev => {
   if(a==="trlang"){ sheet[el.dataset.who+"lang"]=el.dataset.v; return renderSheet(); }
   if(a==="trsave"){ const l=S.listings.find(l=>l.ofi.some(o=>o.d===TODAY)); const p=byId(S.properties,l.propertyId); const txt=[sheet.vheard, sheet.aheard].filter(Boolean).join(" / "); if(txt){ const o=l.ofi.find(o=>o.d===TODAY); const c=o.attendees[0]&&byId(S.contacts,o.attendees[0].contactId); if(c) noteOn(c,"Talk to me: "+txt); } sheet=null; toast(t("filed_ok")); return render(); }
 });
-document.addEventListener("change", ev => { if(ev.target.id==="street"){ view.street=ev.target.value; view.gps=false; view.at=null; view.zone=null; render(); } if(ev.target.id==="lsort"){ view.lsort=ev.target.value; render(); } });
+document.addEventListener("change", ev => { if(ev.target.id==="street"){ view.street=ev.target.value; view.gps=false; view.at=null; view.zone=null; render(); } if(ev.target.id==="ltag"){ view.ltag=ev.target.value||""; render(); } if(ev.target.id==="lsort"){ view.lsort=ev.target.value; render(); } });
 document.addEventListener("input", ev => {
   if(ev.target.id==="tx" && sheet && sheet.kind==="cmd"){ sheet.text=ev.target.value; const r=document.getElementById("cmdres"); if(r) r.innerHTML=cmdResults(sheet.text); const b=document.querySelector('.sheet [data-act="parse"]'); if(b){ b.classList.toggle("ghost",looksLikeSearch(sheet.text)); b.classList.toggle("primary",!looksLikeSearch(sheet.text)); } return; }
   if(ev.target.id==="q"){ view.q=ev.target.value; const pos=ev.target.selectionStart; render(); const el=document.getElementById("q"); if(el){ el.focus(); try{el.setSelectionRange(pos,pos);}catch(e){} } return; }
@@ -2175,6 +2193,7 @@ document.addEventListener("pointerup", ()=>clearTimeout(logoTimer)); document.ad
 document.addEventListener("keydown", ev=>{ if(ev.key==="Escape"&&sheet){ sheet=null; renderSheet(); } });
 
 applyTheme();
+{ let n=0; S.zones.forEach(z=>{ if(!z.tagged){ applyZoneTag(z); z.tagged=true; n++; } }); if(n) persist(); }
 render();
 (function tick(){ const d=new Date(); const el=document.getElementById("clock"); if(el) el.textContent=d.getHours()+":"+String(d.getMinutes()).padStart(2,"0"); setTimeout(tick,15000); })();
 </script>
