@@ -3,7 +3,8 @@ name: Deploy to Cloudflare Pages
 on:
   push:
     branches: [main]
-    paths: ['web/**', 'prototype/**', '.github/workflows/deploy.yml']
+    paths: ['web/**', 'prototype/**', 'tools/build-prototype-site.mjs', 'tools/proto-switcher.js', '.github/workflows/deploy.yml']
+    tags: ['proto-v*']
   workflow_dispatch:
 
 concurrency:
@@ -41,8 +42,14 @@ jobs:
       deployments: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 需要全部 proto-v* 标签和历史来生成各版本
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/build-prototype-site.mjs .proto-site
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy prototype --project-name aus-assent-mobile --branch main --commit-dirty=true
+          command: pages deploy .proto-site --project-name aus-assent-mobile --branch main --commit-dirty=true
