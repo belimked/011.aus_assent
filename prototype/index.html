@@ -475,6 +475,7 @@ button.chip{height:36px;padding:0 12px;font-size:13px;border-radius:8px}
 .notein{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:2px 6px 2px 0;gap:6px}.notein input{border:0;background:transparent}
 .nmic{width:36px;height:36px;border-radius:50%;background:var(--mic);color:#fff;display:grid;place-items:center;flex:none;position:relative}
 .nmic svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round}
+.mwrap{position:relative}.mwrap>textarea,.mwrap>input{padding-right:48px}.mwrap>.nmic{position:absolute;right:4px;bottom:4px}.mwrap.i>.nmic{bottom:auto;top:50%;transform:translateY(-50%)}
 .upl{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border:2px dashed var(--azure);border-radius:12px;background:#EAF5FF;color:var(--link);font-size:13px;width:100%;flex-wrap:wrap;padding:6px}
 .exist{border:2px solid var(--azure)}.dupc{background:#FFF2E0;border-color:#F5D9B0}
 .chip.on2{background:var(--fg);color:#fff;height:32px;padding:0 10px}
@@ -485,6 +486,19 @@ button.chip{height:36px;padding:0 12px;font-size:13px;border-radius:8px}
 .todo2 .t{font-weight:700;font-size:14px;line-height:20px}.todo2.done .t{text-decoration:line-through;color:var(--fg2)}
 .todo2 .s{font-size:12px;line-height:16px;color:var(--fg2)}.todo2 .chip{align-self:flex-start;margin-top:2px}
 .todo2 .arrow{color:var(--steel);align-self:center}
+.e2dd{margin-top:6px;max-height:186px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.tdcard{padding:0;overflow:hidden}
+.todo2{position:relative;display:block;padding:0;overflow:hidden;touch-action:pan-y}
+.todo2 .tdin{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--surface);position:relative;transition:transform .18s ease-out}
+.todo2.drag .tdin{transition:none}
+.todo2 .tdact{position:absolute;top:0;right:0;bottom:0;display:flex}
+.todo2 .tdact button{width:76px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;line-height:16px;font-weight:700;color:var(--fg);background:var(--surface2)}
+.todo2 .tdact button.dn{background:var(--brand);color:var(--brand-fg)}
+.todo2 .box.on{background:var(--brand);border-color:var(--brand);color:var(--brand-fg)}
+.todo2.picked .tdin{background:var(--surface2)}
+.tdbar{position:sticky;bottom:0;z-index:2;display:grid;grid-template-columns:1fr 1.5fr;gap:8px;padding:8px 0;background:var(--bg)}
+.tdbar::after{content:"";position:absolute;left:0;right:0;top:100%;height:120px;background:var(--bg)}
+.tdbar .btn.ghost{background:var(--surface)}
 .gpsw{background:#E6F8EE;border-radius:20px;padding:0 6px 0 10px;color:#12894C;font-weight:700;flex:none}.gpsw:not(.on){background:var(--surface2);color:var(--fg2)}
 .pulse2{width:8px;height:8px;border-radius:50%;background:var(--green)}
 .e2btns .btn{padding:0 6px;font-size:13px}
@@ -527,7 +541,7 @@ const COMPANY=()=> (THEMES.find(x=>x.id===theme)||THEMES[0]).company;
 // ---------- i18n ----------
 const I18N = {
   en:{
-    home:"Home", dk:"DK mode", oh:"OFI", enq:"Enquiry", me:"Me", data:"Data", speak:"Hold to speak", search:"Search", todos:"To-dos",
+    home:"Home", dk:"DK", oh:"OFI", enq:"Enquiry", me:"Me", data:"Data", speak:"Hold to speak", search:"Search", todos:"To-dos",
     greeting:"Good morning", whats_on:"what needs you today", my_sales:"My sales · this month", from_rex:"from Rex",
     unconditional:"Unconditional", settling:"Settling this week", appraisals:"Appraisals booked", listed:"Listed", gci:"GCI", listed_gci:"listing GCI",
     approval:"Needs your approval", next_up:"Next up", see_all:"See all", nothing_pending:"Nothing waiting",
@@ -599,7 +613,7 @@ const I18N = {
     recent_sale:"Recent sale", who_bought:"Do we know who bought it?", prev_mark:"Mark previous owner", possible:"Possible match"
   },
   zh:{
-    home:"Home", dk:"DK mode", oh:"OFI", enq:"Enquiry", me:"我的", data:"资料", speak:"Hold to speak", search:"搜索", todos:"To-dos",
+    home:"Home", dk:"DK", oh:"OFI", enq:"Enquiry", me:"我的", data:"资料", speak:"Hold to speak", search:"搜索", todos:"To-dos",
     greeting:"早上好", whats_on:"今天有什么需要处理", my_sales:"My sales · 本月", from_rex:"来自 Rex",
     unconditional:"Unconditional", settling:"Settling this week", appraisals:"Appraisals booked", listed:"Listed", gci:"GCI", listed_gci:"挂牌 GCI",
     approval:"Needs your approval", next_up:"Next up", see_all:"查看全部", nothing_pending:"没有待处理的",
@@ -1057,8 +1071,6 @@ function render(){
       ${hasBack?`<button class="back" data-act="back" aria-label="Back"><svg class="ic l" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>`:""}
       ${head||`<h1>${title}</h1>`}
       ${S.syncq.length?`<button class="chip amber" data-act="me" style="height:32px">${ic("zap","s")}${S.syncq.length} ${t("pending")}</button>`:""}
-      ${!hasBack&&!head?`<button class="iconbtn" data-act="todos" title="${t("todos")}">${ic("bell")}${openTodos?`<span class="badge">${openTodos}</span>`:""}</button>`:""}
-      ${(!view.stack.length&&(view.tab==="home"||view.tab==="dk"))||cur.name==="fullmap"?"":`<button class="lang" data-act="lang">${lang==="en"?"中文":"EN"}</button>`}
     </header>
     <main class="body ${foot?"hasdock":""} ${_out.cls||""}" id="main">${body}</main>
     <nav class="nav">${foot?`<div class="dock">${foot}</div>`:""}<div class="in">
@@ -1083,7 +1095,6 @@ SCREENS.home = () => {
   const todos=S.todos.filter(x=>!x.done).sort((a,b)=>(a.d+(a.time||""))<(b.d+(b.time||""))?-1:1).slice(0,3);
   const head=`<span class="logo" data-act="homelogo"></span><h1 style="font-size:16px"><span id="greet" data-short="${lang==="zh"?"你好":"Hi"}, ${u.name.split(" ")[0]}">${t("greeting")}, ${u.name.split(" ")[0]}</span><span class="small muted" style="display:block;font-weight:400">${t("whats_on")}</span></h1>
     <button class="iconbtn" data-act="plus" title="+">${ic("plus")}</button>
-    <button class="iconbtn" data-act="todos" title="${t("todos")}">${ic("bell")}${S.todos.filter(x=>!x.done&&x.d<=TODAY).length?`<span class="badge">${S.todos.filter(x=>!x.done&&x.d<=TODAY).length}</span>`:""}</button>
     <button class="iconbtn" data-act="me" title="${t("me")}"><span class="avatar" style="width:28px;height:28px;font-size:11px">${u.name.split(" ").map(x=>x[0]).join("")}</span></button>`;
   return {title:t("home"), head, body:`
     <div class="row"><h2 style="font-size:12px;color:var(--muted)">${t("my_sales")}</h2><span class="chip src">${t("from_rex")}</span></div>
@@ -1308,7 +1319,7 @@ SCREENS.checkin = ({id, pre}) => {
       ${tagField({ctx:"pre"}, t("tags"))}
       <div class="field"><label>${t("requests")}</label><div class="stack" style="gap:4px">${REQS.map(([k,lab,who,sla])=>`<label class="check" style="min-height:44px;padding:4px 10px"><input type="checkbox" id="ci_r_${k}" ${rq[k]?"checked":""}><span class="grow">${t(lab)}<span class="small muted" style="display:block">${who} · ${sla}</span></span></label>`).join("")}</div></div>
       <label class="check"><input type="checkbox" id="ci_consent" checked> <span class="small">${t("consent")}</span></label>
-      <div class="field"><label>${t("note")}</label><textarea id="ci_note">${esc(v.note||"")}</textarea></div>
+      <div class="field"><label>${t("note")}</label><div class="mwrap"><textarea id="ci_note">${esc(v.note||"")}</textarea>${micBtn("ci_note")}</div></div>
       <div class="small muted">${t("privacy")}</div>
       <button class="btn primary block" data-act="register" data-id="${l.id}">${t("register")}</button>
     </div>`};
@@ -1325,7 +1336,7 @@ SCREENS.moreinfo = ({id, l, nb}) => {
       <div class="field"><label>${t("email")}</label><input id="at_email" inputmode="email" value="${esc(c.email)}"></div>
       <div class="row"><div class="grow"><b>Neighbour</b><div class="small muted">${L2("Lives nearby. Adds the tag “Neighbour” in Rex.","住在附近。在 Rex 打上 “Neighbour” 标签。")}</div></div><button type="button" class="switch pf ${(nb!==undefined?nb:c.tags.includes("Neighbour"))?"on":""}" id="at_nb" data-act="nbtoggle" aria-label="Neighbour"><i></i></button></div>
       ${att?`<div class="field"><label>${t("requests")}</label><div class="stack" style="gap:4px">${REQS.map(([k,lab,who,sla])=>`<label class="check" style="min-height:44px;padding:4px 10px"><input type="checkbox" id="at_r_${k}" ${arq[k]?"checked":""}><span class="grow">${t(lab)}<span class="small muted" style="display:block">${who} · ${sla}</span></span></label>`).join("")}</div></div>
-      <div class="field"><label>${L2("Note from the open home","Open home 备注")}</label><textarea id="at_note">${esc(att.note||"")}</textarea></div>`:""}
+      <div class="field"><label>${L2("Note from the open home","Open home 备注")}</label><div class="mwrap"><textarea id="at_note">${esc(att.note||"")}</textarea>${micBtn("at_note")}</div></div>`:""}
       <div class="small muted">${L2("The full number is shown here because you are editing it. Save is at the bottom of the buyer profile.","因为正在修改，这里显示完整号码。保存按钮在买家档案底部。")}</div>
     </div>
     <div class="card stack"><h2>${t("buyer_profile")}</h2>
@@ -1342,7 +1353,7 @@ SCREENS.moreinfo = ({id, l, nb}) => {
         <div class="field"><label>${t("occupy")}</label><select id="bp_occ">${["Live in","Invest"].map(x=>`<option ${bp.occupy===x?"selected":""}>${x}</option>`).join("")}</select></div>
         <div class="field"><label>${t("must")}</label><div class="btns" style="margin-top:4px">${["Pool","School catchment","Single level","Granny flat"].map(x=>`<button class="chip ${must.includes(x)?"blue sel":""}" data-act="musttoggle" data-id="${c.id}" data-tag="${x}">${x}</button>`).join("")}</div></div>
       </div>
-      <div class="field"><label>${t("note")}</label><textarea id="bp_note" placeholder="${t("speak")}…"></textarea></div>
+      <div class="field"><label>${t("note")}</label><div class="mwrap"><textarea id="bp_note" placeholder="${MIC_PH()}"></textarea>${micBtn("bp_note")}</div></div>
       ${tagField({ctx:"draft", id:c.id}, t("tags"))}
       <button class="btn primary block" data-act="savebp" data-id="${c.id}">${t("save")}</button>
     </div>
@@ -1374,6 +1385,8 @@ SCREENS.enq = () => {
 };
 function propInText(txt){ const tl=(txt||"").toLowerCase(); return S.properties.find(x=>{ const key=(x.no+" "+x.street).toLowerCase(); let i=tl.indexOf(key); while(i>=0){ if(i===0||!/[0-9a-z\/]/.test(tl[i-1])) return true; i=tl.indexOf(key,i+1); } return false; }); }
 function enqPropMatch(txt){ const p=propInText(txt); return p?p.id:""; }
+function micBtn(id){ return `<button type="button" class="nmic" data-act="notemic" data-t="${id}" aria-label="Dictate">${ICON.mic}</button>`; }
+function MIC_PH(){ return L2("Type, or tap the mic to speak…","输入，或点麦克风说话…"); }
 function enqForm(v){
   const match=(v.mobile||v.email)?findContact(v):null; const u=v.unsure||[];
   const types=[["buyer","t_buyer"],["tenant","t_tenant"],["seller","t_seller"],["landlord","t_landlord"]]; const srcs=[["phone","s_phone"],["walkin","s_walkin"],["portal","s_portal"],["referral","s_referral"]];
@@ -1387,7 +1400,7 @@ function enqForm(v){
     <div class="grid2"><div class="field ${v.first?"ai":""}"><label>${t("first")}</label><input id="en_first" value="${esc(v.first||(match?match.c.first:""))}"></div><div class="field ${v.last?"ai":""}"><label>${t("last")}</label><input id="en_last" value="${esc(v.last||(match?match.c.last:""))}"></div></div>
     <div class="field"><label>${t("enq_type")}</label><div class="chips" id="en_type" style="flex-wrap:wrap">${types.map(([k,l])=>`<button class="${ty===k?"on":""}" data-act="enqset" data-k="type" data-v="${k}">${t(l)}</button>`).join("")}</div></div>
     <div class="field"><label>${t("source")}</label><div class="chips" id="en_src" style="flex-wrap:wrap">${srcs.map(([k,l])=>`<button class="${src===k?"on":""}" data-act="enqset" data-k="src" data-v="${k}">${t(l)}</button>`).join("")}</div></div>
-    <div class="field ${(v.note||v.need)?"ai":""}"><label>${t("need")} *</label><textarea id="en_note" rows="3" placeholder="${t("en_note_ph")}">${esc(v.note||v.need||"")}</textarea></div>
+    <div class="field ${(v.note||v.need)?"ai":""}"><label>${t("need")} *</label><div class="mwrap"><textarea id="en_note" rows="3" placeholder="${t("en_note_ph")}">${esc(v.note||v.need||"")}</textarea>${micBtn("en_note")}</div></div>
     <div class="field"><label>${t("en_prop")}</label><select id="en_prop"><option value="">${t("none_prop")}</option>${S.properties.map(p=>`<option value="${p.id}" ${(v.propertyId||enqPropMatch(v.note||v.need||v.address||""))===p.id?"selected":""}>${propAddr(p)}${S.listings.some(l=>l.propertyId===p.id&&l.status==="listed")?" · listed":""}</option>`).join("")}</select></div>
     ${tagField({ctx:"enqPre"}, t("tags"))}
     <div class="field"><label>${t("next_step")}</label><div class="btns"><label class="check" style="min-height:40px"><input type="checkbox" id="en_send" ${ty==="buyer"?"checked":""}> ${t("send_listings")}</label><label class="check" style="min-height:40px"><input type="checkbox" id="en_insp"> ${t("book_insp")}</label><label class="check" style="min-height:40px"><input type="checkbox" id="en_rem" ${ty==="seller"?"checked":""}> ${t("add_rem")}</label></div></div>
@@ -1513,8 +1526,7 @@ function loginScreen(){
       <div class="brand"><span class="logo lg"></span><span>AxleoCollect<small>${COMPANY()}</small></span></div>
       <div><h2 style="font-size:18px">${t("login_title")}</h2><p class="muted" style="margin:6px 0 0">${t("login_sub")}</p></div>
       <button class="msbtn" data-act="login1">${ms}${t("ms_signin")}</button>
-      <div class="small muted">Microsoft Entra ID · MFA · ${t("revoke_note")}</div>
-      <button class="lang" data-act="lang" style="align-self:center">${lang==="en"?"中文":"EN"}</button></div>`;
+      <div class="small muted">Microsoft Entra ID · MFA · ${t("revoke_note")}</div></div>`;
   if(loginStep===1) return `<div class="login">
       <div class="row">${ms}<b>Microsoft</b></div><h2 style="font-size:18px">${t("pick_account")}</h2>
       <div class="stack">${ACCOUNTS.map((a,i)=>`<button class="acct" data-act="login2" data-i="${i}"><span class="avatar">${a.name.split(" ").map(x=>x[0]).join("")}</span><span><b>${a.name}</b><br><span class="small muted">${a.email}</span></span></button>`).join("")}</div>
@@ -1978,7 +1990,7 @@ function renderSheet(){
       </div>
       <div class="field ai"><label>${t("reason")}</label><select id="cf_reason"><option value="">—</option>${REASONS.map(x=>`<option ${r.reason===x?"selected":""}>${x}</option>`).join("")}</select></div>
       ${tagField({ctx:"sheet"}, t("tags"))}
-      <div class="field ai"><label>${t("note")}</label><textarea id="cf_note">${esc(r.note)}</textarea></div>
+      <div class="field ai"><label>${t("note")}</label><div class="mwrap"><textarea id="cf_note">${esc(r.note)}</textarea>${micBtn("cf_note")}</div></div>
       ${consentBox(r.tags.includes("Do not contact")?{consent:{email:0,sms:0,phone:0,letter:0}}:(match&&match.c))}
       
       ${r.followup?`<div class="row"><span class="chip blue">${ic("clock","s")}${t("todo")}: ${L2("Follow up","跟进")} · ${dayLabel(r.followup)}</span></div>`:""}
@@ -2009,7 +2021,7 @@ function renderSheet(){
   }
   if(K==="note"){
     const p=byId(S.properties,sheet.propId);
-    inner=`<h3>${ic("note")} ${t("note_title")} · ${shortAddr(p)}</h3><textarea id="nt" rows="3" placeholder="${t("speak")}…"></textarea>
+    inner=`<h3>${ic("note")} ${t("note_title")} · ${shortAddr(p)}</h3><div class="mwrap"><textarea id="nt" rows="3" placeholder="${MIC_PH()}"></textarea>${micBtn("nt")}</div>
       <div class="btns"><button class="btn primary grow" data-act="notesave">${t("save_rex")}</button><button class="btn ghost" data-act="closesheet">${t("cancel")}</button></div>`;
   }
   if(K==="photo"){
@@ -2045,7 +2057,7 @@ function renderSheet(){
       <div class="grid2"><div class="field"><label>FIRST NAME</label><input id="qa_first" value="${esc(sheet.first||"")}" placeholder="${ph}"></div><div class="field"><label>LAST NAME</label><input id="qa_last" value="${esc(sheet.last||"")}" placeholder="${ph}"></div></div>
       <div class="grid2"><div class="field"><label>EMAIL</label><input id="qa_email" value="${esc(sheet.email||"")}" placeholder="${ph}"></div><div class="field"><label>${t("role")}</label><select id="qa_role">${["owner","tenant","landlord","buyer","investor"].map(x=>`<option>${x}</option>`).join("")}</select></div></div>
       ${tagField({ctx:"sheet"}, t("tags"))}
-      <div class="field"><label>${t("note")}</label><textarea id="qa_note" rows="2">${esc(sheet.note||"")}</textarea></div>
+      <div class="field"><label>${t("note")}</label><div class="mwrap"><textarea id="qa_note" rows="2">${esc(sheet.note||"")}</textarea>${micBtn("qa_note")}</div></div>
       <div class="btns"><button class="btn primary grow" data-act="qasave">${t("save_rex")}</button><button class="btn ghost" data-act="closesheet">${t("cancel")}</button></div>`;
   }
   if(K==="remind"){
@@ -2054,7 +2066,7 @@ function renderSheet(){
       <div class="sample">${t("speak")}: <button data-act="remsample">“Valuation this Tuesday, be there at 4pm”</button></div>
       <div class="field"><label>${t("rem_type")}</label><div class="chips">${["rem_keys","rem_val","rem_final","rem_settle","rem_follow","rem_custom"].map(k=>`<button class="${ty===k?"on":""}" data-act="remtype" data-v="${k}">${t(k)}</button>`).join("")}</div></div>
       <div class="grid2"><div class="field"><label>${t("rem_date")}</label><input id="rm_d" type="date" value="${sheet.d||addDays(4)}"></div><div class="field"><label>${t("rem_time")}</label><input id="rm_t" type="time" value="${sheet.time||"16:00"}"></div></div><div class="field"><label>${t("rem_assign")}</label><select id="rm_who">${ACCOUNTS.map(a=>`<option ${a.name===ME()?"selected":""}>${a.name}</option>`).join("")}</select></div>
-      <div class="field"><label>${t("rem_note")}</label><input id="rm_n" value="${esc(sheet.note||"")}"></div>
+      <div class="field"><label>${t("rem_note")}</label><div class="mwrap i"><input id="rm_n" value="${esc(sheet.note||"")}">${micBtn("rm_n")}</div></div>
       <label class="check"><input type="checkbox" id="rm_b" checked> ${t("rem_before")}</label>
       <div class="btns"><button class="btn primary grow" data-act="remsave">${t("save_rex")}</button><button class="btn ghost" data-act="closesheet">${t("cancel")}</button></div>`;
   }
@@ -2150,7 +2162,7 @@ function renderSheet(){
       <div class="btns"><button class="btn primary grow" data-act="doexchange" data-id="${l.id}">${t("confirm")}</button><button class="btn ghost" data-act="closesheet">${t("cancel")}</button></div>`;
   }
   if(K==="plus"){
-    inner=`<h3>${ic("plus")} ${t("plus_title")}</h3><div class="stack"><button class="btn block" data-act="plusenq">${ic("chat","s")} ${t("add_enq")}</button><button class="btn block" data-act="pluslead">${ic("card","s")} ${t("share_hint").split(":")[0]}</button><button class="btn block" data-act="plusoh">${ic("house","s")} ${t("checkin")} · ${t("oh")}</button></div>`;
+    inner=`<h3>${ic("plus")} ${t("plus_title")}</h3><div class="stack"><button class="btn block" data-act="newtodo">${ic("clock","s")} ${L2("Add to-do","添加 To-do")}</button><button class="btn block" data-act="plusenq">${ic("chat","s")} ${t("add_enq")}</button><button class="btn block" data-act="pluslead">${ic("card","s")} ${t("share_hint").split(":")[0]}</button><button class="btn block" data-act="plusoh">${ic("house","s")} ${t("checkin")} · ${t("oh")}</button></div>`;
   }
   if(SHEETX[K]) inner=SHEETX[K]();
   if(K==="translate"){
@@ -2255,7 +2267,7 @@ document.addEventListener("click", ev => {
   if(a==="langset"){ lang=el.dataset.v==="zh"?"zh":"en"; try{localStorage.setItem("ax_lang",lang);}catch(e){} renderPalettes(); return render(); }
   if(a==="lang"){ lang = lang==="en"?"zh":"en"; try{localStorage.setItem("ax_lang",lang);}catch(e){} renderPalettes(); return render(); }
   // home
-  if(a==="todos") return go({name:"todos"});
+  if(a==="todos"){ view.tdSel=null; return go({name:"todos"}); }
   if(a==="me") return go({name:"me"});
   if(a==="data") return go({name:"data"});
   if(a==="sales") return go({name:"sales", cat:el.dataset.cat});
@@ -2533,16 +2545,18 @@ function todoLink(x){ let c=x.cid&&byId(S.contacts,x.cid)||null, p=x.propId&&byI
 function todoRow2(x, extra=""){ const {c,p}=todoLink(x); const over=!x.done&&x.d<TODAY; const me=ME();
   const when=(x.d===TODAY?L2("Today","今天"):dayLabel(x.d))+(x.time?" "+x.time:"");
   const chip=x.done?`<span class="small ok" style="font-weight:600">${ic("check","s")} ${L2("Done","已完成")}</span>`:(x.by&&x.by!==x.who&&x.who===me)?`<span class="chip">${L2("From","来自")} ${esc(x.by)}</span>`:(x.by===me&&x.who!==me)?`<span class="chip blue">${L2("Assigned to","已指派给")} ${esc(x.who.split(" ")[0])} · ${L2("by you","由你指派")}</span>`:"";
-  return `<div class="todo2 ${x.done?"done":""} ${extra}"><button class="box" data-act="tdtick" data-id="${x.id}" aria-label="done">${x.done?ic("check","s"):""}</button>
-    <button class="grow tbody" data-act="tdopen" data-id="${x.id}"><span class="t">${noteText(x.t)}</span><span class="s">${c?`<u>${esc(cname(c))}</u> · `:""}${p?esc(shortAddr(p))+" · ":""}${when}${!c&&!p?" · "+esc(x.who):""}</span>${chip}</button>
-    ${over?`<span class="chip red">${L2("Overdue","已逾期")}</span>`:`<span class="arrow">›</span>`}</div>`; }
+  const selMode=!!view.tdSel&&current().name==="todos"&&!x.done; const on=selMode&&view.tdSel.includes(x.id);
+  return `<div class="todo2 ${x.done?"done":""} ${on?"picked":""} ${extra}">${selMode?"":`<div class="tdact">${x.done?"":`<button data-act="tdre" data-id="${x.id}">${ic("swap")}${L2("Reassign","转交")}</button>`}<button class="dn" data-act="tdtick" data-id="${x.id}">${ic("check")}${x.done?L2("Reopen","重新打开"):L2("Done","完成")}</button></div>`}
+    <div class="tdin">${selMode?`<button class="box ${on?"on":""}" data-act="tdpick" data-id="${x.id}" aria-label="select">${on?ic("check","s"):""}</button>`:""}
+    <button class="grow tbody" data-act="${selMode?"tdpick":"tdopen"}" data-id="${x.id}"><span class="t">${noteText(x.t)}</span><span class="s">${c?`<u>${esc(cname(c))}</u> · `:""}${p?esc(shortAddr(p))+" · ":""}${when}${!c&&!p?" · "+esc(x.who):""}</span>${chip}</button>
+    ${over?`<span class="chip red">${L2("Overdue","已逾期")}</span>`:selMode?"":`<span class="arrow">›</span>`}</div></div>`; }
 
 // ---------- Home (CR1) ----------
 const ACT={today:{v:[12,38,2],d:["+50%","+27%","-1"],vs:["vs yesterday","对比昨天"]},week:{v:[47,156,6],d:["+12%","+8%","+2"],vs:["vs last week","对比上周"]},month:{v:[183,640,19],d:["+21%","+15%","+4"],vs:["vs last month","对比上月"]},fy:{v:[812,2950,74],d:["+34%","+29%","+11"],vs:["vs last FY","对比上一财年"]}};
 SCREENS.home = () => { const u=S.auth; const per=view.actP||"today"; const A=ACT[per]; const sets=myTodoSets(); const next=sets.mine.slice(0,3);
   const head=`<button class="logo" data-act="me" aria-label="Me"></button><h1 style="font-size:17px"><span class="small muted" style="display:block;font-weight:400">${dayLabel(TODAY)}</span>${hello()}, ${u.name.split(" ")[0]}</h1>
     <button class="iconbtn" data-act="plus" title="+">${ic("plus")}</button>
-    <button class="iconbtn" data-act="todos" title="${t("todos")}">${ic("bell")}${sets.mine.filter(x=>x.d<=TODAY).length?`<span class="badge">${sets.mine.filter(x=>x.d<=TODAY).length}</span>`:""}</button>`;
+`;
   const delta=d=>`<span class="dl ${d.startsWith("-")?"dn":"up"}">${d.startsWith("-")?"▼":"▲"} ${d.replace(/^[+-]/,"")}</span>`;
   const labs=[[L2("Voice converted","语音转化"),"voice"],[L2("Records updated","记录更新"),"records"],[L2("Appraisals booked","已约估价"),"appr"]];
   return {title:t("home"), head, body:`
@@ -2556,7 +2570,7 @@ SCREENS.home = () => { const u=S.auth; const per=view.actP||"today"; const A=ACT
       <button class="tile" data-act="gomarket"><span class="row"><span class="grow" style="color:var(--azure)">${ic("zap","l")}</span><span class="num" style="color:var(--azure)">${S.market.length}</span></span><span class="l" style="color:var(--fg);font-size:13px;font-weight:700">Market monitor</span><span class="s">${L2("New sales and listings in your patch","片区内的新成交和新挂牌")}</span></button>
     </div>
     <div class="row"><span class="sec grow">NEXT UP</span><button class="linkbtn small" data-act="todos" style="text-decoration:none">${sets.mine.length} to-dos ›</button></div>
-    <div class="card" style="padding:4px 12px">${next.map((x,i)=>todoRow2(x,i===2?"t3":"")).join("")||`<div class="small muted" style="padding:8px 0">${L2("Nothing due.","没有待办。")}</div>`}</div>`};
+    <div class="card tdcard">${next.map((x,i)=>todoRow2(x,i===2?"t3":"")).join("")||`<div class="small muted" style="padding:10px 12px">${L2("Nothing due.","没有待办。")}</div>`}</div>`};
 };
 SCREENS.activity = ({cat,per}) => { const perL={today:L2("today","今天"),week:L2("this week","本周"),month:L2("this month","本月"),fy:L2("this FY (1 Jul – 30 Jun)","本财年（7 月 1 日至 6 月 30 日）")}[per]||L2("today","今天"); const names={voice:L2("Voice converted","语音转化"),records:L2("Records updated","记录更新"),appr:L2("Appraisals booked","已约估价")};
   const pick=cat==="voice"?["DK"]:cat==="appr"?["Appraisal"]:["Tags","Note","Quick add","Enquiry","Preferences","Seller lead","Merge","Buyer profile","To-do"];
@@ -2598,7 +2612,7 @@ function circlePts(c, m){ const out=[]; const dLat=m/111320, dLng=m/(111320*Math
 // ---------- DK mode (CR3) ----------
 SCREENS.dk = () => { const u=S.auth; view.zone=null; if(view.sat===undefined){ view.sat=true; view.fmMode="sat"; } if(view.gps===undefined) view.gps=true; if(!view.gpsAt) view.gpsAt="p6"; if(!view.at) view.at=view.gpsAt; if(!view.street){ const a0=byId(S.properties,view.at); view.street=a0.street+", "+a0.suburb; }
   const at=byId(S.properties,view.at)||S.properties[0]; const ol=ownerLine(at); const yrs=at.lastSale?yearsSince(at.lastSale):"";
-  const head=`<span class="logo"></span><h1 style="font-size:17px"><span class="small muted" style="display:block;font-weight:400">${dayLabel(TODAY)} · DK mode</span>Hi ${u.name.split(" ")[0]}</h1>
+  const head=`<button class="logo" data-act="me" aria-label="Me"></button><h1 style="font-size:17px"><span class="small muted" style="display:block;font-weight:400">${dayLabel(TODAY)} · DK</span>Hi ${u.name.split(" ")[0]}</h1>
     <button class="switch gpsw ${view.gps?"on":""}" data-act="gps">${view.gps?`<span class="pulse2"></span>`:""}<span>${view.gps?"GPS LIVE":t("gps_off")}</span><i></i></button>`;
   return {title:t("dk"), head, body:`
     <div class="youat ${view.gps?"live":""}"><span class="ring"></span><button class="grow" data-act="prop" data-id="${at.id}" style="text-align:left;min-width:0">
@@ -2679,14 +2693,17 @@ SCREENS.contact = ({id}) => { const c=byId(S.contacts,id); const props=S.propert
     ${c.buyerProfile?`<div class="card"><h2>${t("buyer_profile")}</h2><div class="small">${esc([c.buyerProfile.price,c.buyerProfile.suburbs,c.buyerProfile.beds?c.buyerProfile.beds+"+ bed":"",c.buyerProfile.finance].filter(Boolean).join(" · "))}</div><button class="btn sm ghost" style="margin-top:8px" data-act="moreinfo" data-id="${c.id}">${t("edit")}</button></div>`:""}`};
 };
 // ---------- To-dos (CR9) ----------
-SCREENS.todos = () => { const sets=myTodoSets(); const tab=view.tdTab||"mine"; const list=sets[tab];
-  const grp=(lab,fn)=>{ const l=list.filter(fn); return l.length?`<span class="sec">${lab}</span><div class="card" style="padding:4px 12px">${l.map(x=>todoRow2(x)).join("")}</div>`:""; };
+SCREENS.todos = () => { const sets=myTodoSets(); const tab=view.tdTab||"mine"; const list=sets[tab]; const sel=tab!=="done"&&view.tdSel; const n=sel?sel.length:0;
+  const grp=(lab,fn)=>{ const l=list.filter(fn); return l.length?`<span class="sec">${lab}</span><div class="card tdcard">${l.map(x=>todoRow2(x)).join("")}</div>`:""; };
   return {title:"To-dos", back:true, body:`
     <div class="seg sm3">${[["mine","Mine · "+sets.mine.length],["by","Assigned by me · "+sets.by.length],["done","Completed"]].map(([k,l])=>`<button class="${tab===k?"on":""}" data-act="tdtab" data-v="${k}">${l}</button>`).join("")}</div>
-    ${tab==="done"?(list.length?`<div class="card" style="padding:4px 12px">${list.map(x=>todoRow2(x)).join("")}</div>`:`<div class="card small muted">${L2("Nothing completed yet.","还没有已完成的待办。")}</div>`)
+    ${tab==="done"||!list.length?"":sel?`<div class="row"><b class="grow">${n} ${L2("selected","已选")}</b><button class="linkbtn small" data-act="tdselall" style="text-decoration:none;color:var(--link);font-weight:600">${n===list.length?L2("Clear all","全不选"):L2("Select all","全选")}</button><button class="linkbtn small" data-act="tdselmode" style="text-decoration:none;color:var(--link);font-weight:600;margin-left:12px">${t("cancel")}</button></div>`
+      :`<div class="row"><span class="small muted grow">${L2("Swipe left on a to-do: Reassign or Done.","向左滑动待办：转交或完成。")}</span><button class="linkbtn small" data-act="tdselmode" style="text-decoration:none;color:var(--link);font-weight:600">${L2("Select","多选")}</button></div>`}
+    ${tab==="done"?(list.length?`<div class="card tdcard">${list.map(x=>todoRow2(x)).join("")}</div>`:`<div class="card small muted">${L2("Nothing completed yet.","还没有已完成的待办。")}</div>`)
       :(grp("OVERDUE",x=>x.d<TODAY)+grp("TODAY",x=>x.d===TODAY)+grp("UPCOMING",x=>x.d>TODAY)||`<div class="card small muted">${L2("Nothing here.","这里没有待办。")}</div>`)}
-    <button class="btn ghost block" data-act="newtodo" data-cid="" data-pid="">+ To-do</button>
-    <div class="small muted">${L2("Tap a to-do or the name to open the contact record. Tick to complete.","点待办或姓名打开联系人记录。勾选即完成。")}</div>`};
+    ${sel?`<div class="tdbar"><button class="btn ghost" data-act="tdre" ${n?"":"disabled"}>${L2("Reassign","转交")}</button><button class="btn primary" data-act="tdbulkdone" ${n?"":"disabled"}>${L2("Complete","完成")}${n?" "+n:""}</button></div>`
+      :`<button class="btn ghost block" data-act="newtodo" data-cid="" data-pid="">+ To-do</button>
+    <div class="small muted">${tab==="done"?L2("Swipe left on a to-do to reopen it.","向左滑动待办可重新打开。"):L2("Tap a to-do to open the contact record.","点待办打开联系人记录。")}</div>`}`};
 };
 SHEETX.todo = () => { const s=sheet; const c=s.cid&&byId(S.contacts,s.cid); const p=s.propId&&byId(S.properties,s.propId); const me=ME();
   const days=[[TODAY,L2("Today","今天")],[addDays(1),L2("Tomorrow","明天")],[addDays(5),dayLabel(addDays(5))]]; const times=["09:00","12:00","16:00"];
@@ -2698,6 +2715,11 @@ SHEETX.todo = () => { const s=sheet; const c=s.cid&&byId(S.contacts,s.cid); cons
     <div class="info">${s.who===me?L2("Shows on your To-dos with a phone notification. Synced to Rex.","显示在你的 To-dos 里并推送通知。同步到 Rex。"):L2(`Shows on your To-dos (Assigned by me) and on ${esc(s.who.split(" ")[0])}'s To-dos, with a phone notification. Synced to Rex.`,`同时显示在你的 To-dos（Assigned by me）和 ${esc(s.who.split(" ")[0])} 的 To-dos 里，并推送通知。同步到 Rex。`)}</div>
     <div class="btns"><button class="btn primary grow" data-act="tdsave">Save to-do</button><button class="btn ghost" data-act="closesheet">${t("cancel")}</button></div>`;
 };
+SHEETX.tdre = () => { const ids=sheet.ids; const one=ids.length===1&&byId(S.todos,ids[0]); const me=ME();
+  return `<h3>${ic("swap")} ${L2("Reassign","转交")} <span class="small muted" style="font-weight:400">${one?noteText(one.t):ids.length+" to-dos"}</span></h3>
+    <div class="card" style="padding:0 12px">${teamNames().map(nm=>{ const cur=one&&one.who===nm; return `<button class="kvr" data-act="tdreto" data-v="${esc(nm)}" style="text-align:left;width:100%" ${cur?"disabled":""}><span style="color:var(--fg);${cur?"font-weight:700":""}">${nm===me?"Me ("+esc(nm)+")":esc(nm)}</span>${cur?`<span class="small muted">${L2("Current","当前")}</span>`:`<span class="arrow">›</span>`}</button>`; }).join("")}</div>
+    <div class="info">${L2("They get a phone notification. It stays on your To-dos under Assigned by me. Synced to Rex.","对方会收到手机通知。待办保留在你的 To-dos（Assigned by me）里。同步到 Rex。")}</div>
+    <div class="btns"><button class="btn ghost grow" data-act="closesheet">${t("cancel")}</button></div>`; };
 // ---------- Communication preferences sheet (CR8) and field editor (CR7) ----------
 /* Communication preferences is a page of its own (PDF 08), opened from the property page */
 function pfState(id){ if(!view.pf||view.pf.cid!==id){ const c=byId(S.contacts,id); const v={}; CH.forEach(([k])=>v[k]=prefOn(c,k)); view.pf={cid:id, v, reason:""}; } return view.pf; }
@@ -2712,7 +2734,7 @@ SCREENS.prefs = ({id}) => { const c=byId(S.contacts,id); const p=S.properties.fi
 };
 SHEETX.efield = () => { const c=byId(S.contacts,sheet.cid); const k=sheet.k; const labs={first:"First name",last:"Last name",mobile:"Mobile",email:"Email",address:"Address"};
   return `<h3>${ic("pencil")} ${labs[k]} <span class="small muted" style="font-weight:400">${esc(cname(c))}</span></h3>
-    <div class="field"><input id="ef_v" value="${esc(c[k]||"")}" ${k==="mobile"?'inputmode="tel"':k==="email"?'inputmode="email"':""}></div>
+    <div class="field">${k==="address"?`<div class="mwrap i"><input id="ef_v" value="${esc(c[k]||"")}">${micBtn("ef_v")}</div>`:`<input id="ef_v" value="${esc(c[k]||"")}" ${k==="mobile"?'inputmode="tel"':k==="email"?'inputmode="email"':""}>`}</div>
     ${k==="mobile"?`<div class="small muted">${L2("The full number is shown here because you are editing it. The change is logged.","因为正在修改，这里显示完整号码。修改会被记录。")}</div>`:""}
     <div class="btns"><button class="btn primary grow" data-act="efsave">${t("save_rex")}</button><button class="btn ghost" data-act="closesheet">${t("cancel")}</button></div>`;
 };
@@ -2729,14 +2751,20 @@ function e2lrow(l,pick){ const me=ME(); const p=byId(S.properties,l.propertyId);
 /* listing search results: nothing until the box is focused, then every listed property (mine first), narrowed as you type */
 function e2lres(q,open){ const me=ME(); q=(q||"").trim().toLowerCase(); if(!q&&!open) return "";
   const l=S.listings.filter(x=>x.status==="listed"&&(!q||propAddr(byId(S.properties,x.propertyId)).toLowerCase().includes(q))).sort((a,b)=>(a.agent===me?0:1)-(b.agent===me?0:1));
-  return l.length?`<div class="card" style="padding:0 12px;margin-top:6px">${l.map(x=>e2lrow(x,true)).join("")}</div>`:`<div class="small muted" style="margin-top:6px">${L2("No listing found","没有找到挂牌房源")}</div>`; }
+  return l.length?`<div class="card e2dd" style="padding:0 12px">${l.map(x=>e2lrow(x,true)).join("")}</div>`:`<div class="small muted" style="margin-top:6px">${L2("No listing found","没有找到挂牌房源")}</div>`; }
+/* seller / landlord property search: same flow as the buyer listing search, results in the address-search style */
+function e2prow(p,pick){ const o=ownerLine(p); const tag=S.listings.some(l=>l.propertyId===p.id&&l.status==="listed")?t("listed"):p.appraisal?t("appraisal_booked"):"";
+  return `<${pick?`button type="button" data-act="e2ppick" data-id="${p.id}"`:"div"} ${pick?"":'style="display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"'}><span class="plate"><span class="dot ${propColor(p)}"></span>${p.no}</span><span style="min-width:0"><b>${esc(p.street)}, ${esc(p.suburb)}</b><br><span class="s">${esc(o.who)} · ${p.lastSale?yearsSince(p.lastSale)+" "+t("years"):"—"}${tag?" · "+tag:""}</span></span></${pick?"button":"div"}>`; }
+function e2pres(q,open){ q=(q||"").trim().toLowerCase(); if(!q&&!open) return "";
+  const l=S.properties.filter(p=>!q||propAddr(p).toLowerCase().includes(q)||(p.no+"").startsWith(q)).slice(0,8);
+  return l.length?`<div class="sugg e2dd">${l.map(p=>e2prow(p,true)).join("")}</div>`:`<div class="small muted" style="margin-top:6px">${L2("Not found in Rex. Keep the address as typed.","Rex 里没找到，按输入的地址保存。")}</div>`; }
 /* seller / landlord: the card that says who will be linked as owner of which property; redrawn as the address or name is typed */
-function e2link(v,mc){ const sp=v.type&&v.type!=="buyer"&&v.propText?propInText(v.propText):null; if(!sp) return ""; const who=(v.first||(mc?mc.first:""))+" "+(v.last||(mc?mc.last:""));
-  return `<div class="card" style="margin-top:6px"><div class="row" style="align-items:flex-start"><i class="dot green" style="margin-top:5px"></i><div class="grow"><b>${L2("Will link","将关联")} ${esc(who.trim()||"contact")} ${L2("as owner of","为业主：")} ${esc(shortAddr(sp))}</b><div class="small muted">${sp.pfOwner?"Pricefinder owner: "+esc(sp.pfOwner)+" · ":""}${sp.beds||"—"} bed${sp.lastSale?", owned "+yearsSince(sp.lastSale)+" yrs":""}</div><div class="small muted">Tags: ${e2slOn(v,mc)?"Seller lead · ":""}${v.type==="landlord"?"Rental appraisal":"Appraisal request"}</div></div></div></div>`; }
+function e2link(v,mc){ const pk=v.type&&v.type!=="buyer"&&v.propId?byId(S.properties,v.propId):null; const sp=pk||(v.type&&v.type!=="buyer"&&v.propText?propInText(v.propText):null); if(!sp) return ""; const who=(v.first||(mc?mc.first:""))+" "+(v.last||(mc?mc.last:""));
+  return `<div class="card" style="margin-top:6px"><div class="row" style="align-items:flex-start"><i class="dot green" style="margin-top:5px"></i><div class="grow"><b>${L2("Will link","将关联")} ${esc(who.trim()||"contact")} ${L2("as owner of","为业主：")} ${esc(pk?propAddr(sp):shortAddr(sp))}</b><div class="small muted">${sp.pfOwner?"Pricefinder owner: "+esc(sp.pfOwner)+" · ":""}${sp.beds||"—"} bed${sp.lastSale?", owned "+yearsSince(sp.lastSale)+" yrs":""}</div><div class="small muted">Tags: ${e2slOn(v,mc)?"Seller lead · ":""}${v.type==="landlord"?"Rental appraisal":"Appraisal request"}</div></div>${pk?`<button class="linkbtn small" data-act="e2pclear" style="text-decoration:none;color:var(--link);font-weight:600;flex:none">${L2("Change","更换")}</button>`:""}</div></div>`; }
 function e2form(){ const v=e2(); const m=e2match(v); const mc=m&&m.list[0]?m.list[0].c:null; const tyLab={buyer:"Buyer",seller:"Seller",landlord:"Landlord"}[v.type]||"";
   const B=!!(v.type&&m); /* stage 2: the mobile is complete, so the type is settled and the details open */
   
-  const er=(l,idk,val,ph="")=>`<div class="kvr"><span>${l}</span><input id="${idk}" value="${esc(val||"")}" placeholder="${ph}" style="text-align:right;border:0;min-height:32px;padding:0;font-weight:700;flex:1;min-width:0;text-overflow:ellipsis">${ic("pencil","s")}</div>`;
+  const er=(l,idk,val,ph="",mic)=>`<div class="kvr"><span>${l}</span><input id="${idk}" value="${esc(val||"")}" placeholder="${ph}" style="text-align:right;border:0;min-height:32px;padding:0;font-weight:700;flex:1;min-width:0;text-overflow:ellipsis">${mic?micBtn(idk):ic("pencil","s")}</div>`;
   const stp=(n,l,on)=>`<span class="sec stp ${on?"":"off"}"><i>${n}</i>${l}</span>`;
   const selL=byId(S.listings,v.listingId); const dup=mc?dupesOf(mc).filter(d=>d.owner===mc.owner).sort((a,b)=>(normMobile(b.mobile)===normMobile(mc.mobile))-(normMobile(a.mobile)===normMobile(mc.mobile))):[];
   const head=`<div class="row"><div class="grow"><span class="small muted">Enquiry mode</span><h2 style="font-size:20px;line-height:26px;font-weight:700">Add enquiry${tyLab?" · "+tyLab:""}</h2></div>${B?`<button class="linkbtn small" data-act="e2reset" style="text-decoration:none;color:var(--link);font-weight:600">${L2("Start over","重新开始")}</button>`:""}</div>`;
@@ -2751,7 +2779,7 @@ function e2form(){ const v=e2(); const m=e2match(v); const mc=m&&m.list[0]?m.lis
   ${v.shot?`<div class="info">${ic("zap","s")} ${L2("Read from the screenshot. Check every field, then save.","已从截图读取。逐项核对后再保存。")}</div>`:""}
   <div class="row" style="position:relative"><input id="e2_mobile" inputmode="tel" value="${esc(v.mobile)}" placeholder="04…">${mc?`<span class="small ok" style="position:absolute;right:12px;font-weight:700">${ic("check","s")} Match</span>`:`<span class="small" style="position:absolute;right:12px;font-weight:700;color:var(--fg)">No match</span>`}</div>
   ${mc?`<div class="card exist"><span class="sec" style="color:var(--link)">EXISTING CONTACT · EDIT ANY FIELD</span>
-      ${er("First name","e2_first",v.first||mc.first)}${er("Last name","e2_last",v.last||mc.last)}${er("Mobile","e2_newmob",v.newMobile||mc.mobile)}${er("Email","e2_email",v.email||mc.email)}${er("Address","e2_addr",v.addr||mc.address||((S.properties.find(p=>p.ownerIds.includes(mc.id))||{}).no?propAddr(S.properties.find(p=>p.ownerIds.includes(mc.id))):""))}
+      ${er("First name","e2_first",v.first||mc.first)}${er("Last name","e2_last",v.last||mc.last)}${er("Mobile","e2_newmob",v.newMobile||mc.mobile)}${er("Email","e2_email",v.email||mc.email)}${er("Address","e2_addr",v.addr||mc.address||((S.properties.find(p=>p.ownerIds.includes(mc.id))||{}).no?propAddr(S.properties.find(p=>p.ownerIds.includes(mc.id))):""),"",1)}
       <div class="kvr"><span>Seller lead</span><button class="slsw ${e2slOn(v,mc)?"on":""}" data-act="e2sl">${BULB}<span>SELLER LEAD</span><i></i></button></div>
       <div class="small muted" style="padding-top:6px">${L2("Owner","负责人")}: ${esc(mc.owner)}${mc.notes[0]?` · ${L2("last note","最近备注")} ${mc.notes[0].d}: “${noteText(mc.notes[0].t.slice(0,60))}”`:""}</div>
       <button class="linkbtn small" data-act="contact" data-id="${mc.id}" style="text-decoration:none;align-self:flex-start;padding-top:6px;color:var(--link);font-weight:600">${L2("Open contact record","打开联系人记录")} ›</button></div>
@@ -2759,10 +2787,10 @@ function e2form(){ const v=e2(); const m=e2match(v); const mc=m&&m.list[0]?m.lis
     :`<div class="warnbox">${v.shotName?L2("No match in Rex for this mobile, so this is a new contact. The name below was read from the screenshot, not from Rex. Check it.","Rex 里没有匹配到这个手机号，将新建联系人。下面的姓名是从截图读出来的，不是 Rex 里的记录，请核对。"):L2("No contact in Rex with this mobile. Create a new contact.","Rex 里没有这个手机号。新建联系人。")}</div>
       <div class="grid2"><div class="field"><label>FIRST NAME</label><input id="e2_first" value="${esc(v.first)}"></div><div class="field"><label>LAST NAME</label><input id="e2_last" value="${esc(v.last)}" placeholder="Last name"></div></div>
       <div class="field"><label>EMAIL</label><input id="e2_email" inputmode="email" value="${esc(v.email)}" placeholder="${L2("Email (optional)","邮箱（可选）")}"></div>
-      <div class="field"><label>ADDRESS · THEIR HOME</label><input id="e2_addr" value="${esc(v.addr)}" placeholder="${L2("Start typing address…","输入地址…")}"></div>
+      <div class="field"><label>ADDRESS · THEIR HOME</label><div class="mwrap i"><input id="e2_addr" value="${esc(v.addr)}" placeholder="${L2("Start typing address…","输入地址…")}">${micBtn("e2_addr")}</div></div>
       <div class="row"><span class="small muted grow">${v.type==="buyer"?L2("Selling and buying? Turn on","既卖又买？打开"):e2slOn(v,null)?L2("Seller enquiry turns this on. Tap to turn off.","卖家询盘自动打开，点一下可关闭"):L2("Turned off: no Seller lead tag for this enquiry","已关闭：这条询盘不打 Seller lead 标签")}</span><button class="slsw ${e2slOn(v,null)?"on":""}" data-act="e2sl">${BULB}<span>SELLER LEAD</span><i></i></button></div>`}
   ${v.type==="buyer"?`<div class="field"><label>LISTING ENQUIRED ABOUT</label>${selL?`<div class="card" style="padding:0 12px">${e2lrow(selL,false)}</div>`:`<input id="e2_lq" value="${esc(v.lq||"")}" placeholder="${L2("Search listing address…","搜索挂牌房源地址…")}" autocomplete="off"><div id="e2_lr">${e2lres(v.lq,false)}</div>`}</div>`
-    :`<div class="field"><label>PROPERTY ADDRESS · THEIR PROPERTY</label><label class="check" style="min-height:40px;padding:4px 10px"><input type="checkbox" id="e2_same" data-act="e2same" ${v.same?"checked":""}><span>Same as residential address</span></label><input id="e2_prop" value="${esc(v.propText)}" placeholder="15 Becker St, Sunnybank" list="e2_pl" ${v.same?"readonly":""}><datalist id="e2_pl">${S.properties.map(p=>`<option value="${esc(propAddr(p))}">`).join("")}</datalist>
+    :`<div class="field"><label>PROPERTY ADDRESS · THEIR PROPERTY</label><label class="check" style="min-height:40px;padding:4px 10px"><input type="checkbox" id="e2_same" data-act="e2same" ${v.same?"checked":""}><span>Same as residential address</span></label>${v.same?`<input id="e2_prop" value="${esc(v.propText)}" readonly>`:v.propId&&byId(S.properties,v.propId)?"":`<div class="mwrap i"><input id="e2_prop" value="${esc(v.propText)}" placeholder="${L2("Search property address…","搜索房产地址…")}" autocomplete="off">${micBtn("e2_prop")}</div><div id="e2_pr">${e2pres(v.propText,false)}</div>`}
       <div id="e2_lk">${e2link(v,mc)}</div></div>`}
     <div class="field"><label>SOURCE</label><div class="chips" style="flex-wrap:wrap">${[["phone","Phone call"],["walkin","Walk-in"],["portal","Portal"],["referral","Referral"]].map(([k,l])=>`<button class="${v.src===k?"on":""}" data-act="e2src" data-v="${k}">${l}</button>`).join("")}</div></div>
     <div class="field"><label>NOTE</label><div class="row notein"><input id="e2_note" class="grow" value="${esc(v.note)}" placeholder="${v.type==="buyer"?"Pre-approved, wants Form 2":L2("Wants appraisal, moving interstate","想估价，准备搬去外州")}"><button class="nmic" data-act="notemic" data-t="e2_note">${ICON.mic}</button></div></div>
@@ -2817,24 +2845,32 @@ document.addEventListener("click", ev => { const el=ev.target.closest("[data-act
   if(a==="efsave"){ const c=byId(S.contacts,sheet.cid); const k=sheet.k; const v=(document.getElementById("ef_v").value||"").trim(); const old=c[k]||""; if(v!==old){ c[k]=v; touch(c); noteOn(c,`Field edited · ${k}`,"AxleoCollect"); audit("Record", `${cname(c)} · ${k}`); persist(); } sheet=null; render(); return toast(t("filed_ok")); }
   if(a==="noteadd"){ const i=document.getElementById("pn_note"); const txt=(i&&i.value||"").trim(); if(!txt) return; const p=byId(S.properties,id); const c=ownersOf(p)[0]; if(!c) return toast(L2("Add a contact first","先添加联系人")); noteOn(c,txt); audit("Note", shortAddr(p)); persist(); render(); return toast(t("filed_ok")); }
   if(a==="notemic"){ const i=document.getElementById(el.dataset.t); if(!i) return; const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR){ toast(L2("Dictation is not available in this browser. Type instead.","这个浏览器不支持听写，请直接输入。")); return i.focus(); }
-    try{ const r=new SR(); r.lang=voiceLang||"en-AU"; r.onresult=e=>{ i.value=(i.value?i.value+" ":"")+e.results[0][0].transcript; }; r.onerror=()=>toast(L2("Could not hear that","没有听清")); el.classList.add("live"); r.onend=()=>el.classList.remove("live"); r.start(); }catch(e){ i.focus(); } return; }
+    try{ const r=new SR(); r.lang=voiceLang||"en-AU"; r.onresult=e=>{ i.value=(i.value?i.value+" ":"")+e.results[0][0].transcript; i.dispatchEvent(new Event("input",{bubbles:true})); i.dispatchEvent(new Event("change",{bubbles:true})); }; r.onerror=()=>toast(L2("Could not hear that","没有听清")); el.classList.add("live"); r.onend=()=>el.classList.remove("live"); r.start(); }catch(e){ i.focus(); } return; }
   if(a==="newtodo"){ sheet={kind:"todo", cid:el.dataset.cid||"", propId:el.dataset.pid||"", d:addDays(1), time:"16:00", who:ME(), t:""}; return renderSheet(); }
   if(a==="tdd"||a==="tdt"||a==="tdw"){ sheet.t=(document.getElementById("td_t")||{}).value||""; if(a==="tdd") sheet.d=el.dataset.v; if(a==="tdt") sheet.time=el.dataset.v; if(a==="tdw") sheet.who=el.value; return renderSheet(); }
   if(a==="tdsave"){ const txt=(document.getElementById("td_t").value||"").trim(); if(!txt) return toast("* To-do"); const d=document.getElementById("td_d").value||sheet.d, tm=document.getElementById("td_tm").value||sheet.time; const who=sheet.who; const ex=sheet.editId&&byId(S.todos,sheet.editId);
     if(ex){ if(ex.who!==who) ex.by=ME(); Object.assign(ex,{d, time:tm, t:txt, who}); audit("To-do", txt+" · "+who); persist(); sheet=null; render(); return toast(L2("To-do updated","待办已更新")); }
     S.todos.push({id:uid("t"), d, time:tm, t:txt, who, by:ME(), kind:"call", cid:sheet.cid||"", propId:sheet.propId||""}); const c=sheet.cid&&byId(S.contacts,sheet.cid); if(c) noteOn(c,`To-do: ${txt} · ${d} ${tm} · ${who===ME()?"me":"assigned to "+who}`,"AxleoCollect"); audit("To-do", txt+" · "+who); persist(); sheet=null; render(); return toast(who===ME()?L2("To-do saved","待办已保存"):L2("To-do sent to ","待办已发给 ")+who.split(" ")[0]); }
-  if(a==="tdtab"){ view.tdTab=el.dataset.v; return render(); }
+  if(a==="tdselmode"){ view.tdSel=view.tdSel?null:[]; return render(); }
+  if(a==="tdpick"){ const l=view.tdSel||(view.tdSel=[]); const i=l.indexOf(id); if(i>=0) l.splice(i,1); else l.push(id); return render(); }
+  if(a==="tdselall"){ const l=myTodoSets()[view.tdTab||"mine"].map(x=>x.id); view.tdSel=(view.tdSel||[]).length===l.length?[]:l; return render(); }
+  if(a==="tdbulkdone"){ const ids=(view.tdSel||[]).slice(); if(!ids.length) return; const sn=snap(); ids.forEach(i=>{ const x=byId(S.todos,i); if(!x||x.done) return; x.done=true; x.doneAt=TODAY; audit("To-do done", x.t); const c=x.cid&&byId(S.contacts,x.cid); if(c) noteOn(c,`To-do done: ${x.t}`,"AxleoCollect"); }); view.tdSel=null; persist(); render(); toast(L2(`${ids.length} done · moved to Completed`,`已完成 ${ids.length} 条 · 移到 Completed`), {undo:()=>restore(sn)}); return; }
+  if(a==="tdre"){ const ids=id?[id]:(view.tdSel||[]).slice(); if(!ids.length) return; sheet={kind:"tdre", ids}; return renderSheet(); }
+  if(a==="tdreto"){ const who=el.dataset.v; const sn=snap(); const ids=sheet.ids; ids.forEach(i=>{ const x=byId(S.todos,i); if(!x||x.who===who) return; x.by=ME(); x.who=who; audit("To-do reassigned", x.t+" · "+who); const c=x.cid&&byId(S.contacts,x.cid); if(c) noteOn(c,`To-do reassigned to ${who}: ${x.t}`,"AxleoCollect"); }); sheet=null; view.tdSel=null; persist(); render(); toast(L2(`${ids.length>1?ids.length+" to-dos":"To-do"} sent to ${who.split(" ")[0]}`,`${ids.length>1?ids.length+" 条待办":"待办"}已转交给 ${who.split(" ")[0]}`), {undo:()=>restore(sn)}); return; }
+  if(a==="tdtab"){ view.tdSel=null; view.tdTab=el.dataset.v; return render(); }
   if(a==="tdtick"){ const sn=snap(); const x=byId(S.todos,id); x.done=!x.done; if(x.done){ x.doneAt=TODAY; audit("To-do done", x.t); const c=x.cid&&byId(S.contacts,x.cid); if(c) noteOn(c,`To-do done: ${x.t}`,"AxleoCollect"); } persist(); render(); toast(x.done?L2("Done · moved to Completed","已完成 · 移到 Completed"):L2("Reopened","已重新打开"), {undo:()=>restore(sn)}); return; }
   if(a==="tdopen"){ const x=byId(S.todos,id); if(!x) return; const {c,p}=todoLink(x); if(c) return go({name:"contact", id:c.id}); if(p) return go({name:"prop", id:p.id});
     sheet={kind:"todo", editId:x.id, cid:"", propId:"", d:x.d, time:x.time||"", who:x.who, t:x.t}; return renderSheet(); }
   if(a==="qause"){ qaKeep(); const c=byId(S.contacts,id); sheet.use=id; sheet.notThis=null; sheet.first=c.first; sheet.last=c.last; sheet.email=c.email; return renderSheet(); }
   if(a==="qanot"){ qaKeep(); sheet.notThis=id; sheet.use=null; renderSheet(); const i=document.getElementById("qa_first"); if(i) i.focus(); return; }
   if(a==="qaundo"){ qaKeep(); sheet.notThis=null; return renderSheet(); }
+  if(a==="e2ppick"){ const v=e2grab(); const p=byId(S.properties,id); v.propId=id; v.propText=p?propAddr(p):v.propText; return render(); }
+  if(a==="e2pclear"){ const v=e2grab(); v.propId=""; v.propText=""; render(); const i=document.getElementById("e2_prop"); if(i) i.focus(); return; }
   if(a==="e2lpick"){ const v=e2grab(); v.listingId=id; v.lq=""; return render(); }
   if(a==="e2lclear"){ const v=e2grab(); v.listingId=""; render(); const i=document.getElementById("e2_lq"); if(i) i.focus(); return; }
   if(a==="e2reset"){ view.enq2=null; view.enqPre=null; _forceTop=true; return render(); }
   if(a==="nbtoggle"){ const on=!el.classList.contains("on"); el.classList.toggle("on",on); const cu=current(); if(cu.name==="checkin"){ cu.pre=cu.pre||{}; cu.pre.nb=on; } else cu.nb=on; return; }
-  if(a==="e2same"){ const v=e2grab(); v.same=el.checked; if(v.same){ v.propText=v.addr||""; if(!v.propText) toast(L2("Fill in the home address above; the property address follows it","先填上面的住址，房产地址会跟着它")); } return render(); }
+  if(a==="e2same"){ const v=e2grab(); v.same=el.checked; v.propId=""; if(v.same){ v.propText=v.addr||""; if(!v.propText) toast(L2("Fill in the home address above; the property address follows it","先填上面的住址，房产地址会跟着它")); } return render(); }
   if(a==="e2type"){ const v=e2grab(); v.type=el.dataset.v; v.sl=null; render(); const i=document.getElementById("e2_mobile"); if(i&&!v.mobile) i.focus(); return; }
   if(a==="e2src"){ const v=e2grab(); v.src=el.dataset.v; return render(); }
   if(a==="e2list"){ const v=e2grab(); v.listingId=el.value; return; }
@@ -2848,7 +2884,7 @@ document.addEventListener("click", ev => { const el=ev.target.closest("[data-act
     if(!wantSL) c.tags=c.tags.filter(x=>x!=="Seller lead"); if(v.addr) c.address=v.addr;
     if(mc&&normMobile(v.newMobile).length>=10&&normMobile(v.newMobile)!==normMobile(c.mobile)){ c.mobile=v.newMobile.trim(); audit("Enquiry", cname(c)+" · mobile updated"); } let p=null, l=null;
     if(v.type==="buyer"){ l=byId(S.listings,v.listingId); p=l&&byId(S.properties,l.propertyId); if(!c.buyerProfile) c.buyerProfile={price:"",suburbs:p?p.suburb:"",beds:"",finance:"Not yet",timing:"3 months",must:[]}; }
-    else { p=propInText(v.propText); if(p) linkOwner(c,p); }
+    else { p=byId(S.properties,v.propId)||propInText(v.propText); if(p) linkOwner(c,p); }
     const note=v.note||(v.type==="buyer"?"Buyer enquiry"+(p?" · "+shortAddr(p):""):v.type==="landlord"?"Rental appraisal request":"Appraisal request");
     createLead(c,{propertyId:p?p.id:"", listingId:l?l.id:"", source:srcL, note, assignee:asg, type:v.type});
     S.enquiries.unshift({id:uid("e"), source:srcL, d:TODAY+" "+new Date().toTimeString().slice(0,5), type:v.type==="buyer"?"buyer":"seller", status:"filed", raw:`${cname(c)}, ${v.mobile}, ${note}`, parsed:{first:c.first,last:c.last,mobile:v.mobile,email:c.email,propertyId:p?p.id:"",want:note}, tags});
@@ -2866,19 +2902,33 @@ document.addEventListener("change", ev => { const el=ev.target;
 document.addEventListener("input", ev => { const el=ev.target; if(el.id!=="e2_mobile") return; const v=e2(); const cid=x=>{ const m=e2match(x); return m?(m.list[0]?m.list[0].c.id:"new"):""; };
   const was=cid(v); e2grab(); const now=cid(v);
   /* the name, email and address belong to the record the mobile matched: once the mobile points elsewhere they are cleared, so no match really means an empty form */
-  if(was!==now){ v.sl=null; const real=x=>x&&x!=="new"; if(real(was)||real(now)||v.shotName){ v.first=""; v.last=""; v.email=""; v.addr=""; v.newMobile=""; v.shotName=false; if(v.same) v.propText=""; }
+  if(was!==now){ v.sl=null; const real=x=>x&&x!=="new"; if(real(was)||real(now)||v.shotName){ v.first=""; v.last=""; v.email=""; v.addr=""; v.newMobile=""; v.shotName=false; if(v.same){ v.propText=""; v.propId=""; } }
     /* the name read from the screenshot belongs to the number in the screenshot: typing that number back brings it back */
     if(now==="new"&&v.shotData&&normMobile(v.mobile)===normMobile(v.shotData.mobile)){ v.first=v.shotData.first; v.last=v.shotData.last; v.shotName=true; } const pos=el.selectionStart; render(); const i=document.getElementById("e2_mobile"); if(i){ i.focus(); try{ i.setSelectionRange(pos,pos); }catch(e){} } } });
 /* same as residential address: the property address follows the home address as it is typed (no re-render, so focus is never lost) */
 document.addEventListener("input", ev => { const el=ev.target; if(el.id!=="e2_addr"||!e2().same) return; const pr=document.getElementById("e2_prop"); if(pr) pr.value=el.value; });
 document.addEventListener("input", ev => { const el=ev.target; if(!["e2_prop","e2_addr","e2_first","e2_last"].includes(el.id)) return; const k=document.getElementById("e2_lk"); if(!k) return; const v=e2grab(); const m=e2match(v); k.innerHTML=e2link(v, m&&m.list[0]?m.list[0].c:null); });
-["input","focusin"].forEach(n=>document.addEventListener(n, ev => { const el=ev.target; if(el.id!=="e2_lq") return; const r=document.getElementById("e2_lr"); if(r) r.innerHTML=e2lres(el.value,true); }));
+/* bring the field to the top of the screen so its result list is not hidden behind the bottom nav */
+function e2ddShow(el){ const f=el.closest(".field"), m=document.getElementById("main"); if(!f||!m) return; m.scrollTop+=f.getBoundingClientRect().top-m.getBoundingClientRect().top-12; }
+/* the address / listing result list closes as soon as anything outside the box and its list is touched or focused */
+["pointerdown","focusin"].forEach(n=>document.addEventListener(n, ev => { [["e2_prop","e2_pr"],["e2_lq","e2_lr"]].forEach(([i,r])=>{ const box=document.getElementById(r); if(!box||!box.innerHTML) return; const inp=document.getElementById(i); const wrap=inp&&(inp.closest(".mwrap")||inp); if(box.contains(ev.target)||(wrap&&wrap.contains(ev.target))) return; box.innerHTML=""; }); }));
+["input","focusin"].forEach(n=>document.addEventListener(n, ev => { const el=ev.target; if(el.id!=="e2_prop"||el.readOnly) return; const r=document.getElementById("e2_pr"); if(r){ r.innerHTML=e2pres(el.value,true); if(ev.type==="focusin") e2ddShow(el); } }));
+["input","focusin"].forEach(n=>document.addEventListener(n, ev => { const el=ev.target; if(el.id!=="e2_lq") return; const r=document.getElementById("e2_lr"); if(r){ r.innerHTML=e2lres(el.value,true); if(ev.type==="focusin") e2ddShow(el); } }));
 // swipe left on a capture card to dismiss
 let _sw=null;
 document.addEventListener("pointerdown", ev=>{ const c=ev.target.closest(".swipe"); if(!c||ev.target.closest("button")) return; _sw={el:c,x:ev.clientX,dx:0}; });
 document.addEventListener("pointermove", ev=>{ if(!_sw) return; _sw.dx=Math.min(0,ev.clientX-_sw.x); _sw.el.style.transform=`translateX(${_sw.dx}px)`; _sw.el.style.opacity=String(Math.max(.3,1+_sw.dx/260)); });
 const _swEnd=()=>{ if(!_sw) return; const s=_sw; _sw=null; if(s.dx<-90){ const id=s.el.dataset.cap; const b=document.createElement("button"); b.dataset.act="capdismiss"; b.dataset.id=id; b.hidden=true; document.body.appendChild(b); b.click(); b.remove(); } else { s.el.style.transform=""; s.el.style.opacity=""; } };
 document.addEventListener("pointerup", _swEnd); document.addEventListener("pointercancel", _swEnd);
+
+// swipe left on a to-do row to reveal Reassign / Done
+let _ts=null,_tsAt=0;
+const tdClose=ex=>document.querySelectorAll(".todo2.open").forEach(r=>{ if(r!==ex){ r.classList.remove("open"); r.querySelector(".tdin").style.transform=""; } });
+document.addEventListener("pointerdown", ev=>{ if(ev.target.closest(".tdact")) return; const r=ev.target.closest(".todo2"); tdClose(r); if(!r||!r.querySelector(".tdact")) return; const w=r.querySelector(".tdact").offsetWidth; _ts={r,x:ev.clientX,y:ev.clientY,w,base:r.classList.contains("open")?-w:0,on:false,dx:0}; });
+document.addEventListener("pointermove", ev=>{ if(!_ts) return; const dx=ev.clientX-_ts.x, dy=ev.clientY-_ts.y; if(!_ts.on){ if(Math.abs(dx)<8||Math.abs(dx)<Math.abs(dy)) return; _ts.on=true; _ts.r.classList.add("drag"); } _ts.dx=Math.max(-_ts.w-12,Math.min(0,_ts.base+dx)); _ts.r.querySelector(".tdin").style.transform=`translateX(${_ts.dx}px)`; });
+const _tsEnd=()=>{ if(!_ts) return; const q=_ts; _ts=null; if(!q.on) return; q.r.classList.remove("drag"); const open=q.dx<-q.w/2; q.r.classList.toggle("open",open); q.r.querySelector(".tdin").style.transform=open?`translateX(${-q.w}px)`:""; _tsAt=Date.now(); };
+document.addEventListener("pointerup", _tsEnd); document.addEventListener("pointercancel", _tsEnd);
+document.addEventListener("click", ev=>{ if(Date.now()-_tsAt<350){ ev.stopPropagation(); ev.preventDefault(); return; } const r=ev.target.closest(".todo2.open"); if(r&&!ev.target.closest(".tdact")){ tdClose(); ev.stopPropagation(); ev.preventDefault(); } }, true);
 
 // ---------- guide text for the 10 Nov change requests ----------
 FB_SEC.cr={en:"Change requests, 10 Nov 2026 (Ping Han)",zh:"修改需求，2026 年 11 月 10 日（Ping Han）"};
