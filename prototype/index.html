@@ -17,14 +17,14 @@
   --fg:#13233F; --fg2:#5B6475; --muted:#5B6475; --line:#E4E8EF;
   --brand:#FFB02E; --brand-fg:#13233F; --accent:#FF6B2C; --accent-fg:#ffffff; --azure:#2B95F5;
   --mic:#FF6B2C; --mic-fg:#ffffff;
-  --green:#22A06B; --orange:#FF8A3D; --sky:#5BB8F5; --steel:#8A94A6; --gold:#E0A100; --navy:#1C3F8F; --red:#D7263D; --pink:#F8C6D0; --purple:#E9DDFB;
+  --green:#1DB86A; --orange:#FF8A3D; --sky:#5BB8F5; --steel:#8A94A6; --gold:#E0A100; --navy:#1C3F8F; --red:#F04848; --pink:#F8C6D0; --purple:#E9DDFB;
   --hot:#FF6B2C; --warm:#FFC94D; --cold:#2B95F5;
   --yr0:#E4E8EF; --yr1:#B9C1CE; --yr2:#6F7A8E; --yr3:var(--brand); --yr3-fg:var(--brand-fg);
   --shadow-sm:0 1px 2px rgba(19,35,63,.05); --shadow-float:0 8px 24px rgba(19,35,63,.10);
   --ease:cubic-bezier(.22,1,.36,1);
   --display:"Montserrat","Noto Sans SC",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
   --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
-  --home-ind:0px; --desk-bg:#E7EAF0; --bezel:#111010; --logo:"A";
+  --home-ind:0px; --desk-bg:#E7EAF0; --bezel:#111010; --logo:"P"; --link:#1670C2;
 }
 :root[data-company="place"]{ --brand:#090B38; --brand-fg:#ffffff; --yr3:#090B38; --yr3-fg:#ffffff; --navy:#090B38; --logo:"P"; }
 
@@ -38,11 +38,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 input,select,textarea{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;width:100%;min-width:0;min-height:40px;line-height:20px}
 textarea{resize:vertical;min-height:64px}
 @media (pointer:coarse){input,select,textarea{font-size:16px}}
-h1,h2,h3{margin:0;text-wrap:balance;font-weight:500}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
 svg.ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:-3px}
 svg.ic.s{width:14px;height:14px;vertical-align:-2px}
 svg.ic.l{width:20px;height:20px}
-a{color:var(--azure)}
+a{color:var(--link)}
 
 /* phone shell */
 .phone{height:100%}
@@ -78,17 +78,17 @@ a{color:var(--azure)}
 .iconbtn{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;color:var(--fg2);position:relative;border:1px solid var(--line);background:var(--surface)}
 .iconbtn .badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;line-height:18px;font-weight:500;text-align:center}
 .logo{width:36px;height:36px;border-radius:10px;background:var(--brand);color:var(--brand-fg);display:grid;place-items:center;font-weight:600;font-size:16px;flex:none;user-select:none;-webkit-user-select:none;touch-action:none}
-.logo::after{content:var(--logo)}
+.logo{background:var(--fg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 64'%3E%3Cline x1='32' y1='32' x2='90' y2='32' stroke='%23fff' stroke-width='8' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='32' r='22' fill='none' stroke='%23fff' stroke-width='13'/%3E%3Ccircle cx='32' cy='32' r='8' fill='%23FFB02E'/%3E%3C/svg%3E") 58% 50%/72% auto no-repeat}
 .logo.lg{width:56px;height:56px;border-radius:16px;font-size:26px}
 .body{flex:1;overflow-y:auto;padding:16px max(16px,env(safe-area-inset-right,0px)) 112px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px}
 .body>*{flex:none}
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);
   padding:8px max(16px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
-.nav .in{max-width:520px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 72px 1fr 1fr;align-items:end}
+.nav .in{max-width:520px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);align-items:end}
 .nav .tab{display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 0;font-size:11px;line-height:12px;color:var(--muted);border-radius:8px}
 .nav .tab svg{width:28px;height:28px;padding:4px;border-radius:8px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .nav .tab.on{color:var(--fg);font-weight:500}
-.nav .tab.on svg{stroke:var(--brand-fg);background:var(--brand)}
+.nav .tab.on svg{stroke:#fff;background:var(--fg)}
 :root[data-company="place"] .nav .tab.on svg{stroke:#fff}
 .mic{position:relative;width:60px;height:60px;border-radius:50%;background:var(--mic);color:var(--mic-fg);display:grid;place-items:center;margin:-28px auto 0;border:4px solid var(--surface);box-shadow:var(--shadow-float);touch-action:none;user-select:none;-webkit-user-select:none}
 .mic svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round}
@@ -110,7 +110,7 @@ a{color:var(--azure)}
 .num{font-size:24px;line-height:28px;font-weight:600;font-variant-numeric:tabular-nums}
 
 /* controls */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:8px;background:var(--surface2);color:var(--fg);font-weight:500;font-size:14px;white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:8px;background:var(--surface2);color:var(--fg);font-weight:700;font-size:14px;white-space:nowrap}
 .btn:hover{background:var(--surface3)}
 .btn.primary{background:var(--fg);color:#fff}
 .btn.primary:hover{background:#2A3A5C}
@@ -137,11 +137,11 @@ a{color:var(--azure)}
 .seg button.on{background:var(--surface);color:var(--fg);box-shadow:var(--shadow-sm);font-weight:500}
 .chips{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 .chips button{flex:none;height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:13px;color:var(--fg2);display:inline-flex;align-items:center;gap:6px}
-.chips button.on{background:var(--brand);color:var(--brand-fg);border-color:var(--brand);font-weight:500}
+.chips button.on{background:var(--fg);color:#fff;border-color:var(--fg);font-weight:700}
 .check{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
 .check input{width:18px;height:18px;margin:0;min-height:0;flex:none;accent-color:var(--fg)}
 .field{display:flex;flex-direction:column;gap:4px}
-.field>label{font-size:12px;line-height:16px;color:var(--muted)}
+.field>label{font-size:12px;line-height:16px;color:var(--muted);font-weight:600}
 .field.ai>label::after{content:" · AI";color:var(--muted)}
 .field .check{font-size:13px;line-height:18px}
 .field.unsure input{border-color:var(--warm)}
@@ -162,10 +162,10 @@ a{color:var(--azure)}
 
 /* status dots (fixed for every company) + number plate */
 .dot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--steel)}
-.dot.green{background:var(--green)} .dot.orange{background:var(--orange)} .dot.sky{background:var(--sky)} .dot.steel{background:var(--steel)}
+.dot.green{background:var(--green)} .dot.orange{background:var(--red)} .dot.sky{background:var(--sky)} .dot.steel{background:var(--steel)}
 .dot.pending{background:transparent;border:2px solid var(--steel);width:10px;height:10px}
 .dot.red{background:var(--red)} .dot.blue{background:var(--azure)} .dot.amber{background:var(--warm)}
-.dot.p{background:var(--brand);color:var(--brand-fg);width:14px;height:14px;font-size:9px;font-weight:500;display:inline-grid;place-items:center}
+.dot.p{background:var(--fg);color:#fff;width:14px;height:14px;font-size:9px;font-weight:500;display:inline-grid;place-items:center}
 .dot.p::after{content:var(--logo)}
 .dot.star{background:none;color:var(--gold);width:14px;height:14px}
 .dot.pin{background:none;color:var(--navy);width:14px;height:14px}
@@ -249,12 +249,19 @@ mark{background:#FFF0CC;color:inherit;border-radius:2px}
 .leaflet-tooltip.lbl{padding:0 6px;height:20px;line-height:20px;font-size:12px;font-weight:500;font-family:var(--mono);border-radius:4px;background:rgba(255,255,255,.92);color:#13233F;border:0;box-shadow:0 1px 2px rgba(0,0,0,.2)}
 .leaflet-tooltip.lbl::before{display:none}
 .stlbl{font-size:11px;line-height:16px;color:#5B6475;text-align:center;white-space:nowrap;text-shadow:0 0 3px #fff}
-.pmark{width:22px;height:22px;border-radius:50%;background:var(--brand);color:var(--brand-fg);font-weight:500;font-size:12px;display:grid;place-items:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.pmark{width:22px;height:22px;border-radius:50%;background:var(--fg);color:#fff;font-weight:500;font-size:12px;display:grid;place-items:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .pmark::after{content:var(--logo)}
-.pmark.other{background:var(--steel);color:#fff}
+.pmark.other{background:#FF9F1A;color:#fff}
 .pmark.other::after{content:""}
 .mk{display:grid;place-items:center;width:22px;height:22px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
 .mk svg{width:20px;height:20px;stroke:#fff;stroke-width:1.5;stroke-linejoin:round}
+.stp{display:flex;align-items:center}
+.stp i{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--fg);color:#fff;font-style:normal;font-size:11px;letter-spacing:0;margin-right:6px;flex:none}
+.stp.off{opacity:.55}
+.stp.off i{background:var(--fg2)}
+.me2{width:36px;height:36px;border-radius:50%;background:var(--fg);border:2px solid #fff;display:grid;place-items:center;box-shadow:0 0 0 8px rgba(43,149,245,.28),0 1px 4px rgba(0,0,0,.4)}
+.me2 svg{width:20px;height:20px;fill:#fff;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.leaflet-tooltip.youlbl{background:var(--fg);color:#fff;font-family:var(--display);font-weight:700;border-radius:10px;padding:0 8px}
 .me{width:18px;height:18px;border-radius:50%;background:var(--azure);border:3px solid #fff;box-shadow:0 0 0 2px rgba(43,149,245,.35),0 1px 3px rgba(0,0,0,.3)}
 .mapbar{position:absolute;top:8px;right:8px;z-index:500;display:flex;gap:4px}
 .mapbar button{height:32px;padding:0 10px;background:var(--surface);border:1px solid var(--line);border-radius:6px;font-size:12px;color:var(--fg2);box-shadow:var(--shadow-sm)}
@@ -327,7 +334,7 @@ button.chip{height:36px;padding:0 12px;font-size:13px;border-radius:8px}
 .cmdres .card{padding:8px 12px} .cmdres .item{min-height:44px;padding:4px 0}
 .intent{display:inline-flex;align-items:center;gap:6px;font-size:12px;line-height:16px;color:var(--muted)}
 .sample{font-size:12px;line-height:16px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
-.sample button{color:var(--azure);text-decoration:underline;text-underline-offset:2px;padding:8px 6px;margin:-8px -2px}
+.sample button{color:var(--link);text-decoration:underline;text-underline-offset:2px;padding:8px 6px;margin:-8px -2px}
 .searchbox{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:0 12px;height:44px;color:var(--muted)}
 .searchbox input{border:0;background:transparent;padding:0;min-height:0;color:var(--fg)}
 .toast[hidden]{display:none}
@@ -378,7 +385,7 @@ button.chip{height:36px;padding:0 12px;font-size:13px;border-radius:8px}
 .swatch{display:flex;flex-direction:column;align-items:stretch;gap:6px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:12px;line-height:16px;color:var(--fg2);text-align:left}
 .swatch.on{border-color:var(--fg);box-shadow:inset 0 0 0 1px var(--fg)}
 .swatch i{display:block;height:28px;border-radius:4px}
-.palettes{position:fixed;right:16px;bottom:16px;z-index:40;display:none;gap:4px;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow-float)}
+.palettes{display:none!important;position:fixed;right:16px;bottom:16px;z-index:40;display:none;gap:4px;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow-float)}
 .palettes button{height:32px;padding:0 10px;border-radius:6px;font-size:12px;color:var(--fg2);display:inline-flex;align-items:center;gap:6px}
 .palettes button i{width:12px;height:12px;border-radius:3px;display:block}
 .palettes button.on{background:var(--fg);color:#fff}
@@ -413,6 +420,75 @@ button.chip{height:36px;padding:0 12px;font-size:13px;border-radius:8px}
   .guide .fbst.dev{background:#FFF1E6;color:#B4480F}
   .guide .fbleg{font-size:11px;line-height:16px;color:var(--muted);border-top:1px solid var(--line);padding-top:8px;margin-top:4px}
 }
+/* ---- change requests 10 Nov 2026 ---- */
+.sec{font-size:11px;line-height:16px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg2)}
+.tiles3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tile .num{font-weight:700}
+.dl{font-size:11px;font-weight:700}.dl.up{color:#12894C}.dl.dn{color:var(--fg2)}
+.info{background:#EAF5FF;color:#1B4F80;border-radius:10px;padding:10px 12px;font-size:12px;line-height:18px}
+.warnbox{background:#FFF0CC;color:#7A5010;border-radius:10px;padding:10px 12px;font-size:13px;line-height:18px}
+.btn.ok{background:#BFF3D2;color:#13233F}.btn.ok:hover{background:#A9EBC2}
+.q{background:var(--surface2);border-radius:8px;padding:10px 12px;font-size:13px;line-height:19px;margin-top:8px}
+.swipe{touch-action:pan-y;transition:transform .15s,opacity .15s}
+.youat{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--steel);border-radius:12px;padding:12px;box-shadow:var(--shadow-sm)}
+.youat.live{border-left-color:var(--green)}
+.youat .ring{width:18px;height:18px;border-radius:50%;background:var(--steel);box-shadow:0 0 0 3px #fff,0 0 0 5px var(--steel);flex:none;margin:0 4px}
+.youat.live .ring{background:var(--green);box-shadow:0 0 0 3px #fff,0 0 0 5px var(--green)}
+.youat .eyb{display:block;font-size:11px;line-height:16px;font-weight:700;letter-spacing:.04em;color:var(--fg2)}.youat.live .eyb{color:#12894C}
+.youat .adr{display:block;font-weight:700;font-size:15px;line-height:22px;text-decoration:underline;text-decoration-color:var(--brand);text-decoration-thickness:2px;text-underline-offset:3px}
+.speakp{background:var(--fg);color:#fff;border-radius:16px;padding:20px 16px 18px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.speakbtn{width:96px;height:96px;border-radius:50%;background:var(--mic);color:#fff;display:grid;place-items:center;position:relative;box-shadow:0 0 0 12px rgba(255,107,44,.2),0 0 0 24px rgba(255,107,44,.09);margin:18px 0 24px;touch-action:none;user-select:none;-webkit-user-select:none}
+.speakbtn svg{width:36px;height:36px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round}
+.speakbtn.live::after,.nmic.live::after{content:"";position:absolute;inset:-6px;border:2px solid #fff;border-radius:inherit;animation:ring 1.2s var(--ease) infinite;pointer-events:none}
+.st1{font-size:17px;line-height:22px;font-weight:700}.st2{font-size:12px;line-height:18px;opacity:.8}
+.tapcard{width:100%;gap:10px;text-align:left;font-size:13px;line-height:18px}
+.capbar{display:flex;align-items:center;gap:8px;width:100%;background:#FFF2EC;color:#7A2E0B;border-radius:10px;padding:10px 12px;font-size:13px;text-align:left}
+.mapcover{position:absolute;inset:0;z-index:600;background:transparent}
+.mapfs,.maphint{position:absolute;z-index:601;pointer-events:none;background:var(--surface);border-radius:8px;padding:4px 10px;font-size:12px;line-height:20px;font-weight:700;box-shadow:var(--shadow-sm);display:inline-flex;gap:6px;align-items:center}
+.mapfs{top:8px;right:8px}.maphint{left:8px;bottom:8px;background:var(--fg);color:#fff;font-weight:600}
+.body.full{padding:0;overflow:hidden;position:relative;gap:0}
+.map.full{position:absolute;inset:0;height:auto;border:0;border-radius:0}
+.app.nonav .nav{display:none}
+.fsx{position:absolute;right:12px;bottom:132px;z-index:700;height:40px;padding:0 12px;border-radius:10px;background:var(--surface);font-weight:700;font-size:13px;display:inline-flex;align-items:center;gap:6px;box-shadow:var(--shadow-float)}
+.mleg{position:absolute;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:700;background:rgba(255,255,255,.95);border-radius:12px;padding:10px 12px;display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;font-size:12px;line-height:16px;box-shadow:var(--shadow-sm)}
+.mleg span{display:inline-flex;align-items:center;gap:6px}
+.mprev{position:absolute;left:12px;right:12px;top:12px;z-index:700;background:var(--surface);border-radius:12px;padding:12px;box-shadow:var(--shadow-float)}
+.fmlist{padding:16px;overflow-y:auto;height:100%}
+.dot.oth{background:#FF9F1A}.dot.star2{background:none;color:#F5A300;width:14px;height:14px;font-size:14px;line-height:14px;font-style:normal;text-align:center}
+.kvc{padding:0 12px}
+.kvr{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 0;border-top:1px solid var(--line);width:100%;text-align:left;font-size:13px;line-height:18px}
+.kvr:first-child{border-top:0}.kvr>span:first-child{flex:1;color:var(--fg2);min-width:0}
+.kvr b{font-weight:700;text-align:right;min-width:0;overflow-wrap:anywhere}.kvr svg.ic{color:var(--steel)}
+.exist .kvr:first-of-type{border-top:0}
+.exist .kvr>span:first-child{flex:none;width:88px}
+.kvr input{flex:1 1 0;min-width:0;width:auto}
+.seg.sm3 button{font-size:12px;line-height:14px}
+.optx{color:var(--red);font-weight:700;font-size:12px;letter-spacing:.02em;display:inline-flex;align-items:center;gap:4px}.optx.big{font-size:15px;line-height:20px;display:flex}
+.optl{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-end;gap:2px}.optl .optx{display:block;text-align:right;line-height:18px}.optx svg.ic,.kvr .optx svg.ic{color:var(--red);flex:none}.optl .optx svg.ic{display:inline-block;vertical-align:-2px;margin-right:4px}
+.slsw{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 6px 0 10px;border-radius:18px;background:var(--surface2);color:var(--fg2);font-size:11px;font-weight:700;letter-spacing:.06em;flex:none}
+.slsw i{width:36px;height:22px;border-radius:11px;background:#B9C1CE;position:relative;display:block}
+.slsw i::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s}
+.slsw.on{background:#FFF0CC;color:#7A5010;box-shadow:0 0 0 1px #FFD97A,0 0 12px rgba(255,176,46,.5)}
+.slsw.on i{background:var(--brand)}.slsw.on i::after{left:17px}.slsw.on svg{color:#E59A00;fill:#FFE08A}
+.switch.pf{min-height:36px}.switch.pf i{width:44px;height:26px;border-radius:13px}.switch.pf i::after{width:20px;height:20px}.switch.pf.on i::after{left:21px}.switch.pf.off i{background:var(--red)}
+.btn.strike{text-decoration:line-through}
+.notein{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:2px 6px 2px 0;gap:6px}.notein input{border:0;background:transparent}
+.nmic{width:36px;height:36px;border-radius:50%;background:var(--mic);color:#fff;display:grid;place-items:center;flex:none;position:relative}
+.nmic svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round}
+.upl{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border:2px dashed var(--azure);border-radius:12px;background:#EAF5FF;color:var(--link);font-size:13px;width:100%;flex-wrap:wrap;padding:6px}
+.exist{border:2px solid var(--azure)}.dupc{background:#FFF2E0;border-color:#F5D9B0}
+.chip.on2{background:var(--fg);color:#fff;height:32px;padding:0 10px}
+.todo2{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-top:1px solid var(--line)}.todo2:first-child{border-top:0}
+.todo2 .box{width:24px;height:24px;border-radius:6px;border:2px solid var(--steel);flex:none;display:grid;place-items:center;color:#fff}
+.todo2.done .box{background:var(--green);border-color:var(--green)}
+.todo2 .tbody{text-align:left;min-width:0;display:flex;flex-direction:column;gap:2px}
+.todo2 .t{font-weight:700;font-size:14px;line-height:20px}.todo2.done .t{text-decoration:line-through;color:var(--fg2)}
+.todo2 .s{font-size:12px;line-height:16px;color:var(--fg2)}.todo2 .chip{align-self:flex-start;margin-top:2px}
+.todo2 .arrow{color:var(--steel);align-self:center}
+.gpsw{background:#E6F8EE;border-radius:20px;padding:0 6px 0 10px;color:#12894C;font-weight:700;flex:none}.gpsw:not(.on){background:var(--surface2);color:var(--fg2)}
+.pulse2{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.e2btns .btn{padding:0 6px;font-size:13px}
+button.logo{cursor:pointer}
 </style>
 
 </head>
@@ -441,8 +517,8 @@ button.chip{height:36px;padding:0 12px;font-size:13px;border-radius:8px}
 <script>
 // ---------- company themes (Section 9: editable company theme; map status colours stay fixed) ----------
 const THEMES=[{id:"axleo",label:{en:"AxleoCollect",zh:"AxleoCollect 默认"},sw:"#FFB02E",company:"Axleo"},{id:"place",label:{en:"Place",zh:"Place"},sw:"#090B38",company:"Place Sunnybank"}];
-let theme="place";
-try{ theme=localStorage.getItem("ax_theme")||"place"; }catch(e){}
+let theme="axleo";
+theme="axleo"; /* 11 Nov: Axleo colours only, no theme switch */
 try{ const qp=new URLSearchParams(location.search).get("theme"); if(qp&&THEMES.some(p=>p.id===qp)) theme=qp; }catch(e){}
 function applyTheme(){ const r=document.documentElement; if(theme==="axleo") r.removeAttribute("data-company"); else r.dataset.company=theme; try{ localStorage.setItem("ax_theme",theme); }catch(e){} renderPalettes(); }
 function renderPalettes(){ const el=document.getElementById("palettes"); if(!el) return; el.innerHTML=THEMES.map(p=>`<button class="${theme===p.id?"on":""}" data-act="theme" data-v="${p.id}"><i style="background:${p.sw}"></i>${p.label[lang]||p.label.en}</button>`).join(""); }
@@ -489,9 +565,9 @@ const I18N = {
     t_buyer:"Buyer", t_tenant:"Tenant", t_seller:"Seller / appraisal", t_landlord:"Landlord", s_phone:"Phone call", s_walkin:"Walk-in", s_portal:"Portal", s_referral:"Referral",
     send_listings:"Send listings", book_insp:"Book inspection", search_enq:"Search enquiries", search_enq_ph:"e.g. buyers 4 bed in Runcorn up to 1.2m", text_all:"Text all", last_contact:"Last contact",
     parsed:"AI read this", history:"History in Rex", no_history:"No previous contact in Rex.", lead_from:"Lead received from", suggest:"Suggested next step", call_1h:"Call back within 1 hour", send_book:"Send listings and book inspection",
-    link_prop:"Link to property", potential_seller:"Potential seller", link_oh:"Invite to open home", create_bp:"Create buyer profile", file:"Approve · file to Rex", filed_ok:"Filed to Rex", share_hint:"Share to AxleoCollect: share sheet, forward email / SMS, screenshot, or say it",
+    link_prop:"Link to property", potential_seller:"Seller lead", link_oh:"Invite to open home", create_bp:"Create buyer profile", file:"Approve · file to Rex", filed_ok:"Filed to Rex", share_hint:"Share to AxleoCollect: share sheet, forward email / SMS, screenshot, or say it",
     ofi_today:"Today's open homes", attendees:"registered", checkin:"Start check-in", checkin_s:"Check in", attendee_list:"Attendees", live_now:"On now", later:"Later", finished:"Finished", feedback_calls:"feedback calls created",
-    address_opt:"Home address (optional)", pot_seller:"Potential seller", privacy:"We collect your details to follow up on this property and to send you what you ask for.",
+    address_opt:"Home address (optional)", pot_seller:"Seller lead", privacy:"We collect your details to follow up on this property and to send you what you ask for.",
     requests:"Requests", r_form2:"Form 2 (Seller Disclosure)", r_bp:"Building & pest report", r_private:"Private inspection", r_broker:"Mortgage broker", r_conv:"Conveyancer", r_rental:"Rental appraisal", r_guide:"Buyer guide", r_dbyd:"Dial Before You Dig",
     consent:"Consent to pass details to our referral partners", returning:"Existing buyer found", prev_oh:"Previous open homes", register:"Register", registered:"Registered to Rex OFI", one_tap_checkin:"One-tap check-in",
     more_info:"Edit + more info", buyer_profile:"Buyer match profile", suburbs:"Suburbs", min_beds:"Min beds", finance:"Finance", save:"Save to Rex", must:"Must-haves", occupy:"Live in / invest",
@@ -561,9 +637,9 @@ const I18N = {
     t_buyer:"Buyer", t_tenant:"Tenant", t_seller:"Seller / appraisal", t_landlord:"Landlord", s_phone:"Phone call", s_walkin:"Walk-in", s_portal:"Portal", s_referral:"Referral",
     send_listings:"Send listings", book_insp:"Book inspection", search_enq:"搜索询盘", search_enq_ph:"例如 buyers 4 bed in Runcorn up to 1.2m", text_all:"Text all", last_contact:"最近联系",
     parsed:"AI 识别结果", history:"Rex 中的历史", no_history:"Rex 中没有过往记录。", lead_from:"Lead received from", suggest:"建议下一步", call_1h:"1 小时内回电", send_book:"发送房源并预约看房",
-    link_prop:"关联到房产", potential_seller:"Potential seller", link_oh:"邀请参加 Open home", create_bp:"创建买家匹配档案", file:"Approve · 归档到 Rex", filed_ok:"已归档到 Rex", share_hint:"分享给 AxleoCollect：分享按钮、转发邮件 / 短信、截图，或说出来",
+    link_prop:"关联到房产", potential_seller:"Seller lead", link_oh:"邀请参加 Open home", create_bp:"创建买家匹配档案", file:"Approve · 归档到 Rex", filed_ok:"已归档到 Rex", share_hint:"分享给 AxleoCollect：分享按钮、转发邮件 / 短信、截图，或说出来",
     ofi_today:"今天的 Open home", attendees:"人已登记", checkin:"Start check-in", checkin_s:"Check in", attendee_list:"到场者", live_now:"进行中", later:"稍后", finished:"已结束", feedback_calls:"个反馈电话待办已生成",
-    address_opt:"住址（选填）", pot_seller:"Potential seller", privacy:"我们收集您的信息用于跟进本房产及发送您索取的资料。",
+    address_opt:"住址（选填）", pot_seller:"Seller lead", privacy:"我们收集您的信息用于跟进本房产及发送您索取的资料。",
     requests:"请求", r_form2:"Form 2 (Seller Disclosure)", r_bp:"Building & pest report", r_private:"Private inspection", r_broker:"Mortgage broker", r_conv:"Conveyancer", r_rental:"Rental appraisal", r_guide:"Buyer guide", r_dbyd:"Dial Before You Dig",
     consent:"同意把信息转给我们的合作方", returning:"Existing buyer found", prev_oh:"以往 Open home", register:"登记", registered:"已登记到 Rex OFI", one_tap_checkin:"One-tap check-in",
     more_info:"Edit + more info", buyer_profile:"买家匹配档案", suburbs:"区", min_beds:"最少卧室", finance:"贷款状态", save:"Save to Rex", must:"必须有", occupy:"自住 / 投资",
@@ -601,10 +677,14 @@ const t = k => (I18N[lang][k] ?? I18N.en[k] ?? k);
 
 // ---------- seed data (illustrative, not real people) ----------
 const TODAY = "2026-11-07";
-const COORDS={p1:[-27.57920,153.06180],p2:[-27.57920,153.06195],p3:[-27.57920,153.06210],p4:[-27.57920,153.06225],p5:[-27.57920,153.06240],p6:[-27.57920,153.06255],p7:[-27.57920,153.06270],p8:[-27.57920,153.06285],p9:[-27.58060,153.06310],p10:[-27.59410,153.07820],p11:[-27.57960,153.06185],p12:[-27.57960,153.06215]};
+/* sample homes sit on a real residential street in Sunnybank (north and south side), not on an intersection */
+const COORDS={p1:[-27.576848,153.055190],p2:[-27.576879,153.055380],p3:[-27.576910,153.055569],p4:[-27.576941,153.055758],p5:[-27.576972,153.055948],p6:[-27.577003,153.056137],p7:[-27.577034,153.056327],p8:[-27.577065,153.056516],p9:[-27.578622,153.056054],p10:[-27.594100,153.078200],p11:[-27.577272,153.055102],p12:[-27.577334,153.055481]};
+const ST_E=[0.9835,-0.1810], ST_N=[0.1810,0.9835]; /* unit vectors along the street and towards its north side, in (east, north) metres */
+function offM(ll,e,n){ return [ll[0]+n/111320, ll[1]+e/(111320*Math.cos(ll[0]*Math.PI/180))]; }
+function stOff(ll,a,b){ return offM(ll, a*ST_E[0]+b*ST_N[0], a*ST_E[1]+b*ST_N[1]); }
 const TAG_GROUPS=[
-  {id:"g_visit", tags:[["Not at home","steel"],["Left card","steel"],["Friendly","pink"]]},
-  {id:"g_intent", tags:[["Potential seller","flag"],["Hot","hot"],["Warm","warm"],["Cold","cold"],["Not interested","steel"]]},
+  {id:"g_visit", tags:[["Not at home","steel"],["Left card","steel"],["Friendly","pink"],["Neighbour","blue"]]},
+  {id:"g_intent", tags:[["Seller lead","flag"],["Hot","hot"],["Warm","warm"],["Cold","cold"],["Not interested","steel"]]},
   {id:"g_limit", tags:[["Do not contact","ban"],["No junk mail","steel"]]},
   {id:"g_collected", tags:[["Email provided","green"],["Phone provided","green"]]},
   {id:"g_follow", tags:[["Market update","blue"],["Appraisal booked","amber"]]},
@@ -665,15 +745,15 @@ function tpList(){
 const REASONS=["Downsizing","Upsizing","Moving for school","Relocating","Investor"];
 const REL_TYPES=["Partner of","Co-owner with","Family member of","Tenant of","Previous owner of","Buyer for","Purchaser of","Lawyer / conveyancer for","Trades for"];
 function seed(){
-  return { v:5, auth:null, audit:[], leads:[], zones:[], referrals:[{id:"rf1", type:"broker", to:"Lisa Tran (Axleo Finance)", contactId:"c6", propertyId:"p2", d:"2026-11-01", status:"sent"}], syncq:[], rexDown:false,
+  return { v:8, auth:null, audit:[], leads:[], zones:[], referrals:[{id:"rf1", type:"broker", to:"Lisa Tran (Axleo Finance)", contactId:"c6", propertyId:"p2", d:"2026-11-01", status:"sent"}], syncq:[], rexDown:false,
     contacts:[
-      {id:"c1", first:"Mary", last:"Chen", mobile:"0412 555 019", email:"mary.chen@example.com", roles:["owner"], owner:"Owen Chen", tags:["Potential seller","Warm","Downsizing","Friendly","Cantonese speaking","Spring 2027"], reason:"Downsizing", flags:{}, optedOut:false, rels:[{type:"Partner of",name:"John Chen"},{type:"Co-owner with",name:"John Chen"}], updated:{by:"Owen Chen",d:"2026-08-14"}, notes:[
+      {id:"c1", first:"Mary", last:"Chen", mobile:"0412 555 019", email:"mary.chen@example.com", roles:["owner"], owner:"Owen Chen", tags:["Seller lead","Warm","Downsizing","Friendly","Cantonese speaking","Spring 2027"], reason:"Downsizing", flags:{}, optedOut:false, rels:[{type:"Partner of",name:"John Chen"},{type:"Co-owner with",name:"John Chen"}], updated:{by:"Owen Chen",d:"2026-08-14"}, notes:[
         {d:"2026-08-14", a:"Owen Chen", t:"Spoke at door. Kids moved out, thinking of downsizing next year."},
         {d:"2025-11-02", a:"Natalie Wong", t:"Market update sent. Happy to stay in touch."}], buyerProfile:null, history:[]},
       {id:"c2", first:"John", last:"Lee", mobile:"0433 221 877", email:"john.lee@example.com", roles:["buyer","owner"], owner:"Owen Chen", tags:["Investor","Warm"], reason:"", flags:{}, optedOut:false, rels:[], updated:{by:"Owen Chen",d:"2026-10-25"}, notes:[
         {d:"2026-10-25", a:"Owen Chen", t:"Attended OFI 22 Lister St. Owns in Runcorn, may sell next year."}],
         buyerProfile:{price:"$900k–1.1m", suburbs:"Sunnybank, Runcorn", beds:4, finance:"Pre-approved", timing:"3 months", must:["Single level"], occupy:"Live in"}, history:[{d:"2026-10-25", t:"OFI 22 Lister St"}]},
-      {id:"c3", first:"David", last:"Wu", mobile:"0401 777 302", email:"", roles:["owner"], owner:"Owen Chen", tags:["Phone provided"], reason:"", flags:{}, optedOut:false, dncr:{d:"2026-09-01", listed:false}, rels:[], updated:{by:"Owen Chen",d:"2024-06-12"}, notes:[
+      {id:"c3", first:"David", last:"Wu", mobile:"0401 777 302", email:"", roles:["owner"], owner:"Owen Chen", tags:["Phone provided"], reason:"", flags:{}, optedOut:true, consent:{email:1,sms:0,phone:0,letter:1}, prefLog:{d:"2026-11-06", by:"Natalie Wong", t:"Text: replied STOP 4 Nov · Call: asked by phone 6 Nov"}, dncr:{d:"2026-09-01", listed:false}, rels:[], updated:{by:"Owen Chen",d:"2024-06-12"}, notes:[
         {d:"2024-06-12", a:"Owen Chen", t:"Purchased 8 Gager St through us. Settled."}], buyerProfile:null, history:[{d:"2024-05-04", t:"Contract 8 Gager St (buyer)"}]},
       {id:"c4", first:"Helen", last:"Papas", mobile:"0455 109 884", email:"", roles:["owner"], owner:"Natalie Wong", tags:["Do not contact","Not interested"], reason:"", flags:{dnc:true}, optedOut:true, rels:[], updated:{by:"Natalie Wong",d:"2026-09-30"}, notes:[
         {d:"2026-09-30", a:"Natalie Wong", t:"Asked us not to contact again. Replied STOP to market update."}], buyerProfile:null, history:[]},
@@ -688,9 +768,9 @@ function seed(){
       {id:"p1", no:"2", street:"Gager St", suburb:"Sunnybank", ownerIds:[], pfOwner:"K & L Tran", lastSale:"2009-03", beds:4, baths:2, cars:2, land:"612 m²", lot:"Lot 12 RP 123456", flags:{}, visits:[]},
       {id:"p2", no:"4", street:"Gager St", suburb:"Sunnybank", ownerIds:[], pfOwner:"R Singh", lastSale:"2015-07", beds:4, baths:2, cars:2, land:"640 m²", lot:"Lot 13 RP 123456", flags:{}, visits:[{d:"2026-10-28", o:"not_home"}]},
       {id:"p3", no:"6", street:"Gager St", suburb:"Sunnybank", ownerIds:["c4"], pfOwner:"H Papas", lastSale:"2001-11", beds:3, baths:1, cars:1, land:"605 m²", lot:"Lot 14 RP 123456", flags:{dnc:true}, visits:[{d:"2026-09-30", o:"not_int"}]},
-      {id:"p4", no:"8", street:"Gager St", suburb:"Sunnybank", ownerIds:["c3"], pfOwner:"D Wu", lastSale:"2024-06", beds:4, baths:2, cars:2, land:"620 m²", lot:"Lot 15 RP 123456", flags:{}, visits:[]},
+      {id:"p4", no:"8", street:"Gager St", suburb:"Sunnybank", ownerIds:["c3"], pfOwner:"D Wu", lastSale:"2024-06", beds:4, baths:2, cars:2, land:"620 m²", lot:"Lot 15 RP 123456", pinned:true, flags:{}, visits:[]},
       {id:"p5", no:"10", street:"Gager St", suburb:"Sunnybank", ownerIds:[], pfOwner:"", lastSale:"", beds:3, baths:1, cars:1, land:"600 m²", lot:"", flags:{}, visits:[], pending:true},
-      {id:"p6", no:"12", street:"Gager St", suburb:"Sunnybank", ownerIds:["c1"], pfOwner:"M Chen & J Chen", lastSale:"2014-02", beds:5, baths:3, cars:2, land:"810 m²", lot:"Lot 17 RP 123456", flags:{}, visits:[{d:"2026-08-14", o:"spoke"}], pinned:true},
+      {id:"p6", no:"12", street:"Gager St", suburb:"Sunnybank", ownerIds:["c1"], pfOwner:"M Chen & J Chen", lastSale:"2014-02", beds:5, baths:3, cars:2, land:"810 m²", lot:"Lot 17 RP 123456", flags:{}, visits:[{d:"2026-08-14", o:"spoke"}], pinned:false},
       {id:"p7", no:"14", street:"Gager St", suburb:"Sunnybank", ownerIds:["c7"], pfOwner:"P Kowalski", lastSale:"2011-09", beds:3, baths:2, cars:2, land:"630 m²", lot:"Lot 18 RP 123456", flags:{}, visits:[], otherAgent:true},
       {id:"p8", no:"16", street:"Gager St", suburb:"Sunnybank", ownerIds:[], pfOwner:"Y Zhang", lastSale:"2019-05", beds:4, baths:2, cars:2, land:"615 m²", lot:"Lot 19 RP 123456", flags:{}, visits:[], appraisal:"2026-11-10 16:00"},
       {id:"p11", no:"1", street:"Gager St", suburb:"Sunnybank", ownerIds:[], pfOwner:"A Rossi", lastSale:"1998-02", beds:3, baths:1, cars:1, land:"700 m²", lot:"Lot 2 RP 123450", flags:{}, visits:[], otherListing:true},
@@ -741,8 +821,13 @@ function seed(){
 }
 let S;
 try{ S = JSON.parse(localStorage.getItem("ax_state")||"null"); }catch(e){}
-if(!S || !S.contacts || S.v!==5) S = seed();
+if(!S || !S.contacts || S.v!==8) S = seed();
 function migrate(){
+  S.captures = S.captures || [{id:"v1",text:"Spoke to Mary at 12 Gager St, kids moved out, might sell next year. Mobile 0412 555 019.",rec:"9:12am",sync:"9:40am",propId:"p6"},{id:"v2",text:"2 Gager St, not home, left card.",rec:"9:20am",sync:"9:40am",propId:"p1"},{id:"v3",text:"Mr Wu at 8 Gager St wants a market update, mobile 0401 777 302.",rec:"9:31am",sync:"9:40am",propId:"p4"}];
+  S.market = S.market || [{id:"m1",kind:"sale",propId:"p3",addr:"6 Gager St, Sunnybank",meta:"Sold 3 Nov · $1.21m",sub:"Owner Helen Papas · tagged Seller lead (Warm)",owner:"Helen Papas"},{id:"m2",kind:"listing",propId:"p10",addr:"7 Hill St, Runcorn",meta:"Listed 9 Nov · Ray White",sub:"Owner John Lee · was your Seller lead (Hot)",owner:"John Lee",agency:"Ray White"}];
+  S.patch = S.patch || {suburbs:["Sunnybank","Runcorn"]};
+  S.todos.forEach(x=>{ if(!x.by) x.by=x.who; });
+  if(!S.todos.some(x=>x.id==="t7")) S.todos.push({id:"t7", d:TODAY, time:"16:00", t:"Drop keys to seller", who:"Owen Chen", by:"Natalie Wong", kind:"appt", cid:"c3", propId:"p4"},{id:"t8", d:"2026-11-12", time:"16:00", t:"Send market update and call", who:"Natalie Wong", by:"Owen Chen", kind:"call", cid:"c1", propId:"p6"});
   S.properties.forEach(p=>{ if(!p.ll && COORDS[p.id]) p.ll=COORDS[p.id]; });
   S.leads = S.leads || []; S.zones = S.zones || []; S.referrals = S.referrals || []; S.syncq = S.syncq || []; S.rexDown = !!S.rexDown;
   S.myTags = S.myTags || [{n:"Cantonese speaking", by:"Owen Chen", d:"2026-10-02"},{n:"Call after 6pm", by:"Owen Chen", d:"2026-10-14"},{n:"Spring 2027", by:"Owen Chen", d:"2026-10-20"},{n:"School catchment", by:"Natalie Wong", d:"2026-10-05"}];
@@ -840,7 +925,7 @@ function extract(text, ctx){
   if(n){ r.first=n[1]; r.last=n[2]; } else { const cn=text.match(/(?:业主是|业主叫|名叫|我是|这位是|叫)\s*([一-龥]{2,3})(?=[，,。\s]|$)/); const c = cn?[cn[1]]:text.match(/[一-龥]{2,3}(?=[，,\s]|$)/); if(c){ r.first=c[0]; r.last=""; if(!cn) r.unsure.push("name"); } else r.unsure.push("name"); }
   if(/tenant|租客|renting/i.test(text)){ r.relation="tenant"; r.type="tenant"; }
   if(/landlord|房东/i.test(text)){ r.relation="landlord"; r.type="landlord"; }
-  if(/might sell|may sell|thinking of selling|could sell|可能卖|想卖|考虑卖|sell next|apprais|估价/i.test(text)){ r.intent="Potential seller"; r.tags.push("Potential seller"); r.ps=true; r.type="seller"; }
+  if(/might sell|may sell|thinking of selling|could sell|可能卖|想卖|考虑卖|sell next|apprais|估价/i.test(text)){ r.intent="Seller lead"; r.tags.push("Seller lead"); r.ps=true; r.type="seller"; }
   if(/wants? a|looking for|buyer|想买|bed in/i.test(text) && !r.type) r.type="buyer";
   if(/not interested|不感兴趣|no plans/i.test(text)){ r.intent="Not interested"; r.tags.push("Cold"); }
   if(/\bhot\b|urgent|this month|asap/i.test(text)) r.tags.push("Hot"); else if(r.ps) r.tags.push("Warm");
@@ -973,14 +1058,13 @@ function render(){
       ${head||`<h1>${title}</h1>`}
       ${S.syncq.length?`<button class="chip amber" data-act="me" style="height:32px">${ic("zap","s")}${S.syncq.length} ${t("pending")}</button>`:""}
       ${!hasBack&&!head?`<button class="iconbtn" data-act="todos" title="${t("todos")}">${ic("bell")}${openTodos?`<span class="badge">${openTodos}</span>`:""}</button>`:""}
-      ${view.tab==="home"&&!view.stack.length?"":`<button class="lang" data-act="lang">${lang==="en"?"中文":"EN"}</button>`}
+      ${(!view.stack.length&&(view.tab==="home"||view.tab==="dk"))||cur.name==="fullmap"?"":`<button class="lang" data-act="lang">${lang==="en"?"中文":"EN"}</button>`}
     </header>
-    <main class="body ${foot?"hasdock":""}" id="main">${body}</main>
+    <main class="body ${foot?"hasdock":""} ${_out.cls||""}" id="main">${body}</main>
     <nav class="nav">${foot?`<div class="dock">${foot}</div>`:""}<div class="in">
-      ${tab("home")}${tab("dk")}
-      <button class="mic" id="mic" aria-label="${t("speak")}">${ICON.mic}</button>
-      ${tab("oh")}${tab("enq")}
+      ${tab("home")}${tab("dk")}${tab("oh")}${tab("enq")}
     </div></nav>`;
+  app.classList.toggle("nonav", cur.name==="fullmap");
   mountMaps();
   { const key=screenKey(), depth=view.stack.length, mn=document.getElementById("main"); let y=0;
     if(!_forceTop){ if(key===_scrollKey) y=_oy; else if(depth<=_prevDepth) y=_scrollMem[key]||0; }
@@ -1180,7 +1264,6 @@ SCREENS.oh = () => {
   const state=o=>{ const [a,b]=o.time.split("–").map(x=>{const [h,m]=x.split(":").map(Number); return h*60+m;}); return hm<a?"later":hm>b+90?"finished":"live"; };
   const head=`<span class="logo" id="ohlogo" title="${t("tr_hint")}"></span><h1>${t("oh")} · ${t("ofi_today")}</h1>`;
   return {title:t("oh"), head, body:`
-    <div class="map tall" data-map="ofi"></div>
     <div class="stack">${todays.map(l=>{ const p=byId(S.properties,l.propertyId); const o=l.ofi.find(o=>o.d===TODAY); const st=view.ofiForce===l.id?"live":state(o); return `
       <div class="card"><div class="row"><span class="dot p" style="width:22px;height:22px;font-size:12px"></span>
         <div class="grow"><div style="font-weight:500">${propAddr(p)}</div><div class="small muted">${o.time} · ${l.agent} · ${o.attendees.length} ${t("attendees")}</div></div>
@@ -1195,12 +1278,11 @@ SCREENS.ofi = ({id}) => {
   return {title:propAddr(p), back:true, body:`
     <div class="card"><div class="row"><div class="grow"><b>${propAddr(p)}</b><div class="small muted">OFI ${o.time} · ${l.agent} · ${l.price}</div></div>
       <span class="chip ${l.form2?"green":"amber"}">Form 2 ${l.form2?ic("check","s"):"—"}</span><span class="chip ${l.bpReport?"green":"amber"}">B&P ${l.bpReport?ic("check","s"):"—"}</span></div></div>
-    <div class="map" style="height:150px" data-map="one" data-id="${p.id}"></div>
     <button class="btn primary block" data-act="checkin" data-id="${l.id}">+ ${t("checkin_s")}</button>
     <div class="card"><h2>${t("attendee_list")} · ${o.attendees.length}</h2>
       <div class="stack">${o.attendees.map((a,i)=>{ const c=byId(S.contacts,a.contactId); const rq=Object.keys(a.req||{}).filter(k=>a.req[k]); return `
         <div class="row" style="align-items:flex-start"><div class="grow"><b>${cname(c)}</b> <span class="small muted masked">${mask(c.mobile)}</span>
-          <div class="btns" style="margin-top:3px">${rq.map(k=>`<span class="chip">${t("r_"+k).split(" (")[0]}</span>`).join("")}${a.ps?tagChip("Potential seller"):""}${c.buyerProfile?`<span class="chip blue">${t("buyer_profile")}</span>`:""}</div>${a.note?`<div class="small muted">${noteText(a.note)}</div>`:""}</div>
+          <div class="btns" style="margin-top:3px">${rq.map(k=>`<span class="chip">${t("r_"+k).split(" (")[0]}</span>`).join("")}${a.ps?tagChip("Seller lead"):""}${c.tags.includes("Neighbour")?tagChip("Neighbour"):""}${c.buyerProfile?`<span class="chip blue">${t("buyer_profile")}</span>`:""}</div>${a.note?`<div class="small muted">${noteText(a.note)}</div>`:""}</div>
           <button class="btn sm" data-act="moreinfo" data-id="${c.id}" data-l="${l.id}">${t("more_info")}</button></div>`;}).join("")||`<div class="muted small">${t("none")}</div>`}</div></div>
     <div class="small muted">${o.attendees.length} ${t("feedback_calls")} · Form 2 send dates are kept as evidence.</div>`};
 };
@@ -1222,6 +1304,7 @@ SCREENS.checkin = ({id, pre}) => {
       </div>
       <div class="field ${v.email?"ai":""}"><label>${t("email")} *</label><input id="ci_email" inputmode="email" value="${esc(v.email||(match?match.c.email:""))}"></div>
       <div class="field ${v.address?"ai":""}"><label>${t("address_opt")}</label><input id="ci_addr" value="${esc(v.address||"")}"></div>
+      <div class="row"><div class="grow"><b>Neighbour</b><div class="small muted">${L2("Lives nearby. Adds the tag “Neighbour” in Rex.","住在附近。在 Rex 打上 “Neighbour” 标签。")}</div></div><button type="button" class="switch pf ${(v.nb!==undefined?v.nb:!!(match&&match.c.tags.includes("Neighbour")))?"on":""}" id="ci_nb" data-act="nbtoggle" aria-label="Neighbour"><i></i></button></div>
       ${tagField({ctx:"pre"}, t("tags"))}
       <div class="field"><label>${t("requests")}</label><div class="stack" style="gap:4px">${REQS.map(([k,lab,who,sla])=>`<label class="check" style="min-height:44px;padding:4px 10px"><input type="checkbox" id="ci_r_${k}" ${rq[k]?"checked":""}><span class="grow">${t(lab)}<span class="small muted" style="display:block">${who} · ${sla}</span></span></label>`).join("")}</div></div>
       <label class="check"><input type="checkbox" id="ci_consent" checked> <span class="small">${t("consent")}</span></label>
@@ -1231,12 +1314,20 @@ SCREENS.checkin = ({id, pre}) => {
     </div>`};
 };
 
-SCREENS.moreinfo = ({id, l}) => {
-  const c = byId(S.contacts,id); const bp = c.buyerProfile||{}; const must=bp.must||[];
+SCREENS.moreinfo = ({id, l, nb}) => {
+  const c = byId(S.contacts,id); const L0=l&&byId(S.listings,l); const o0=L0&&L0.ofi.find(o=>o.d===TODAY); const att=o0&&o0.attendees.find(a=>a.contactId===c.id); const arq=(att&&att.req)||{}; const bp = c.buyerProfile||{}; const must=bp.must||[];
   const mine=S.listings.filter(x=>x.status==="listed"&&x.agent===ME()), team=S.listings.filter(x=>x.status==="listed"&&x.agent!==ME());
   const lrow=(x,tier)=>{ const p=byId(S.properties,x.propertyId); return `<div class="row" style="padding:4px 0"><span class="dot p"></span><span class="grow"><b>${shortAddr(p)}</b> <span class="small muted">${p.beds} ${t("beds")} · ${x.price} · ${tier}</span></span><button class="btn sm" data-act="sendlisting" data-id="${c.id}" data-l="${x.id}">${t("send_one")}</button></div>`; };
   return {title:t("more_info")+" · "+cname(c), back:true, body:`
-    <div class="card"><div class="row"><div class="grow"><b>${cname(c)}</b> <span class="role">${c.roles.join(" · ")}</span><div class="small muted masked">${mask(c.mobile)} · ${maskEmail(c.email)}</div></div></div></div>
+    <div class="card stack"><h2>${L2("Attendee details","到场者资料")} <span class="role">${c.roles.join(" · ")}</span></h2>
+      <div class="grid2"><div class="field"><label>${t("first")} *</label><input id="at_first" value="${esc(c.first)}"></div><div class="field"><label>${t("last")}</label><input id="at_last" value="${esc(c.last)}"></div></div>
+      <div class="field"><label>${t("mobile")} *</label><input id="at_mobile" inputmode="tel" value="${esc(c.mobile)}"></div>
+      <div class="field"><label>${t("email")}</label><input id="at_email" inputmode="email" value="${esc(c.email)}"></div>
+      <div class="row"><div class="grow"><b>Neighbour</b><div class="small muted">${L2("Lives nearby. Adds the tag “Neighbour” in Rex.","住在附近。在 Rex 打上 “Neighbour” 标签。")}</div></div><button type="button" class="switch pf ${(nb!==undefined?nb:c.tags.includes("Neighbour"))?"on":""}" id="at_nb" data-act="nbtoggle" aria-label="Neighbour"><i></i></button></div>
+      ${att?`<div class="field"><label>${t("requests")}</label><div class="stack" style="gap:4px">${REQS.map(([k,lab,who,sla])=>`<label class="check" style="min-height:44px;padding:4px 10px"><input type="checkbox" id="at_r_${k}" ${arq[k]?"checked":""}><span class="grow">${t(lab)}<span class="small muted" style="display:block">${who} · ${sla}</span></span></label>`).join("")}</div></div>
+      <div class="field"><label>${L2("Note from the open home","Open home 备注")}</label><textarea id="at_note">${esc(att.note||"")}</textarea></div>`:""}
+      <div class="small muted">${L2("The full number is shown here because you are editing it. Save is at the bottom of the buyer profile.","因为正在修改，这里显示完整号码。保存按钮在买家档案底部。")}</div>
+    </div>
     <div class="card stack"><h2>${t("buyer_profile")}</h2>
       <div class="grid2">
         <div class="field"><label>${t("price")}</label><input id="bp_price" value="${esc(bp.price||"")}" placeholder="$900k–1.1m"></div>
@@ -1442,9 +1533,6 @@ SCREENS.me = () => {
   return {title:t("me"), back:true, body:`
     <div class="card"><div class="row"><span class="avatar lg">${u.name.split(" ").map(x=>x[0]).join("")}</span><div class="grow"><div style="font-size:18px;font-weight:500">${u.name}</div><div class="small muted">${u.email}</div><div class="small">${t("role_agent")} · ${COMPANY()}</div></div></div></div>
     <div class="card"><h2>${t("language")}</h2><div class="seg"><button class="${lang==="en"?"on":""}" data-act="langset" data-v="en">English</button><button class="${lang==="zh"?"on":""}" data-act="langset" data-v="zh">中文</button></div></div>
-    <div class="card"><h2>${t("appearance")}</h2>
-      <div class="swatches">${THEMES.map(p=>`<button class="swatch ${theme===p.id?"on":""}" data-act="theme" data-v="${p.id}"><i style="background:${p.sw}"></i>${p.label[lang]||p.label.en}<span class="small muted">${p.id==="place"?"#090B38 · Montserrat · P":"Honey #FFB02E · Core Ink"}</span></button>`).join("")}</div>
-      <div class="small muted" style="margin-top:6px">Logo, brand colours, font and tag colours per company. Map status colours and the red Do-not-contact sign never change.</div></div>
     <div class="card"><h2>${t("partners")}</h2><div class="kv">
       <b>${t("p_broker")}</b><span>${pr.broker[0]}<br><span class="small muted">${t("backup")}: ${pr.broker[1]}</span></span>
       <b>${t("p_rental")}</b><span>${pr.rental[0]}<br><span class="small muted">${t("backup")}: ${pr.rental[1]}</span></span>
@@ -1507,8 +1595,8 @@ SCREENS.search = () => {
 
 // ===== Maps (Leaflet + OSM / Esri imagery). Lot polygons are schematic here; Draft 2 needs real parcel boundaries (question for Kevin). =====
 let mapCache={}; /* key → {el, map, tiles, sat, sig, layers, schematic}: maps survive re-renders */
-function lotPoly(ll){ const dy=0.00011, dx=0.00007; return [[ll[0]-dy,ll[1]-dx],[ll[0]-dy,ll[1]+dx],[ll[0]+dy,ll[1]+dx],[ll[0]+dy,ll[1]-dx]]; }
-const COLOR={green:"#22A06B",orange:"#FF8A3D",sky:"#5BB8F5",pending:"#8A94A6",steel:"#8A94A6",red:"#D7263D"};
+function lotPoly(ll){ return [stOff(ll,-8.5,-14),stOff(ll,8.5,-14),stOff(ll,8.5,14),stOff(ll,-8.5,14)]; }
+const COLOR={green:"#1DB86A",orange:"#F04848",sky:"#5BB8F5",pending:"#8A94A6",steel:"#8A94A6",red:"#D7263D"};
 function drawSchematic(m){
   const st=streets();
   Object.keys(st).forEach(k=>{ const ps=st[k].filter(p=>p.ll).sort((a,b)=>parseInt(a.no)-parseInt(b.no)); if(!ps.length) return;
@@ -1544,8 +1632,7 @@ function propMarker(p,m,isAt){
   L.polygon(lotPoly(p.ll),{color:col,weight:1,fillColor:col,fillOpacity:pending?.04:.12,dashArray:pending?"3 3":null}).addTo(m);
   let mk;
   if(p.flags.dnc) mk=L.marker(p.ll,{icon:svgMarker(PATHS.ban,"#D7263D")});
-  else if(p.pinned) mk=L.marker(p.ll,{icon:svgMarker(PATHS.pin,"#1C3F8F")});
-  else if(p.appraisal) mk=L.marker(p.ll,{icon:svgMarker(PATHS.star,"#E0A100")});
+  else if(p.pinned) mk=L.marker(p.ll,{icon:svgMarker(PATHS.star,"#F5A300")});
   else if(S.listings.some(l=>l.propertyId===p.id&&l.status==="listed")) mk=L.marker(p.ll,{icon:L.divIcon({className:"",html:'<div class="pmark"></div>',iconSize:[22,22],iconAnchor:[11,11]})});
   else if(p.otherListing) mk=L.marker(p.ll,{icon:L.divIcon({className:"",html:'<div class="pmark other"></div>',iconSize:[22,22],iconAnchor:[11,11]})});
   else mk=L.circleMarker(p.ll,{radius:isAt?10:7,color:isAt?"#13233F":"#fff",weight:isAt?3:2,fillColor:pending?"#fff":col,fillOpacity:1,dashArray:pending?"2 2":null});
@@ -1564,19 +1651,21 @@ function drawMap(c, kind, key){
     c.layers.forEach(l=>{ try{ m.removeLayer(l); }catch(e){} }); c.layers=[]; m.off("click");
     const T={addLayer(l){ m.addLayer(l); c.layers.push(l); return T; }}; /* overlay sink: everything drawn below is removed on the next redraw */
     const pts=[];
-    if(kind==="street"){
+    if(kind==="patch"){ S.zones.forEach(z=>z.pts.forEach(q=>pts.push(q))); S.properties.forEach(q=>{ if(q.ll){ if(!S.zones.length) pts.push(q.ll); L.circleMarker(q.ll,{radius:4,color:"#fff",weight:1,fillColor:COLOR[propColor(q)]||"#8A94A6",fillOpacity:.9}).addTo(T); } }); }
+    if(kind==="street"||kind==="patch"){
       S.zones.forEach(z=>{ const pg=L.polygon(z.pts,{color:getComputedStyle(document.documentElement).getPropertyValue("--brand").trim()||"#FFB02E",weight:2,dashArray:"6 4",fillOpacity:view.zone===z.id?.08:.03}).addTo(T); pg.bindTooltip(z.name,{permanent:true,direction:"center",className:"lbl"}); pg.on("click",()=>{ if(view.drawing) return; view.zone=view.zone===z.id?null:z.id; render(); }); });
-      if(view.drawing){ const dp=view.drawPts||[]; dp.forEach(pt=>{ L.circleMarker(pt,{radius:5,color:"#13233F",weight:2,fillColor:"#fff",fillOpacity:1}).addTo(T); }); if(dp.length>1) L.polyline(dp.concat(dp.length>2?[dp[0]]:[]),{color:"#13233F",weight:2,dashArray:"4 4"}).addTo(T);
-        m.on("click",e=>{ view.drawPts=(view.drawPts||[]).concat([[e.latlng.lat,e.latlng.lng]]); render(); }); }
+      if(view.drawing){ const dp=view.drawPts||[]; dp.forEach(pt=>{ if(view.drawLock) return; L.circleMarker(pt,{radius:5,color:"#13233F",weight:2,fillColor:"#fff",fillOpacity:1}).addTo(T); }); if(dp.length>1) L.polyline(dp.concat(dp.length>2?[dp[0]]:[]),{color:"#13233F",weight:2,dashArray:"4 4"}).addTo(T);
+        m.on("click",e=>{ if(view.drawLock) return; view.drawPts=(view.drawPts||[]).concat([[e.latlng.lat,e.latlng.lng]]); render(); }); }
+      if(view.radiusMode&&kind==="patch"){ m.on("click",e=>{ view.drawPts=circlePts([e.latlng.lat,e.latlng.lng], view.radM||300); view.radiusMode=false; view.drawing=true; view.drawLock=true; render(); }); }
     }
     if(kind==="street"||kind==="pick"){
       const zone=kind==="street"&&view.zone&&byId(S.zones,view.zone);
       const props=zone?zoneProps(zone):(streets()[view.street]||[]);
       props.forEach(p=>{ if(!p.ll) return; pts.push(p.ll); const isAt=p.id===view.at;
         const mk=propMarker(p,T,isAt);
-        mk.on("click",()=>{ if(view.drawing) return; if(kind==="pick"){ view.gps=false; view.at=p.id; sheet=null; render(); return; } view.gps=false; view.at=p.id; render(); });
+        mk.on("click",()=>{ if(view.drawing) return; if(current().name==="fullmap"){ view.mapSel=p.id; render(); return; } if(kind==="pick"){ view.gps=false; view.at=p.id; sheet=null; render(); return; } view.gps=false; view.at=p.id; render(); });
       });
-      if(view.gps!==false && kind==="street"){ const at=byId(S.properties,view.gpsAt||"p6"); if(at&&at.ll){ L.marker([at.ll[0]+0.00004,at.ll[1]-0.00002],{icon:L.divIcon({className:"",html:'<div class="me"></div>',iconSize:[18,18],iconAnchor:[9,9]}),interactive:false,zIndexOffset:1000}).addTo(T); } }
+      if(view.gps!==false && kind==="street"){ const at=byId(S.properties,view.gpsAt||"p6"); if(at&&at.ll){ const side=parseInt(at.no)%2===0?-1:1; const me=L.marker(stOff(at.ll,0,side*21),{icon:L.divIcon({className:"",html:'<div class="me2"><svg viewBox="0 0 24 24"><circle cx="13" cy="4.5" r="2"/><path d="M13 8l-3 2.5-1 3.5M13 8l1 5 3 2M14 13l-1.5 4-3 3.5M14 13l2.5 3.5.5 4" fill="none"/></svg></div>',iconSize:[36,36],iconAnchor:[18,18]}),interactive:false,zIndexOffset:1000}).addTo(T); me.bindTooltip("You · live",{permanent:true,direction:"right",offset:[24,0],className:"lbl youlbl"}); } }
     }
     if(kind==="ofi"){
       S.listings.filter(l=>l.ofi.some(o=>o.d===TODAY)).forEach(l=>{ const p=byId(S.properties,l.propertyId); if(!p.ll) return; pts.push(p.ll); const o=l.ofi.find(o=>o.d===TODAY);
@@ -1588,7 +1677,9 @@ function drawMap(c, kind, key){
     }
     if(kind==="one"){ const p=byId(S.properties,el.dataset.id); if(p&&p.ll){ pts.push(p.ll); propMarker(p,T,true); } }
     const sig=pts.map(q=>q[0].toFixed(5)+","+q[1].toFixed(5)).join(";");
-    if(sig!==c.sig){ c.sig=sig; /* fit only when the set of houses changes, so panning and zooming by hand is kept */
+    const dkCard=kind==="street"&&current().name!=="fullmap"; /* DK mode card: where I stand, as close as the map goes */
+    if(dkCard){ const a0=byId(S.properties,(view.gps!==false&&view.gpsAt)||view.at)||byId(S.properties,view.at); if(a0&&a0.ll){ const sd=parseInt(a0.no)%2===0?-1:1; m.setView(view.gps!==false?stOff(a0.ll,0,sd*9):a0.ll,19,{animate:false}); } c.sig=null; }
+    else if(sig!==c.sig){ c.sig=sig; /* fit only when the set of houses changes, so panning and zooming by hand is kept */
       if(pts.length>1) m.fitBounds(pts, kind==="street"?{paddingTopLeft:[26,50],paddingBottomRight:[26,26],maxZoom:19,animate:false}:{padding:[26,26],maxZoom:19,animate:false}); else if(pts.length) m.setView(pts[0],18,{animate:false}); else m.setView([-27.579,153.062],15,{animate:false}); }
     else if(kind==="street"&&view.at){ const at=byId(S.properties,view.at); if(at&&at.ll&&!m.getBounds().contains(at.ll)) m.panTo(at.ll); }
     setTimeout(()=>{ if(mapCache[key]===c) m.invalidateSize(false); },50);
@@ -1618,7 +1709,7 @@ const GUIDE = {
       model:"Property ── ownerIds ──► Contact\nListing ──► Property"}},
   contact:{en:{title:"Contact",what:"One person, one record, one or more roles. Masked contact details, tags by group, Rex relationship types, 'Last updated by' separate from the owning agent.",steps:["Tags: Visit, Sell intent, Restrictions, Collected, Follow-up, Reason.","Relationships: Partner of, Co-owner with, Tenant of… (Rex custom types).","STOP reply → Opted out: SMS, note, blacklist, red banner."],model:"Contact ├─ owner ─► Property\n        └─ buyer ─► Buyer profile"},zh:{title:"联系人",what:"一个人一条记录，可有多个角色。号码隐藏、标签分组、Rex 关系类型，“Last updated by” 和负责人分开显示。",steps:["标签：拜访、卖房意向、限制、已收集、跟进、原因。","关系：Partner of、Co-owner with、Tenant of…（Rex 自定义类型）。","回复 STOP → Opted out: SMS、备注、黑名单、红色横幅。"],model:"Contact ├─ 业主 ─► Property\n        └─ 买家 ─► Buyer profile"}},
   oh:{en:{title:"OFI mode",what:"Today's open homes with time, listing agent and registrations. The one running now says Start check-in.",steps:["Tap Start check-in on the live one.","After the open home, every request becomes a to-do and every attendee gets a feedback-call to-do.","<b>Long-press the logo</b> for the hidden 'Talk to me' translator."],model:"Listing ──► OFI ──► attendees"},zh:{title:"OFI 模式",what:"今天的 Open home：时间、挂牌中介、已登记人数。正在进行的那场显示 Start check-in。",steps:["在进行中的那场点 Start check-in。","Open home 结束后，每个请求变成待办，每位到场者生成一个反馈电话待办。","<b>长按 Logo</b> 打开隐藏的 Talk to me 翻译。"],model:"Listing ──► OFI ──► 到场者"}},
-  ofi:{en:{title:"Attendees",what:"Who came through today and what they asked for.",steps:["Each attendee shows requests (Form 2, B&P, private inspection, broker…), Potential seller and buyer profile.","Edit + more info fills the buyer match profile and suggests matching listings."],model:"OFI ─► attendee ─► Contact(buyer)"},zh:{title:"到场者",what:"今天来过的人和他们的请求。",steps:["每位到场者显示请求（Form 2、B&P、私人看房、贷款经纪…）、Potential seller 和买家档案。","Edit + more info 填写买家匹配档案并推荐匹配房源。"],model:"OFI ─► 到场者 ─► Contact(买家)"}},
+  ofi:{en:{title:"Attendees",what:"Who came through today and what they asked for.",steps:["Each attendee shows requests (Form 2, B&P, private inspection, broker…), Seller lead and buyer profile.","Edit + more info fills the buyer match profile and suggests matching listings."],model:"OFI ─► attendee ─► Contact(buyer)"},zh:{title:"到场者",what:"今天来过的人和他们的请求。",steps:["每位到场者显示请求（Form 2、B&P、私人看房、贷款经纪…）、Seller lead 和买家档案。","Edit + more info 填写买家匹配档案并推荐匹配房源。"],model:"OFI ─► 到场者 ─► Contact(买家)"}},
   checkin:{en:{title:"Check-in",what:"Mobile first: an existing buyer is found instantly and can be checked in with one tap. Requests become to-dos with an owner and a deadline; referral partners are notified at once.",steps:["Type or dictate the mobile. Existing buyer → one-tap check-in.","Requests: Form 2 and B&P email automatically if uploaded; private inspection books in the agent's free slots; broker, conveyancer and rental appraisal go to the partner set in Settings.","Consent is recorded on the contact. Privacy wording to be confirmed by Ping."],model:"attendee ─► Contact(buyer)\nrequests ─► to-dos + partner notifications"},zh:{title:"Check in",what:"先填手机号：已有买家即时找到，可一键签到。请求自动变成带负责人和时限的待办；转介合作方即时收到。",steps:["输入或口述手机号。已有买家 → 一键签到。","请求：Form 2 和 B&P 已上传则自动发邮件；私人看房按中介空闲预约；贷款经纪、过户律师、租金估价发给 Settings 里设置的合作方。","同意记录在联系人上。隐私措辞待 Ping 确认。"],model:"到场者 ─► Contact(买家)\n请求 ─► 待办 + 合作方通知"}},
   moreinfo:{en:{title:"Buyer match profile",what:"Fixed label lists so profiles can be searched later; voice becomes the same labels.",steps:["Price, suburbs, min beds, finance, timing, live in / invest, must-haves.","Matching listings: mine first, then team, then office. Send with one tap; listing agent is notified."],model:"Contact ─► Buyer profile ─► matching listings"},zh:{title:"买家匹配档案",what:"固定标签列表，方便以后搜索；语音也转换成同样的标签。",steps:["价格、区、最少卧室、贷款、时间、自住 / 投资、必须有。","匹配房源：先自己的，再团队，再全公司。一键发送，并通知挂牌中介。"],model:"Contact ─► 买家档案 ─► 匹配房源"}},
   enq:{en:{title:"Enquiry mode",what:"Two jobs: add an enquiry (phone, walk-in, portal, referral) and search enquiries by voice. Leads shared from the phone also land here.",steps:["<b>+ Add enquiry</b>: hold to speak or type; mobile first (Rex duplicate check), names, type, source, need, next step. Save to Rex creates or updates the contact, the buyer match profile and a note.","<b>Search</b>: 'Buyers looking for 4 bed in Runcorn up to 1.2 million' → list with Call on each and Text all.","<b>Leads</b>: portal / email / SMS / screenshot leads, read by AI, matched to Rex, with a suggested next step."],model:"Enquiry ─┬ seller ─► Property\n         └ buyer  ─► Buyer profile"},zh:{title:"Enquiry 模式",what:"两部分：添加询盘（电话、到店、房产网站、转介绍）和语音搜索询盘。从手机分享来的线索也进这里。",steps:["<b>+ Add enquiry</b>：按住说话或手动输入；先填手机号（Rex 查重）、姓名、类型、来源、需求、下一步。Save to Rex 创建或更新联系人、买家匹配档案和备注。","<b>Search</b>：“Buyers looking for 4 bed in Runcorn up to 1.2 million” → 列表，每人有 Call，还可 Text all。","<b>线索</b>：房产网站 / 邮件 / 短信 / 截图线索，AI 读取、匹配 Rex、建议下一步。"],model:"Enquiry ─┬ 卖家 ─► Property\n         └ 买家 ─► 买家档案"}},
@@ -1697,7 +1788,7 @@ const FB = {
            {s:"rex",st:"ok",en:"Four consent flags contact_by_email / sms / phone / letter; is_dnd never written",zh:"四个同意标记 contact_by_email / sms / phone / letter；不写 is_dnd"}],
   oh:[{s:"3b",st:"ok",en:"OFI mode tab: today's open homes, time, listing agent, registrations; Start check-in on the live one",zh:"OFI 模式页：今天的 open home、时间、挂牌经纪、登记数；进行中的显示 Start check-in"},
       {s:"7",st:"ok",en:"Hidden extra: long-press the logo for the 'Talk to me' translator",zh:"隐藏彩蛋：长按 logo 打开 “Talk to me” 翻译"}],
-  ofi:[{s:"7",st:"ok",en:"Attendees: requests (Form 2, B&P, private inspection, broker…), Potential seller, buyer profile",zh:"到场者：请求（Form 2、B&P、私人看房、经纪…）、潜在卖家、买家画像"},
+  ofi:[{s:"7",st:"ok",en:"Attendees: requests (Form 2, B&P, private inspection, broker…), Seller lead, buyer profile",zh:"到场者：请求（Form 2、B&P、私人看房、经纪…）、潜在卖家、买家画像"},
        {s:"7",st:"ok",en:"Every attendee gets a 'Call for feedback' to-do the same afternoon",zh:"每位到场者当天下午生成“反馈电话”待办"}],
   checkin:[{s:"7",st:"ok",en:"Check-in: mobile first, instant Rex search, 'Existing buyer found', one-tap check-in",zh:"签到：先填手机，即时查 Rex，“已有买家”，一键签到"},
            {s:"7",st:"ok",en:"Requests → to-dos with owner and due time (Form 2, B&P, inspection, broker, conveyancer, rental, guide, DBYD)",zh:"请求 → 带负责人和期限的待办（Form 2、B&P、看房、经纪、过户、租赁、指南、DBYD）"},
@@ -1759,10 +1850,10 @@ function fbCard(L){
   const cur=current();
   const items=[...(S.auth?(FB[cur.name]||FB[view.tab]||[]):FB.login), ...((sheet&&FB_SHEET[sheet.kind])||[])];
   if(!items.length) return "";
-  const order=["1","2","3","3a","3b","4","5","6","7","8","9","10","11","rex"];
+  const order=["cr","1","2","3","3a","3b","4","5","6","7","8","9","10","11","rex"];
   const groups={}; items.forEach(i=>{(groups[i.s]=groups[i.s]||[]).push(i);});
   const mark={ok:"",sim:`<em class="fbst sim">${L==="en"?"simulated":"模拟"}</em>`,dev:`<em class="fbst dev">${L==="en"?"deviates":"有意偏离"}</em>`};
-  const body=order.filter(k=>groups[k]).map(k=>`<div class="fbsec"><b>${k==="rex"?"✉":"§"+k}</b><span><i>${(FB_SEC[k]||{})[L]||""}</i>${groups[k].map(i=>`<div>${i[L]}${mark[i.st]||""}</div>`).join("")}</span></div>`).join("");
+  const body=order.filter(k=>groups[k]).map(k=>`<div class="fbsec"><b>${k==="rex"?"✉":k==="cr"?"CR":"§"+k}</b><span><i>${(FB_SEC[k]||{})[L]||""}</i>${groups[k].map(i=>`<div>${i[L]}${mark[i.st]||""}</div>`).join("")}</span></div>`).join("");
   return `<div class="gcard fb"><h3>${L==="en"?"Feedback document":"反馈文档对应章节"} · <span class="muted">${FB_DOC[L]}</span></h3>${body}
     <div class="fbleg">${L==="en"?"Plain = in the prototype · simulated = behaviour shown, real system later · deviates = changed on purpose, doc to be updated":"无标记 = 原型已实现 · 模拟 = 行为已呈现，真实系统待接入 · 有意偏离 = 故意改动，文档需更新"}</div></div>`;
 }
@@ -1794,7 +1885,7 @@ function renderGuide(){
       <li>${L==="en"?"Rex is the only store; AxleoCollect sits on top of it.":"Rex 是唯一数据源，AxleoCollect 架在它之上。"}</li>
       <li>${L==="en"?"Every voice action shows what was understood; nothing is written before Approve.":"每个语音操作都先显示理解的内容；Approve 之前不写入。"}</li>
       <li>${L==="en"?"One person, one record: matched by mobile, then email, then name.":"一个人一条记录：按手机、邮箱、姓名顺序匹配。"}</li>
-      <li>${L==="en"?"Numbers are masked everywhere except Call; red is only for Do not contact and opt-out.":"除 Call 外号码始终隐藏；红色只用于 Do not contact 和退订。"}</li></ol></div>`;
+      <li>${L==="en"?"Numbers are masked everywhere except Call. On the map a red dot means no contact yet; Do not contact keeps the red no-entry sign.":"除 Call 外号码始终隐藏。地图上红点表示尚无联系人；Do not contact 仍用红色禁止符号。"}</li></ol></div>`;
 }
 
 function looksLikeSearch(text){ const q=text.trim(); if(!q) return true; if(/^(who|find|search|show|where|which|look ?up|owner of|buyers|谁|找|搜|查|看看)/i.test(q)) return true; const words=q.split(/\s+/).length; return words<=3 && !/\d{8,}/.test(q.replace(/\s/g,"")); }
@@ -1861,7 +1952,7 @@ function renderSheet(){
       ${sheet.err?`<div class="chip amber">${esc(sheet.err)}</div>`:""}
       <div class="seg">${VOICE_LANGS.map(x=>`<button class="${voiceLang===x.code?"on":""}" data-act="vlang" data-v="${x.code}">${x.label}</button>`).join("")}</div>
       <textarea id="tx" rows="2" placeholder="${t("search_ph")}">${esc(text)}</textarea>
-      <div class="sample">${t("try_sample")} ${SAMPLES[ctx].map((s,i)=>`<button data-act="sample" data-ctx="${ctx}" data-i="${i}">${i+1}</button>`).join(" ")} · ${ic("search","s")} ${SAMPLES.search.map((s,i)=>`<button data-act="sample" data-ctx="search" data-i="${i}">${i+1}</button>`).join(" ")}</div>
+      <div class="sample">${t("try_sample")} ${SAMPLES[ctx].map((s,i)=>`<button data-act="sample" data-ctx="${ctx}" data-i="${i}">${i+1}</button>`).join(" ")}</div>
       <div class="cmdres" id="cmdres">${cmdResults(text)}</div>
       <div class="btns"><button class="btn ${isSearch?"ghost":"primary"} grow" data-act="parse">${ic("pencil")} ${t("capture_as")} ${t(ctx==="oh"?"checkin_s":ctx==="enq"?"enq":"dk")} →</button><button class="btn ghost" data-act="closesheet">${t("cancel")}</button></div>`;
   }
@@ -1885,14 +1976,12 @@ function renderSheet(){
         <div class="field ai"><label>${t("relation")}</label><select id="cf_rel">${["owner","tenant","landlord","buyer"].map(x=>`<option ${r.relation===x?"selected":""}>${x}</option>`).join("")}</select></div>
         <div class="field ai"><label>${t("linked")}</label><input id="cf_link" value="${rel[1]?esc(rel[1]+" · Partner of"):""}" placeholder="Partner of…"></div>
       </div>
-      <div class="grid2">
-        <div class="field ai"><label>${t("reason")}</label><select id="cf_reason"><option value="">—</option>${REASONS.map(x=>`<option ${r.reason===x?"selected":""}>${x}</option>`).join("")}</select></div>
-        <div class="field ai"><label>${t("followup")}</label><input id="cf_fu" type="date" value="${esc(r.followup)}"></div>
-      </div>
+      <div class="field ai"><label>${t("reason")}</label><select id="cf_reason"><option value="">—</option>${REASONS.map(x=>`<option ${r.reason===x?"selected":""}>${x}</option>`).join("")}</select></div>
       ${tagField({ctx:"sheet"}, t("tags"))}
       <div class="field ai"><label>${t("note")}</label><textarea id="cf_note">${esc(r.note)}</textarea></div>
       ${consentBox(r.tags.includes("Do not contact")?{consent:{email:0,sms:0,phone:0,letter:0}}:(match&&match.c))}
       
+      ${r.followup?`<div class="row"><span class="chip blue">${ic("clock","s")}${t("todo")}: ${L2("Follow up","跟进")} · ${dayLabel(r.followup)}</span></div>`:""}
       ${/market update/i.test(r.note)?`<div class="row"><span class="chip blue">${ic("msg","s")}${t("todo")}: ${t("tp_market")}</span></div>`:""}
       <div class="btns"><button class="btn primary grow" data-act="commit">${t("confirm")}</button><button class="btn ghost" data-act="closesheet">${t("cancel")}</button></div>`;
   }
@@ -1940,15 +2029,23 @@ function renderSheet(){
       ${sheet.map?`<div class="map" data-map="pick"></div>`:""}`;
   }
   if(K==="quickadd"){
-    const p=byId(S.properties,sheet.propId); const m=sheet.mobile?findContact({mobile:sheet.mobile}):null;
-    inner=`<h3>${ic("plus")} ${t("quick_add")} · ${shortAddr(p)}</h3><div class="small muted">${t("qa_sub")}</div>
-      <div class="field"><label>${t("mobile")} *</label><input id="qa_mobile" inputmode="tel" value="${esc(sheet.mobile||"")}"></div>
-      ${m?`<div class="row"><span class="chip green">${t("matched")} · ${cname(m.c)}</span><span class="chip">${t("use_update")}</span></div>`:""}
-      <div class="grid2"><div class="field"><label>${t("first")}</label><input id="qa_first" value="${m?esc(m.c.first):""}"></div><div class="field"><label>${t("last")}</label><input id="qa_last" value="${m?esc(m.c.last):""}"></div></div>
-      <div class="grid2"><div class="field"><label>${t("email")}</label><input id="qa_email" value="${m?esc(m.c.email):""}"></div><div class="field"><label>${t("role")}</label><select id="qa_role">${["owner","tenant","landlord","buyer","investor"].map(x=>`<option>${x}</option>`).join("")}</select></div></div>
+    /* Add contact (CR7): mobile first; an existing record is offered, never silently reused */
+    const p=byId(S.properties,sheet.propId); const m=sheet.mobile&&normMobile(sheet.mobile).length>=10?findContact({mobile:sheet.mobile}):null; const mc=m?m.c:null;
+    const use=mc&&sheet.use===mc.id, not=mc&&sheet.notThis===mc.id; const op=mc?S.properties.find(x=>x.ownerIds.includes(mc.id)):null; const dup=mc?dupesOf(mc).filter(d=>d.owner===mc.owner).sort((a,b)=>(normMobile(b.mobile)===normMobile(mc.mobile))-(normMobile(a.mobile)===normMobile(mc.mobile))):[];
+    const ph=mc&&!use&&!not?L2("From existing","取自已有记录"):"";
+    inner=`<h3>${ic("plus")} Add contact · ${shortAddr(p)}</h3><div class="small muted">${L2("Mobile first. Rex is checked before anything is created.","先填手机号。新建之前先查 Rex。")}</div>
+      <div class="field"><label>MOBILE *</label><input id="qa_mobile" inputmode="tel" value="${esc(sheet.mobile||"")}" placeholder="04…"></div>
+      ${mc&&!not?`<div class="card exist"><span class="sec" style="color:var(--link)">EXISTING CONTACT FOUND</span>
+        <div style="margin-top:4px"><b style="font-size:16px">${esc(cname(mc))}</b><div class="small muted">${[maskEmail(mc.email),op?L2("Owner of","业主：")+" "+esc(shortAddr(op)):""].filter(Boolean).join(" · ")}</div>
+        <div class="small muted" style="margin-top:4px">${L2("Contact owner","负责人")}: <b style="color:var(--fg)">${esc(mc.owner)}</b><br>${t("last_updated")} <b style="color:var(--fg)">${esc(mc.updated.by)}</b> · ${mc.updated.d}</div></div>
+        ${use?`<div class="small ok" style="margin-top:8px;font-weight:700">${ic("check","s")} ${L2("Using this contact. Edit below, then save.","使用这个联系人。在下面修改后保存。")}</div>`:`<div class="grid2" style="margin-top:8px"><button class="btn primary" data-act="qause" data-id="${mc.id}">Use and update</button><button class="btn ghost" data-act="qanot" data-id="${mc.id}">Not this person</button></div>`}</div>
+        ${dup.length?`<div class="card dupc"><span class="sec" style="color:#B4480F">POSSIBLE DUPLICATE · ALSO YOURS</span><div style="margin-top:6px"><b>${esc(cname(dup[0]))}</b> <span class="small muted">· ${normMobile(dup[0].mobile)===normMobile(mc.mobile)?L2("same mobile","手机相同"):L2("same email","邮箱相同")} · ${dup[0].updated.d}</span></div><button class="btn honey block" style="margin-top:8px" data-act="mergeopen" data-a="${mc.id}" data-b="${dup[0].id}">Compare and merge</button></div>`:""}`
+      :mc&&not?`<div class="warnbox">${L2("Not the same person: a new contact will be created with this mobile.","不是同一个人：将用这个手机号新建联系人。")} <button class="linkbtn small" data-act="qaundo">${L2("Undo","撤销")}</button></div>`
+      :sheet.mobile&&normMobile(sheet.mobile).length>=10?`<div class="warnbox">${L2("No contact in Rex with this mobile. Create a new contact.","Rex 里没有这个手机号。新建联系人。")}</div>`:""}
+      <div class="grid2"><div class="field"><label>FIRST NAME</label><input id="qa_first" value="${esc(sheet.first||"")}" placeholder="${ph}"></div><div class="field"><label>LAST NAME</label><input id="qa_last" value="${esc(sheet.last||"")}" placeholder="${ph}"></div></div>
+      <div class="grid2"><div class="field"><label>EMAIL</label><input id="qa_email" value="${esc(sheet.email||"")}" placeholder="${ph}"></div><div class="field"><label>${t("role")}</label><select id="qa_role">${["owner","tenant","landlord","buyer","investor"].map(x=>`<option>${x}</option>`).join("")}</select></div></div>
       ${tagField({ctx:"sheet"}, t("tags"))}
-      <div class="field"><label>${t("note")}</label><textarea id="qa_note" rows="2"></textarea></div>
-      <div class="field"><label>${t("reminder")}</label><select id="qa_rem"><option value="">—</option><option value="7">1 week</option><option value="30">1 month</option><option value="90">3 months</option></select></div>
+      <div class="field"><label>${t("note")}</label><textarea id="qa_note" rows="2">${esc(sheet.note||"")}</textarea></div>
       <div class="btns"><button class="btn primary grow" data-act="qasave">${t("save_rex")}</button><button class="btn ghost" data-act="closesheet">${t("cancel")}</button></div>`;
   }
   if(K==="remind"){
@@ -1984,8 +2081,8 @@ function renderSheet(){
   }
   if(K==="followup"){
     const c=byId(S.contacts,sheet.cid); const hd=sheet.src==="sms"?t("fu_after_sms"):sheet.src==="knock"?t("fu_after_knock"):sheet.src==="email"?t("fu_after_email"):t("call_logged");
-    inner=`<h3>${ic("check")} ${hd} · ${cname(c)}</h3><div style="font-weight:500">${t("add_followup")}</div>
-      <div class="btns">${[["7","1 week"],["30","1 month"],["90","3 months"]].map(([d,l])=>`<button class="btn" data-act="fuadd" data-id="${c.id}" data-d="${d}">${l}</button>`).join("")}<button class="btn ghost grow" data-act="closesheet">${t("dismiss")}</button></div>`;
+    inner=`<h3>${ic("check")} ${hd} · ${cname(c)}</h3><div class="small muted">${zhL()?"需要跟进的话，加一条 To-do。":"Need to follow up? Add a to-do."}</div>
+      <div class="btns"><button class="btn primary grow" data-act="newtodo" data-cid="${c.id}" data-pid="${(S.properties.find(p=>p.ownerIds.includes(c.id))||{}).id||""}">+ To-do</button><button class="btn ghost" data-act="closesheet">${t("dismiss")}</button></div>`;
   }
   if(K==="text"){
     const c=byId(S.contacts,sheet.cid); const p=sheet.propId?byId(S.properties,sheet.propId):S.properties.find(x=>x.ownerIds.includes(c.id));
@@ -2055,6 +2152,7 @@ function renderSheet(){
   if(K==="plus"){
     inner=`<h3>${ic("plus")} ${t("plus_title")}</h3><div class="stack"><button class="btn block" data-act="plusenq">${ic("chat","s")} ${t("add_enq")}</button><button class="btn block" data-act="pluslead">${ic("card","s")} ${t("share_hint").split(":")[0]}</button><button class="btn block" data-act="plusoh">${ic("house","s")} ${t("checkin")} · ${t("oh")}</button></div>`;
   }
+  if(SHEETX[K]) inner=SHEETX[K]();
   if(K==="translate"){
     const tr=sheet;
     const half=(who,flip)=>`<div class="half ${flip?"flip":""}"><div class="row"><span class="who grow">${t(who==="a"?"tr_agent":"tr_visitor")}</span><div class="lsel">${VOICE_LANGS.map(x=>`<button class="${tr[who+"lang"]===x.code?"on":""}" data-act="trlang" data-who="${who}" data-v="${x.code}">${x.label}</button>`).join("")}</div></div>
@@ -2099,7 +2197,7 @@ function createLead(c, {propertyId, listingId, source, note, assignee, type}){
 function linkOwner(c, p){ if(!p.ownerIds.includes(c.id)) p.ownerIds.push(c.id); if(!c.roles.includes("owner")) c.roles.push("owner"); p.pending=false; }
 function readConfirm(){
   const g = id => document.getElementById(id)?.value ?? "";
-  return {first:g("cf_first"), last:g("cf_last"), mobile:g("cf_mobile"), email:g("cf_email"), relation:g("cf_rel"), followup:g("cf_fu"), reason:g("cf_reason"), link:g("cf_link"), tags:[...new Set(sheet.tags||(sheet.r&&sheet.r.tags)||[])], note:g("cf_note"), pickId:readPick(), consent:readConsent("cs"), consentHow:t("how_door")};
+  return {first:g("cf_first"), last:g("cf_last"), mobile:g("cf_mobile"), email:g("cf_email"), relation:g("cf_rel"), followup:(sheet.r&&sheet.r.followup)||"", reason:g("cf_reason"), link:g("cf_link"), tags:[...new Set(sheet.tags||(sheet.r&&sheet.r.tags)||[])], note:g("cf_note"), pickId:readPick(), consent:readConsent("cs"), consentHow:t("how_door")};
 }
 function commitDK(r, propId){
   const p = byId(S.properties, propId);
@@ -2114,13 +2212,8 @@ function commitDK(r, propId){
   persist(); toast(`${t("filed_ok")} · ${cname(c)}${matched?" ("+t("matched")+")":""}`);
   return c;
 }
-function commitOH(r, listingId){
-  const l = byId(S.listings, listingId); const p = byId(S.properties, l.propertyId);
-  const o = l.ofi.find(o=>o.d===TODAY);
-  const {c} = upsertContact({...r, relation:"buyer", note: r.note});
-  if(!c.history.some(h=>h.d===TODAY && h.t.includes(p.no))) c.history.unshift({d:TODAY, t:"OFI "+propAddr(p)});
-  if(!o.attendees.some(a=>a.contactId===c.id)) o.attendees.push({contactId:c.id, d:TODAY, req:r.req||{}, ps:!!r.ps, note:r.note||""});
-  const rq=r.req||{}; const pr=S.partners;
+/* what each OFI request sets off: to-dos, referrals and notes */
+function ohRequests(l,c,p,rq){ const pr=S.partners;
   if(rq.form2){ if(l.form2) noteOn(c,`Form 2 emailed ${TODAY}.`,"AxleoCollect"); else addTodo({d:TODAY,t:`Send Form 2 to ${cname(c)}`,who:l.agent,kind:"call"}); }
   if(rq.bp){ if(l.bpReport) noteOn(c,"Building & pest report emailed.","AxleoCollect"); else addTodo({d:TODAY,t:`Send B&P report to ${cname(c)}`,who:l.agent,kind:"call"}); }
   if(rq.private) addTodo({d:TODAY,t:`Book private inspection · ${cname(c)} · ${shortAddr(p)} (within 2 h)`,who:l.agent,kind:"appt"});
@@ -2132,9 +2225,17 @@ function commitOH(r, listingId){
   if(rq.rental){ noteOn(c,`Rental appraisal request sent to ${pr.rental[0]}, ${TODAY}`,"AxleoCollect"); addTodo({d:addDays(2),t:`Rental appraisal · ${cname(c)}`,who:pr.rental[0],kind:"appt"}); }
   if(rq.guide) noteOn(c,"Buyer guide emailed.","AxleoCollect");
   if(rq.dbyd) addTodo({d:addDays(2),t:`Send Dial Before You Dig info · ${cname(c)}`,who:l.agent,kind:"call"});
+}
+function commitOH(r, listingId){
+  const l = byId(S.listings, listingId); const p = byId(S.properties, l.propertyId);
+  const o = l.ofi.find(o=>o.d===TODAY);
+  const {c} = upsertContact({...r, relation:"buyer", note: r.note});
+  if(!c.history.some(h=>h.d===TODAY && h.t.includes(p.no))) c.history.unshift({d:TODAY, t:"OFI "+propAddr(p)});
+  if(!o.attendees.some(a=>a.contactId===c.id)) o.attendees.push({contactId:c.id, d:TODAY, req:r.req||{}, ps:!!r.ps, note:r.note||""});
+  ohRequests(l,c,p,r.req||{}); if(r.nb===false) c.tags=c.tags.filter(x=>x!=="Neighbour");
   if(r.consent) c.consentRec={d:TODAY, how:t("how_ofi")};
   addTodo({d:TODAY,time:"15:00",t:`Call for feedback · ${cname(c)} · ${shortAddr(p)}`,who:l.agent,kind:"call"});
-  if(r.ps){ if(!c.tags.includes("Potential seller")) c.tags.push("Potential seller"); addTodo({d:addDays(7),t:`Appraisal follow-up ${cname(c)}`,who:l.agent,kind:"hot"});
+  if(r.ps){ if(!c.tags.includes("Seller lead")) c.tags.push("Seller lead"); addTodo({d:addDays(7),t:`Appraisal follow-up ${cname(c)}`,who:l.agent,kind:"hot"});
     if(r.address){ const hp = propInText(r.address); if(hp) linkOwner(c,hp); } }
   audit("OFI", `${propAddr(p)} · ${cname(c)}`);
   persist(); toast(`${t("registered")} · ${cname(c)}`);
@@ -2208,9 +2309,10 @@ document.addEventListener("click", ev => {
   if(a==="notesave"){ const txt=document.getElementById("nt").value.trim(); if(!txt) return; const p=byId(S.properties,sheet.propId); const c=ownersOf(p)[0]; if(c) noteOn(c,txt); else { const r=upsertContact({first:p.pfOwner||"Owner",last:"",relation:"owner",note:txt}); linkOwner(r.c,p); } p.visits.push({d:TODAY,o:"spoke"}); audit("Note", shortAddr(p)); persist(); sheet={kind:"followup", cid:ownersOf(p)[0].id, src:"knock"}; toast(t("filed_ok")); return render(); }
   if(a==="photosave"){ const p=byId(S.properties,sheet.propId); if(el.dataset.v==="card"){ sheet={kind:"confirm", ctx:"dk", text:"[Business card] Mary Chen · 0412 555 019 · mary.chen@example.com", r:extract("Mary Chen, 0412 555 019 mary.chen@example.com","dk"), propId:p.id}; return renderSheet(); } audit("Photo", shortAddr(p)); persist(); sheet=null; toast(t("photo_ok")); return render(); }
   if(a==="quickadd"){ sheet={kind:"quickadd", propId:id, tags:[]}; renderSheet(); setTimeout(()=>document.getElementById("qa_mobile")?.focus(),30); return; }
-  if(a==="qatag"){ const x=el.dataset.tag; sheet.tags=sheet.tags.includes(x)?sheet.tags.filter(y=>y!==x):[...sheet.tags,x]; sheet.mobile=document.getElementById("qa_mobile").value; return renderSheet(); }
+  if(a==="qatag"){ const x=el.dataset.tag; sheet.tags=sheet.tags.includes(x)?sheet.tags.filter(y=>y!==x):[...sheet.tags,x]; qaKeep(); return renderSheet(); }
   if(a==="qasave"){ const g=k=>document.getElementById(k)?.value??""; const p=byId(S.properties,sheet.propId); const rem=g("qa_rem");
-    const {c,matched}=upsertContact({first:g("qa_first"),last:g("qa_last"),mobile:g("qa_mobile"),email:g("qa_email"),relation:g("qa_role")==="investor"?"owner":g("qa_role"),tags:[...sheet.tags, ...(g("qa_role")==="investor"?["Investor"]:[])],note:g("qa_note")});
+    const qm=normMobile(g("qa_mobile")).length>=10?findContact({mobile:g("qa_mobile")}):null; if(qm&&sheet.use!==qm.c.id&&sheet.notThis!==qm.c.id) return toast(L2("Existing contact found: choose Use and update, or Not this person","找到已有联系人：请选 Use and update 或 Not this person"));
+    const {c,matched}=upsertContact({first:g("qa_first"),last:g("qa_last"),mobile:g("qa_mobile"),email:g("qa_email"),pickId:qm?(sheet.use===qm.c.id?qm.c.id:"new"):undefined,relation:g("qa_role")==="investor"?"owner":g("qa_role"),tags:[...sheet.tags, ...(g("qa_role")==="investor"?["Investor"]:[])],note:g("qa_note")});
     if(["owner","landlord"].includes(g("qa_role"))||g("qa_role")==="investor") linkOwner(c,p); if(rem) addTodo({d:addDays(+rem),t:`Follow up ${cname(c)} · ${shortAddr(p)}`}); audit("Quick add", cname(c)); persist(); sheet=null; toast(`${t("filed_ok")} · ${cname(c)}${matched?" ("+t("matched")+")":""}`); return render(); }
   if(a==="pin"){ const p=byId(S.properties,id); p.pinned=!p.pinned; persist(); return render(); }
   if(a==="noop") return toast(t("open_rex"));
@@ -2275,17 +2377,22 @@ document.addEventListener("click", ev => {
   if(a==="moreinfo") return go({name:"moreinfo", id, l:el.dataset.l});
   if(a==="onetapci"){ const c=byId(S.contacts,el.dataset.cid); commitOH({first:c.first,last:c.last,mobile:c.mobile,email:c.email,req:{},ps:false,note:"",consent:true}, id); view.stack.pop(); return render(); }
   if(a==="register"){ const g=k=>document.getElementById(k)?.value??""; const chk=k=>!!document.getElementById(k)?.checked; const req={}; REQS.forEach(([k])=>{ if(chk("ci_r_"+k)) req[k]=true; });
-    const r={first:g("ci_first"),last:g("ci_last"),mobile:g("ci_mobile"),email:g("ci_email"),address:g("ci_addr"),note:g("ci_note"),req,tags:[...((current().pre||{}).tags||[])],ps:((current().pre||{}).tags||[]).includes("Potential seller"),consent:chk("ci_consent")};
+    const r={first:g("ci_first"),last:g("ci_last"),mobile:g("ci_mobile"),email:g("ci_email"),address:g("ci_addr"),note:g("ci_note"),req,tags:[...((current().pre||{}).tags||[])],ps:((current().pre||{}).tags||[]).includes("Seller lead"),consent:chk("ci_consent"),nb:!!document.getElementById("ci_nb")?.classList.contains("on")};
+    r.tags=r.tags.filter(x=>x!=="Neighbour"); if(r.nb) r.tags.push("Neighbour");
     if(!r.first||!r.mobile||!r.email){ toast("* "+t("first")+", "+t("mobile")+", "+t("email")); return; } commitOH(r,id); view.stack.pop(); return render(); }
   if(a==="tagtoggle"){ const c=byId(S.contacts,id); const x=el.dataset.tag; c.tags = c.tags.includes(x)?c.tags.filter(y=>y!==x):[...c.tags,x]; touch(c); persist(); return render(); }
   if(a==="musttoggle"){ const c=byId(S.contacts,id); c.buyerProfile=c.buyerProfile||{must:[]}; c.buyerProfile.must=c.buyerProfile.must||[]; const x=el.dataset.tag; c.buyerProfile.must=c.buyerProfile.must.includes(x)?c.buyerProfile.must.filter(y=>y!==x):[...c.buyerProfile.must,x]; persist(); return render(); }
-  if(a==="savebp"){ const c=byId(S.contacts,id); const g=k=>document.getElementById(k)?.value??""; c.buyerProfile={...(c.buyerProfile||{}),price:g("bp_price"),beds:g("bp_beds"),suburbs:g("bp_sub"),finance:g("bp_fin"),timing:g("bp_tim"),occupy:g("bp_occ")}; if(g("bp_note")) noteOn(c,g("bp_note")); if(!c.roles.includes("buyer")) c.roles.push("buyer"); { const cur=current(); if(cur.tagsDraft){ applyContactTags(c.id,"",cur.tagsDraft); delete cur.tagsDraft; } } touch(c); audit("Buyer profile", cname(c)); persist(); toast(t("filed_ok")); return back(); }
+  if(a==="savebp"){ const c=byId(S.contacts,id); const g=k=>document.getElementById(k)?.value??"";
+    if(document.getElementById("at_first")){ const f=g("at_first").trim(), mb=g("at_mobile").trim(); if(!f||normMobile(mb).length<10){ toast("* "+t("first")+", "+t("mobile")); return; }
+      c.first=f; c.last=g("at_last").trim(); c.mobile=mb; c.email=g("at_email").trim(); c.tags=c.tags.filter(x=>x!=="Neighbour"); if(document.getElementById("at_nb").classList.contains("on")) c.tags.push("Neighbour");
+      const cu=current(); const L=cu.l&&byId(S.listings,cu.l); const o=L&&L.ofi.find(o=>o.d===TODAY); const at=o&&o.attendees.find(x=>x.contactId===c.id);
+      if(at){ const req={}, add={}; REQS.forEach(([k])=>{ if(document.getElementById("at_r_"+k)?.checked){ req[k]=true; if(!(at.req||{})[k]) add[k]=true; } }); at.req=req; at.note=g("at_note"); if(Object.keys(add).length) ohRequests(L,c,byId(S.properties,L.propertyId),add); } } c.buyerProfile={...(c.buyerProfile||{}),price:g("bp_price"),beds:g("bp_beds"),suburbs:g("bp_sub"),finance:g("bp_fin"),timing:g("bp_tim"),occupy:g("bp_occ")}; if(g("bp_note")) noteOn(c,g("bp_note")); if(!c.roles.includes("buyer")) c.roles.push("buyer"); { const cur=current(); if(cur.tagsDraft){ applyContactTags(c.id,"",cur.tagsDraft); delete cur.tagsDraft; } } touch(c); audit("Buyer profile", cname(c)); persist(); toast(t("filed_ok")); return back(); }
   if(a==="sendlisting"){ const c=byId(S.contacts,id); const l=byId(S.listings,el.dataset.l); const p=byId(S.properties,l.propertyId); noteOn(c,`Listing sent: ${shortAddr(p)} · ${l.agent} notified`); persist(); return toast(`${t("send_one")} · ${t("notify_agent")}`); }
   // Enquiry
   if(a==="enqf"){ view.enqF=el.dataset.f; return render(); }
   if(a==="enqset"){ const pre=view.enqPre||{}; const g=k=>document.getElementById(k)?.value??""; view.enqPre={...pre, mobile:g("en_mobile"), email:g("en_email"), first:g("en_first"), last:g("en_last"), note:g("en_note"), propertyId:g("en_prop"), pick:readPick()||pre.pick}; if(el.dataset.k==="type") view.enqPre.type=el.dataset.v; else view.enqPre.source=el.dataset.v; return render(); }
   if(a==="enqsample"){ view.enqQ=SAMPLES.enqsearch[+el.dataset.i]; return render(); }
-  if(a==="saveenq"){ const g=k=>document.getElementById(k)?.value??""; const chk=k=>!!document.getElementById(k)?.checked; const ty=g("en_ty"), src=g("en_sr"); const need=g("en_note").trim(); if(!need){ toast("* "+t("need")); return; } const propSel=g("en_prop"); const enTags=[...new Set([...((view.enqPre||{}).tags||[]), ...(ty==="seller"&&!((view.enqPre||{}).tags||[]).includes("Potential seller")?["Potential seller"]:[])])];
+  if(a==="saveenq"){ const g=k=>document.getElementById(k)?.value??""; const chk=k=>!!document.getElementById(k)?.checked; const ty=g("en_ty"), src=g("en_sr"); const need=g("en_note").trim(); if(!need){ toast("* "+t("need")); return; } const propSel=g("en_prop"); const enTags=[...new Set([...((view.enqPre||{}).tags||[]), ...(ty==="seller"&&!((view.enqPre||{}).tags||[]).includes("Seller lead")?["Seller lead"]:[])])];
     if(!g("en_mobile")){ toast("* "+t("mobile")); return; }
     const rr={first:g("en_first"),last:g("en_last"),mobile:g("en_mobile"),email:g("en_email")}; const mm=matchContacts(rr); const pick=readPick(); if(mm.status==="multiple"&&!pick){ toast(t("rx_multiple")); return; }
     const {c,matched}=upsertContact({...rr,pickId:pick,consent:readConsent("cs"),consentHow:t("how_enq")+" · "+t("s_"+src),relation:ty==="seller"?"owner":ty,tags:enTags,note:""});
@@ -2303,7 +2410,7 @@ document.addEventListener("click", ev => {
     const {c} = upsertContact({...e.parsed, pickId:pick, consent:readConsent("cs"), consentHow:t("how_enq")+" · "+e.source, relation:e.type==="seller"?"owner":"buyer", tags:[...(e.tags||[])], note:""});
     const lst=p&&S.listings.find(l=>l.propertyId===p.id&&l.status==="listed");
     if(chk("f_note")) createLead(c,{propertyId:p?p.id:"", listingId:lst?lst.id:"", source:e.source, note:e.parsed.want, assignee:document.getElementById("f_assignee")?.value, type:e.type});
-    if(e.type==="seller"){ if(chk("f_link")&&p) linkOwner(c,p); if(chk("f_ps")&&!c.tags.includes("Potential seller")) c.tags.push("Potential seller"); if(chk("f_appr")) addTodo({d:TODAY,t:`${t("call_1h")} · ${cname(c)} · ${p?shortAddr(p):""}`,kind:"hot"}); }
+    if(e.type==="seller"){ if(chk("f_link")&&p) linkOwner(c,p); if(chk("f_ps")&&!c.tags.includes("Seller lead")) c.tags.push("Seller lead"); if(chk("f_appr")) addTodo({d:TODAY,t:`${t("call_1h")} · ${cname(c)} · ${p?shortAddr(p):""}`,kind:"hot"}); }
     else { const l=p&&S.listings.find(l=>l.propertyId===p.id&&l.status==="listed"); if(chk("f_oh")&&l){ noteOn(c,`Invited to OFI ${propAddr(p)} ${l.ofi[0].time}`,"AxleoCollect"); } if(chk("f_bp")) addTodo({d:TODAY,t:`Send B&P to ${cname(c)}`,who:l?l.agent:ME()}); if(chk("f_bpf")&&!c.buyerProfile) c.buyerProfile={price:"",suburbs:p?p.suburb:"",beds:"",finance:"Not yet",timing:"3 months",must:[]}; if(chk("f_send")) addTodo({d:TODAY,t:`${t("send_book")} · ${cname(c)}`}); }
     e.status="filed"; audit("Enquiry", `${e.source} · ${cname(c)}`); persist(); _forceTop=true; toast(`${t("filed_ok")} · ${cname(c)}`); return render(); }
   // auth
@@ -2331,7 +2438,7 @@ document.addEventListener("click", ev => {
         persist(); sheet=null; view.enqF="leads"; return render(); }
       view.enqPre={...r, type:r.type||"buyer"}; view.enqF="add"; sheet=null; return render(); }
     const c=current(); const propId = c.name==="prop"?c.id:(view.at||"p6"); sheet={kind:"confirm", ctx:"dk", text, r:extract(text,"dk"), propId}; return renderSheet(); }
-  if(a==="commit"){ const r=readConfirm(); let propId=sheet.propId||view.at||"p6"; const c=commitDK(r, propId); sheet=c?{kind:"followup", cid:c.id, src:"knock"}:null; return render(); }
+  if(a==="commit"){ const r=readConfirm(); let propId=sheet.propId||view.at||"p6"; const c=commitDK(r, propId); if(sheet.capId){ S.captures=S.captures.filter(x=>x.id!==sheet.capId); persist(); } sheet=c?{kind:"followup", cid:c.id, src:"knock"}:null; return render(); }
   if(a==="exchange"){ sheet={kind:"exchange", listingId:id}; return renderSheet(); }
   if(a==="doexchange"){ const l=byId(S.listings,id); const p=byId(S.properties,l.propertyId); const b=byId(S.contacts,document.getElementById("ex_buyer").value); const price=document.getElementById("ex_price").value;
     const sellers=[...p.ownerIds]; S.contracts.unshift({id:uid("k"), listingId:l.id, buyerId:b.id, sellerIds:sellers, sellerName:p.pfOwner, d:TODAY, price, status:"exchanged"});
@@ -2351,7 +2458,8 @@ document.addEventListener("input", ev => {
   if(ev.target.id==="enqq"){ view.enqQ=ev.target.value; const pos=ev.target.selectionStart; render(); const el=document.getElementById("enqq"); if(el){ el.focus(); try{el.setSelectionRange(pos,pos);}catch(e){} } return; }
   if(ev.target.id==="chq"){ sheet.q=ev.target.value; const pos=ev.target.selectionStart; renderSheet(); const el=document.getElementById("chq"); if(el){ el.focus(); try{el.setSelectionRange(pos,pos);}catch(e){} } return; }
   if(ev.target.id==="en_mobile"||ev.target.id==="en_email"){ const g=k=>document.getElementById(k)?.value??""; const pre={...(view.enqPre||{}), mobile:g("en_mobile"), email:g("en_email"), first:g("en_first"), last:g("en_last"), note:g("en_note"), propertyId:g("en_prop"), pick:readPick()||(view.enqPre||{}).pick}; const ready=normMobile(pre.mobile).length>=10 || /@.+\./.test(pre.email); const was=normMobile((view.enqPre||{}).mobile||"").length>=10 || /@.+\./.test((view.enqPre||{}).email||""); view.enqPre=pre; if(ready!==was || ready){ const id=ev.target.id, pos=ev.target.selectionStart; render(); const el=document.getElementById(id); if(el){ el.focus(); try{el.setSelectionRange(pos,pos);}catch(e){} } } return; }
-  if(ev.target.id==="qa_mobile"){ const v=ev.target.value; if(normMobile(v).length>=10 && v!==sheet.mobile){ sheet.mobile=v; renderSheet(); const el=document.getElementById("qa_mobile"); if(el) el.focus(); } return; }
+  if(ev.target.id==="qa_mobile"){ const idOf=x=>normMobile(x).length>=10?((findContact({mobile:x})||{c:{id:"new"}}).c.id):""; const was=idOf(sheet.mobile||""); const used=sheet.use; qaKeep();
+    if(idOf(sheet.mobile)!==was){ if(used){ sheet.first=""; sheet.last=""; sheet.email=""; } sheet.use=null; sheet.notThis=null; const pos=ev.target.selectionStart; renderSheet(); const el=document.getElementById("qa_mobile"); if(el){ el.focus(); try{el.setSelectionRange(pos,pos);}catch(e){} } } return; }
   if(ev.target.id==="ci_mobile"){ const c=current(); c.pre={...(c.pre||{}), mobile:ev.target.value, first:document.getElementById("ci_first").value, last:document.getElementById("ci_last").value, email:document.getElementById("ci_email").value, note:document.getElementById("ci_note").value}; if(normMobile(ev.target.value).length>=10){ const pos=ev.target.selectionStart; render(); const el=document.getElementById("ci_mobile"); if(el){ el.focus(); try{el.setSelectionRange(pos,pos);}catch(e){} } } return; }
   if(ev.target.id==="en_mobile"){ const g=k=>document.getElementById(k)?.value??""; view.enqPre={...(view.enqPre||{}), mobile:ev.target.value, first:g("en_first"), last:g("en_last"), note:g("en_note"), propertyId:g("en_prop")}; if(normMobile(ev.target.value).length>=10){ const pos=ev.target.selectionStart; render(); const el=document.getElementById("en_mobile"); if(el){ el.focus(); try{el.setSelectionRange(pos,pos);}catch(e){} } } return; }
 });
@@ -2397,6 +2505,412 @@ document.addEventListener("pointerdown", ev=>{ const lg=ev.target.closest("#ohlo
 document.addEventListener("pointerup", ()=>clearTimeout(logoTimer)); document.addEventListener("pointercancel", ()=>clearTimeout(logoTimer));
 document.addEventListener("keydown", ev=>{ if(ev.key==="Escape"&&sheet) dismissSheet(); });
 let _rz=null; if(window.addEventListener) window.addEventListener("resize", ()=>{ clearTimeout(_rz); _rz=setTimeout(fitHome,120); });
+
+
+// ===================== Change requests · 10 Nov 2026 (Ping Han) =====================
+const SHEETX={};
+const zhL=()=>lang==="zh";
+const L2=(en,zh)=>zhL()?zh:en;
+const BULB='<svg class="ic s" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/></svg>';
+const CH=[["sms","Text"],["phone","Call"],["email","Email"],["letter","Letter"],["junk","Junk mail"]];
+function dayLabel(d){ const x=new Date(d+"T00:00:00"); return x.toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short"}); }
+function hello(){ const h=new Date().getHours(); return h<12?L2("Morning","早上好"):h<18?L2("Afternoon","下午好"):L2("Evening","晚上好"); }
+function isSL(c){ return !!c&&c.tags.includes("Seller lead"); }
+function slSwitch(c, extra=""){ const on=isSL(c); return `<button class="slsw ${on?"on":""}" data-act="sltoggle" data-id="${c?c.id:""}" ${extra}>${BULB}<span>SELLER LEAD</span><i></i></button>`; }
+function setSL(c,on){ if(on&&!isSL(c)) c.tags.push("Seller lead"); if(!on) c.tags=c.tags.filter(x=>x!=="Seller lead"); touch(c); audit("Seller lead", cname(c)+" · "+(on?"on":"off")); }
+function prefOn(c,k){ const v=(c.consent||{})[k]; return v===undefined?1:v; }
+function optedList(c){ return CH.filter(([k])=>!prefOn(c,k)).map(([,l])=>l); }
+function applyPref(c,k,val,reason){ setConsent(c,{[k]:val}); if(k==="junk"){ c.tags=c.tags.filter(x=>x!=="No junk mail"); if(!val) c.tags.push("No junk mail"); }
+  const lab=(CH.find(x=>x[0]===k)||[])[1]; c.prefLog={d:TODAY, by:ME(), t:`${lab}: ${val?"opted in":"opted out"}${reason?" · “"+reason+"”":""}`};
+  noteOn(c,`Preferences · ${lab} ${val?"opted in":"opted out"}${reason?" · "+reason:""}`,"AxleoCollect"); audit("Preferences", `${cname(c)} · ${lab}=${val}`); }
+function teamNames(){ return ACCOUNTS.map(a=>a.name); }
+function myTodoSets(){ const me=ME(); const srt=(a,b)=>(a.d+(a.time||""))<(b.d+(b.time||""))?-1:1;
+  return { mine:S.todos.filter(x=>!x.done&&x.who===me).sort(srt), by:S.todos.filter(x=>!x.done&&(x.by||x.who)===me&&x.who!==me).sort(srt), done:S.todos.filter(x=>x.done&&(x.who===me||(x.by||x.who)===me)).sort(srt).reverse() }; }
+/* what a to-do opens: its linked contact / property, or the ones named in its text (older to-dos carry no ids) */
+function todoLink(x){ let c=x.cid&&byId(S.contacts,x.cid)||null, p=x.propId&&byId(S.properties,x.propId)||null; const tl=(x.t||"").toLowerCase();
+  if(!c) c=S.contacts.find(k=>k.first&&k.last&&tl.includes((k.first+" "+k.last).toLowerCase()))||null;
+  if(!p) p=propInText(x.t)||null; return {c,p}; }
+function todoRow2(x, extra=""){ const {c,p}=todoLink(x); const over=!x.done&&x.d<TODAY; const me=ME();
+  const when=(x.d===TODAY?L2("Today","今天"):dayLabel(x.d))+(x.time?" "+x.time:"");
+  const chip=x.done?`<span class="small ok" style="font-weight:600">${ic("check","s")} ${L2("Done","已完成")}</span>`:(x.by&&x.by!==x.who&&x.who===me)?`<span class="chip">${L2("From","来自")} ${esc(x.by)}</span>`:(x.by===me&&x.who!==me)?`<span class="chip blue">${L2("Assigned to","已指派给")} ${esc(x.who.split(" ")[0])} · ${L2("by you","由你指派")}</span>`:"";
+  return `<div class="todo2 ${x.done?"done":""} ${extra}"><button class="box" data-act="tdtick" data-id="${x.id}" aria-label="done">${x.done?ic("check","s"):""}</button>
+    <button class="grow tbody" data-act="tdopen" data-id="${x.id}"><span class="t">${noteText(x.t)}</span><span class="s">${c?`<u>${esc(cname(c))}</u> · `:""}${p?esc(shortAddr(p))+" · ":""}${when}${!c&&!p?" · "+esc(x.who):""}</span>${chip}</button>
+    ${over?`<span class="chip red">${L2("Overdue","已逾期")}</span>`:`<span class="arrow">›</span>`}</div>`; }
+
+// ---------- Home (CR1) ----------
+const ACT={today:{v:[12,38,2],d:["+50%","+27%","-1"],vs:["vs yesterday","对比昨天"]},week:{v:[47,156,6],d:["+12%","+8%","+2"],vs:["vs last week","对比上周"]},month:{v:[183,640,19],d:["+21%","+15%","+4"],vs:["vs last month","对比上月"]},fy:{v:[812,2950,74],d:["+34%","+29%","+11"],vs:["vs last FY","对比上一财年"]}};
+SCREENS.home = () => { const u=S.auth; const per=view.actP||"today"; const A=ACT[per]; const sets=myTodoSets(); const next=sets.mine.slice(0,3);
+  const head=`<button class="logo" data-act="me" aria-label="Me"></button><h1 style="font-size:17px"><span class="small muted" style="display:block;font-weight:400">${dayLabel(TODAY)}</span>${hello()}, ${u.name.split(" ")[0]}</h1>
+    <button class="iconbtn" data-act="plus" title="+">${ic("plus")}</button>
+    <button class="iconbtn" data-act="todos" title="${t("todos")}">${ic("bell")}${sets.mine.filter(x=>x.d<=TODAY).length?`<span class="badge">${sets.mine.filter(x=>x.d<=TODAY).length}</span>`:""}</button>`;
+  const delta=d=>`<span class="dl ${d.startsWith("-")?"dn":"up"}">${d.startsWith("-")?"▼":"▲"} ${d.replace(/^[+-]/,"")}</span>`;
+  const labs=[[L2("Voice converted","语音转化"),"voice"],[L2("Records updated","记录更新"),"records"],[L2("Appraisals booked","已约估价"),"appr"]];
+  return {title:t("home"), head, body:`
+    <div class="row"><span class="sec grow">MY ACTIVITY</span><span class="small muted">${A.vs[zhL()?1:0]}</span></div>
+    <div class="seg">${[["today","Today"],["week","Week"],["month","Month"],["fy","FY"]].map(([k,l])=>`<button class="${per===k?"on":""}" data-act="actp" data-v="${k}">${l}</button>`).join("")}</div>
+    <div class="tiles3">${labs.map(([l,k],i)=>`<button class="tile" data-act="goact" data-v="${k}"><span class="l">${l}</span><span class="num">${A.v[i]}</span>${delta(A.d[i])}</button>`).join("")}</div>
+    <div class="small muted">${L2("Tap a number for the list. FY = 1 Jul – 30 Jun. Approved items only.","点数字看清单。财年 = 7 月 1 日至 6 月 30 日。只统计已确认的记录。")}</div>
+    <div class="row"><span class="sec grow">NEEDS YOUR APPROVAL</span><span class="small muted">Keep Rex clean</span></div>
+    <div class="tiles">
+      <button class="tile" data-act="gocap"><span class="row"><span class="grow" style="color:var(--brand)">${ic("mic","l")}</span><span class="num" style="color:var(--brand)">${S.captures.length}</span></span><span class="l" style="color:var(--fg);font-size:13px;font-weight:700">Offline voice captures</span><span class="s">${L2("Synced, ready to file","已同步，待归档")}</span></button>
+      <button class="tile" data-act="gomarket"><span class="row"><span class="grow" style="color:var(--azure)">${ic("zap","l")}</span><span class="num" style="color:var(--azure)">${S.market.length}</span></span><span class="l" style="color:var(--fg);font-size:13px;font-weight:700">Market monitor</span><span class="s">${L2("New sales and listings in your patch","片区内的新成交和新挂牌")}</span></button>
+    </div>
+    <div class="row"><span class="sec grow">NEXT UP</span><button class="linkbtn small" data-act="todos" style="text-decoration:none">${sets.mine.length} to-dos ›</button></div>
+    <div class="card" style="padding:4px 12px">${next.map((x,i)=>todoRow2(x,i===2?"t3":"")).join("")||`<div class="small muted" style="padding:8px 0">${L2("Nothing due.","没有待办。")}</div>`}</div>`};
+};
+SCREENS.activity = ({cat,per}) => { const perL={today:L2("today","今天"),week:L2("this week","本周"),month:L2("this month","本月"),fy:L2("this FY (1 Jul – 30 Jun)","本财年（7 月 1 日至 6 月 30 日）")}[per]||L2("today","今天"); const names={voice:L2("Voice converted","语音转化"),records:L2("Records updated","记录更新"),appr:L2("Appraisals booked","已约估价")};
+  const pick=cat==="voice"?["DK"]:cat==="appr"?["Appraisal"]:["Tags","Note","Quick add","Enquiry","Preferences","Seller lead","Merge","Buyer profile","To-do"];
+  const rows=S.audit.filter(e=>pick.some(k=>e.a.startsWith(k)));
+  return {title:names[cat]||"Activity", back:true, body:`<div class="small muted">${L2("Approved items only","只含已确认的记录")} · ${perL}</div>
+    <div class="list">${rows.map(e=>`<div class="item"><div class="grow"><div class="t">${noteText(e.t)}</div><div class="s mono">${e.d} · ${esc(e.a)}</div></div></div>`).join("")||`<div class="item muted">${L2("Nothing yet in this demo. Approve a voice capture or update a record and it appears here.","这份演示数据里还没有记录。确认一条语音或更新一条记录后会出现在这里。")}</div>`}</div>`};
+};
+// ---------- Offline voice captures (CR1) ----------
+SCREENS.captures = () => ({title:"Offline voice captures", back:true, body:`
+  <div class="info">${L2("Recorded with no signal, saved on the phone, synced when back online. Nothing goes to Rex until you approve. Swipe left to dismiss.","没有信号时录下并存在手机里，联网后同步。确认前不会写入 Rex。左滑忽略。")}</div>
+  ${S.captures.map(c=>{ const r=extract(c.text,"dk"); const p=byId(S.properties,c.propId); return `<div class="card swipe" data-cap="${c.id}">
+    <div class="row"><span class="chip amber">Voice note</span><span class="small muted grow" style="text-align:right">${L2("Recorded","录于")} ${c.rec} offline · ${L2("synced","同步于")} ${c.sync}</span></div>
+    <div style="font-weight:700;margin-top:8px">“${esc(c.text.length>70?c.text.slice(0,68)+"…":c.text)}”</div>
+    <div class="small muted" style="margin-top:2px">${r.first?esc((r.first+" "+r.last).trim()):(p?esc(shortAddr(p)):L2("New contact?","新联系人？"))} · ${Object.values({a:r.first,b:r.mobile,c:r.email,d:r.reason,e:r.followup}).filter(Boolean).length+1} fields${r.tags.length?" · "+r.tags.slice(0,3).join(", "):""}</div>
+    <div class="grid2" style="margin-top:10px"><button class="btn ghost" data-act="capedit" data-id="${c.id}">Edit</button><button class="btn ok" data-act="capok" data-id="${c.id}">Approve</button></div></div>`; }).join("")||`<div class="card small muted">${L2("All captures are filed.","所有语音记录都已归档。")}</div>`}
+  <div class="small muted">${L2("Edit opens the full review screen: every line editable, Re-record.","Edit 打开完整核对页面：每一行都可改，可重新录音。")}</div>`});
+// ---------- Market monitor and My patch (CR2) ----------
+function patchLine(){ const z=S.zones.map(z=>z.name+" (drawn)"); return [...z, ...(S.patch.suburbs||[])].join(" · ")||"—"; }
+SCREENS.market = () => ({title:"Market monitor", back:true, body:`
+  <div class="card"><div class="row"><div class="grow"><b>My patch</b><div class="small muted">${esc(patchLine())}</div><div class="small muted">Pricefinder · ${L2("checked today 6:00am","今天 6:00 已检查")}</div></div><button class="btn sm ghost" data-act="gopatch">Edit patch</button></div></div>
+  ${S.market.map(m=>`<div class="card"><div class="row"><span class="chip ${m.kind==="sale"?"blue":"amber"}">${m.kind==="sale"?"New sale":"New listing"}</span><span class="small muted grow" style="text-align:right">${esc(m.meta)}</span></div>
+    <div style="font-weight:700;margin-top:8px">${esc(m.addr)}</div><div class="small muted">${esc(m.sub)}</div>
+    <div class="q">${m.kind==="sale"?L2(`Would you like me to change ownership (${esc(m.owner)} → previous owner) and update seller lead status to <b>Sold</b>?`,`要把业主改为前业主（${esc(m.owner)}），并把卖家线索状态更新为 <b>Sold</b> 吗？`):L2("Listed with a competitor. Flag as <b>Listed with competitor</b> and update seller lead status?","已由竞争对手挂牌。标记为 <b>Listed with competitor</b> 并更新卖家线索状态？")}</div>
+    <div class="grid2" style="margin-top:10px"><button class="btn ghost" data-act="mkno" data-id="${m.id}">No</button><button class="btn ok" data-act="mkyes" data-id="${m.id}">Yes, update</button></div></div>`).join("")||`<div class="card small muted">${L2("Nothing new in your patch today.","今天片区内没有新动态。")}</div>`}
+  <div class="small muted">${L2("No = alert dismissed, Rex unchanged","No = 忽略提醒，Rex 不变")}</div>`});
+SCREENS.patch = () => { const subs=S.patch.suburbs||[]; const all=[...new Set(S.properties.map(p=>p.suburb).concat(["Calamvale","Eight Mile Plains","Sunnybank Hills"]))].filter(s=>!subs.includes(s));
+  return {title:"My patch", back:true, body:`
+  <div class="map tall" data-map="patch">${view.drawing||view.radiusMode?`<div class="drawbar"><span class="grow">${ic("pencil","s")} ${view.radiusMode?L2("Tap the map to set the centre","点地图定圆心"):view.drawLock?L2("Radius","半径")+" "+(view.radM||300)+" m":t("zone_draw_hint")+" · "+(view.drawPts||[]).length}</span>${view.drawing?`<button class="btn sm primary" data-act="zonefinish">${t("zone_finish")}</button>`:""}<button class="btn sm ghost" data-act="pcancel">${t("cancel")}</button></div>`:""}</div>
+  <div class="grid2"><button class="btn ${view.drawing&&!view.drawLock?"primary":"ghost"}" data-act="pdraw">${ic("pencil","s")} Draw area</button><button class="btn ${view.radiusMode?"primary":"ghost"}" data-act="pradius">◯ Radius</button></div>
+  ${view.radiusMode?`<div class="chips">${[200,300,500,1000].map(r=>`<button class="${(view.radM||300)===r?"on":""}" data-act="pradm" data-v="${r}">${r>=1000?r/1000+" km":r+" m"}</button>`).join("")}</div>`:""}
+  ${S.zones.length?`<div class="card" style="padding:4px 12px">${S.zones.map(z=>`<div class="row" style="padding:8px 0"><div class="grow"><b>${esc(z.name)}</b> <span class="small muted">· ${zoneProps(z).length} ${L2("homes","户")}</span>${(n=>n?`<div class="small"><span class="optx">${n} NO JUNK MAIL</span> <span class="muted">${L2("left out of letterbox drops","不进入信箱广告名单")}</span></div>`:"")(zoneProps(z).filter(p=>ownersOf(p).some(o=>o.tags.includes("No junk mail"))).length)}</div><button class="btn sm ghost" data-act="pzdel" data-id="${z.id}">${ic("x","s")} ${t("zone_del")}</button></div>`).join("")}</div>`:""}
+  <span class="sec">SUBURBS</span>
+  <div class="btns">${subs.map(s=>`<span class="chip on2">${esc(s)}<button class="tpx" data-act="psubrm" data-v="${esc(s)}">✕</button></span>`).join("")}</div>
+  <div class="row"><select id="psub" class="grow"><option value="">${L2("+ Add suburb","+ 添加 suburb")}</option>${all.map(s=>`<option>${esc(s)}</option>`).join("")}</select></div>
+  <div class="small muted">${L2("Watching new listings and new sales from Pricefinder, checked daily. Area and suburbs can be combined.","监控 Pricefinder 的新挂牌和新成交，每天检查。区域和 suburb 可以同时使用。")}</div>
+  <button class="btn primary block" data-act="psave">Save patch</button>`};
+};
+function circlePts(c, m){ const out=[]; const dLat=m/111320, dLng=m/(111320*Math.cos(c[0]*Math.PI/180)); for(let i=0;i<36;i++){ const a=i*Math.PI/18; out.push([c[0]+dLat*Math.sin(a), c[1]+dLng*Math.cos(a)]); } return out; }
+// ---------- DK mode (CR3) ----------
+SCREENS.dk = () => { const u=S.auth; view.zone=null; if(view.sat===undefined){ view.sat=true; view.fmMode="sat"; } if(view.gps===undefined) view.gps=true; if(!view.gpsAt) view.gpsAt="p6"; if(!view.at) view.at=view.gpsAt; if(!view.street){ const a0=byId(S.properties,view.at); view.street=a0.street+", "+a0.suburb; }
+  const at=byId(S.properties,view.at)||S.properties[0]; const ol=ownerLine(at); const yrs=at.lastSale?yearsSince(at.lastSale):"";
+  const head=`<span class="logo"></span><h1 style="font-size:17px"><span class="small muted" style="display:block;font-weight:400">${dayLabel(TODAY)} · DK mode</span>Hi ${u.name.split(" ")[0]}</h1>
+    <button class="switch gpsw ${view.gps?"on":""}" data-act="gps">${view.gps?`<span class="pulse2"></span>`:""}<span>${view.gps?"GPS LIVE":t("gps_off")}</span><i></i></button>`;
+  return {title:t("dk"), head, body:`
+    <div class="youat ${view.gps?"live":""}"><span class="ring"></span><button class="grow" data-act="prop" data-id="${at.id}" style="text-align:left;min-width:0">
+        <span class="eyb">${view.gps?"YOU'RE AT · LIVE GPS":L2("YOU'RE SEARCHING FOR","YOU'RE SEARCHING FOR")}</span>
+        <span class="adr">${esc(propAddr(at))} ›</span>
+        <span class="small" style="display:block">${ol.who}${yrs!==""?" · "+L2("owned","持有")+" "+yrs+" "+t("years"):""}</span>
+        <span class="small muted" style="display:block">${L2("Tap address for property and ownership details","点地址查看房产和业主详情")}</span></button>
+      <button class="linkbtn" data-act="tile" data-tile="change" data-id="${at.id}" style="font-weight:700;text-decoration:none;color:var(--fg)">Change</button></div>
+    <div class="speakp"><button class="speakbtn micbtn" id="speak" aria-label="Hold to speak">${ICON.mic}</button><div class="st1">Hold to speak</div><div class="st2">${L2("Say anything: owner, mobile, tags, notes.<br>We'll file it for you to check.","随便说：业主、手机、标签、备注。<br>我们整理好给你核对。")}</div></div>
+    <button class="card row tapcard" data-act="prop" data-id="${at.id}">${ic("house","l")}<span class="grow" style="text-align:left"><b>Tap the property above</b> ${L2("to see everything about it, edit the record or add a note","查看全部信息、编辑记录或添加备注")}</span><span class="arrow">›</span></button>
+    ${S.captures.length?`<button class="capbar" data-act="gocap"><span class="grow" style="text-align:left"><b>${S.captures.length} captures</b> ${L2("waiting for your approval","等待你确认")}</span><b>Review ›</b></button>`:""}
+    <div class="map" data-map="street"><button class="mapcover" data-act="fullmap" aria-label="Full screen"></button><span class="mapfs">${ic("ext","s")} Full screen</span><span class="maphint">${L2("Map · tap to expand","地图 · 点击放大")}</span></div>`};
+};
+// ---------- Full-screen map (CR4) ----------
+SCREENS.fullmap = () => { view.zone=null; const mode=view.fmMode||"map"; const st=streets(); const keys=Object.keys(st); if(!view.street) view.street=keys[0];
+  const sel=view.mapSel&&byId(S.properties,view.mapSel); const props=st[view.street]||[];
+  const head=`<span class="logo"></span><input id="fmq" class="grow" placeholder="${L2("Search address or street","搜索地址或街道")}" value="" style="min-height:40px">
+    <div class="seg" style="flex:none">${[["map","Map"],["sat","Satellite"],["list","List"]].map(([k,l])=>`<button class="${mode===k?"on":""}" data-act="fmmode" data-v="${k}" style="padding:0 10px">${l}</button>`).join("")}</div>`;
+  const prev=sel?(()=>{ const o=ownerLine(sel); const yrs=sel.lastSale?yearsSince(sel.lastSale):""; const c=ownersOf(sel)[0]; const temp=c?c.tags.find(x=>["Hot","Warm","Cold"].includes(x)):""; const lc=c&&c.notes[0]?c.notes[0].d:"";
+    return `<div class="mprev"><button class="shx" data-act="mapx" style="top:2px;right:2px">${ic("x")}</button><b>${esc(propAddr(sel))}</b><div class="small" style="margin-top:4px"><span class="dot ${propColor(sel)}" style="display:inline-block;vertical-align:-1px"></span> ${o.who}${yrs!==""?" · "+L2("owned","持有")+" "+yrs+" "+t("years"):""}</div><div class="small muted">${temp||"—"}${lc?" · "+L2("last contact","最近联系")+" "+lc:""}</div>
+      <div class="grid2" style="margin-top:8px"><button class="btn primary sm" data-act="prop" data-id="${sel.id}">Open record ›</button><button class="btn ghost sm" data-act="fmnote" data-id="${sel.id}">+ Note</button></div></div>`; })():"";
+  const legend=`<div class="mleg"><span><i class="dot green"></i>${t("lg_green")}</span><span><i class="dot orange"></i>${L2("No contact yet","尚无联系人")}</span><span><i class="dot sky"></i>${t("lg_sky")}</span><span><i class="dot p"></i>${L2("Listed with your agency","本公司挂牌")}</span><span><i class="dot oth"></i>${L2("Listed, other agency","其他中介挂牌")}</span><span><i class="dot star2">★</i><b>Pinned by you</b></span><span><i class="dot ban">${ic("ban","s")}</i>Do not contact</span></div>`;
+  return {title:"Map", head, cls:"full", body: mode==="list"?`
+    <div class="fmlist"><select id="street" class="grow">${keys.map(k=>`<option value="${esc(k)}" ${k===view.street?"selected":""}>${esc(k)}</option>`).join("")}</select>
+      <div class="rows" style="margin-top:8px">${props.slice().sort((a,b)=>parseInt(a.no)-parseInt(b.no)).map(p=>{ const o=ownerLine(p); return `<button class="hrow ${p.flags.dnc?"skip":""}" data-act="prop" data-id="${p.id}"><span class="plate"><span class="dot ${propColor(p)}"></span>${p.no}</span><span style="min-width:0"><span class="who">${p.flags.dnc?ic("ban","s"):""}${p.pinned?"★ ":""}${o.who}</span><span class="sub">${esc(p.street)}, ${p.suburb} · ${p.lastSale?yearsSince(p.lastSale)+" "+t("years"):"—"}</span></span><span class="arrow">›</span></button>`; }).join("")}</div>
+      <button class="btn ghost block" data-act="exitfull" style="margin-top:12px">${ic("ext","s")} Exit full screen</button></div>`:`
+    <div class="map full" data-map="street"></div>${prev}
+    <button class="fsx" data-act="exitfull">${ic("ext","s")} Exit full screen</button>${legend}`};
+};
+// ---------- Property page (CR3, CR8) ----------
+SCREENS.prop = ({id}) => { const p=byId(S.properties,id); const owners=ownersOf(p); const c=owners[0]; const listing=S.listings.find(l=>l.propertyId===p.id&&l.status==="listed");
+  const notes=owners.flatMap(o=>o.notes.map(n=>({...n, who:cname(o)}))).sort((a,b)=>b.d<a.d?-1:1); const yrs=p.lastSale?yearsSince(p.lastSale):"";
+  const tags=c?c.tags.filter(x=>["Hot","Warm","Cold"].concat(REASONS).includes(x)):[]; const off=c?optedList(c):[];
+  const kvr=(l,v)=>`<div class="kvr"><span>${l}</span><b>${v}</b></div>`;
+  return {title:propAddr(p), back:true, body:`
+    <div class="btns"><span class="chip"><i class="dot ${propColor(p)}"></i>${c?L2("Owner linked","已关联业主"):p.pending?t("lg_pending"):L2("No contact yet","尚无联系人")}</span>${tags.map(x=>tagChip(x)).join("")}${p.pinned?`<span class="chip amber">★ Pinned</span>`:""}${p.flags.dnc?`<span class="chip ban">${ic("ban","s")}Do not contact</span>`:""}</div>
+    <span class="sec">PROPERTY</span>
+    <div class="card kvc">${kvr("Bed / bath / car",`${p.beds||"—"} / ${p.baths||"—"} / ${p.cars||"—"}`)}${kvr("Land · Lot",`${p.land||"—"} · ${esc(p.lot||"—")}`)}${kvr(L2("Purchased","购入"),`${p.lastSale||"—"}${yrs!==""?` · <span class="yrs ${yrClass(yrs)}">${yrs} ${t("years")}</span>`:""}`)}${kvr(L2("Status","挂牌状态"),listing?`Listed · ${esc(listing.price)}`:p.otherListing?"Listed with competitor":L2("Not listed","未挂牌"))}</div>
+    <div class="row"><span class="sec grow">OWNER</span>${c?slSwitch(c):""}</div>
+    ${c?`<div class="card kvc">${kvr(L2("First name","名"),esc(c.first))}${kvr(L2("Last name","姓"),esc(c.last||"—"))}${kvr(L2("Mobile","手机"),`<span class="masked">${mask(c.mobile)}</span>`)}${kvr(L2("Email","邮箱"),maskEmail(c.email))}<div class="kvr"><span${off.length?' style="flex:none"':""}>${L2("Preferences","联系偏好")}</span>${off.length?`<div class="optl">${off.includes("Junk mail")?`<span class="optx">${ic("ban","s")}<span>NO JUNK MAIL</span></span>`:""}${off.filter(x=>x!=="Junk mail").length?`<span class="optx">${ic("ban","s")}<span>OPTED OUT: ${off.filter(x=>x!=="Junk mail").join(" · ").toUpperCase()}</span></span>`:""}</div>`:`<b>${L2("All channels on","全部渠道开启")}</b>`}</div></div>
+      <button class="btn ghost block" data-act="prefs" data-id="${c.id}">${ic("mail","s")} Edit communication preferences</button>`
+    :`<div class="card"><div class="small muted">${p.pfOwner?`Pricefinder: <b>${esc(p.pfOwner)}</b> · `:""}${t("no_owner")}</div><button class="btn primary block" style="margin-top:8px" data-act="quickadd" data-id="${p.id}">${ic("plus","s")} ${L2("Add contact","添加联系人")}</button></div>`}
+    <div class="grid3 e2btns"><button class="btn primary" data-act="${c?"contact":"quickadd"}" data-id="${c?c.id:p.id}">${ic("pencil","s")} Edit record</button><button class="btn ghost" data-act="newtodo" data-cid="${c?c.id:""}" data-pid="${p.id}">+ To-do</button><button class="btn honey" data-act="bookappr" data-id="${p.id}">Book appraisal</button></div>
+    <div class="grid2" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+      <button class="btn ghost sm" data-act="call" data-id="${c?c.id:""}" data-name="${esc(ownerLine(p).who)}" ${c&&!prefOn(c,"phone")?"disabled":""}>Call</button>
+      <button class="btn ghost sm" data-act="textsms" data-id="${c?c.id:""}" data-pid="${p.id}" ${!c||!prefOn(c,"sms")?"disabled":""}>Text</button>
+      <button class="btn ghost sm" data-act="emailc" data-id="${c?c.id:""}" ${!c||!c.email||!prefOn(c,"email")?"disabled":""}>Email</button>
+      <button class="btn ghost sm" data-act="tile" data-tile="photo" data-id="${p.id}">Photo</button></div>
+    <div class="row"><span class="sec grow">NOTES</span>${notes.length>3&&!view.allNotes?`<button class="linkbtn small" data-act="allnotes" style="text-decoration:none">See all ${notes.length} ›</button>`:""}</div>
+    <div class="row notein"><input id="pn_note" class="grow" placeholder="${L2("Add a note…","添加备注…")}"><button class="nmic" data-act="notemic" data-t="pn_note" aria-label="Dictate">${ICON.mic}</button><button class="btn sm primary" data-act="noteadd" data-id="${p.id}">${L2("Add","添加")}</button></div>
+    <div class="stack">${(view.allNotes?notes:notes.slice(0,3)).map(n=>`<div class="note"><div class="m">${n.d} · ${esc(n.a)} · ${esc(n.who)}</div>${noteText(n.t)}</div>`).join("")||`<div class="muted small">${t("no_notes")}</div>`}</div>
+    <div class="btns"><button class="btn sm ghost" data-act="pin" data-id="${p.id}">★ ${p.pinned?t("unpin"):t("pin")}</button><button class="btn sm ghost" data-act="noop">${t("open_rex")} ${ic("ext","s")}</button></div>`};
+};
+// ---------- Contact record (CR7, CR8) ----------
+SCREENS.contact = ({id}) => { const c=byId(S.contacts,id); const props=S.properties.filter(p=>p.ownerIds.includes(c.id)); const off=optedList(c);
+  const ohs=S.listings.flatMap(l=>l.ofi.flatMap(o=>o.attendees.filter(a=>a.contactId===c.id).map(a=>({d:o.d, t:"OFI "+propAddr(byId(S.properties,l.propertyId))}))));
+  const tl=[...c.history, ...ohs, ...c.notes.map(n=>({d:n.d, t:n.t}))].sort((a,b)=>a.d<b.d?1:-1);
+  const er=(l,k,v)=>`<button class="kvr" data-act="efield" data-id="${c.id}" data-k="${k}"><span>${l}</span><b>${v}</b>${ic("pencil","s")}</button>`;
+  return {title:cname(c), back:true, body:`
+    <div class="row"><span class="small muted grow">Contact${props[0]?" · "+L2("owner of","业主：")+" "+esc(shortAddr(props[0])):""}<br>${t("last_updated")} ${esc(c.updated.by)}, ${c.updated.d}</span>${slSwitch(c)}</div>
+    ${isSL(c)?`<div class="small muted">${L2("Tag “Seller lead” sent to Rex","已在 Rex 打上 “Seller lead” 标签")}</div>`:""}
+    <div class="card kvc">${er(L2("First name","名"),"first",esc(c.first))}${er(L2("Last name","姓"),"last",esc(c.last||"—"))}${er(L2("Mobile","手机"),"mobile",`<span class="masked">${mask(c.mobile)}</span>`)}${er(L2("Email","邮箱"),"email",maskEmail(c.email))}${er(L2("Address","地址"),"address",esc(c.address||(props[0]?propAddr(props[0]):"—")))}</div>
+    <div class="small muted">${L2("Tap any field to edit · saved to Rex","点任意字段即可修改 · 保存到 Rex")}</div>
+    ${off.length?`<div>${off.filter(x=>x!=="Junk mail").length?`<div class="optx big">${ic("ban")} OPTED OUT: ${off.filter(x=>x!=="Junk mail").map(x=>x.toUpperCase()).join(" · ")}</div>`:""}${off.includes("Junk mail")?`<div class="optx big">${ic("ban")} NO JUNK MAIL</div><div class="small muted">${L2("Left out of letterbox drops","不进入信箱广告名单")}</div>`:""}${c.prefLog?`<div class="small muted">${esc(c.prefLog.t)} · ${c.prefLog.d} · ${esc(c.prefLog.by)}</div>`:""}</div>`:""}
+    <span class="sec">CONTACT PREFERENCES</span>
+    <div class="card kvc">${CH.map(([k,l])=>`<div class="kvr"><span>${k==="junk"?"Junk mail / letterbox drops":l}</span>${prefOn(c,k)?"":`<span class="optx">${k==="junk"?"NO JUNK MAIL":"OPTED OUT"}</span>`}<button class="switch pf ${prefOn(c,k)?"on":"off"}" data-act="prefq" data-id="${c.id}" data-k="${k}" aria-label="${l}"><i></i></button></div>`).join("")}</div>
+    <div class="grid2" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+      <button class="btn ghost sm ${prefOn(c,"phone")?"":"strike"}" data-act="call" data-id="${c.id}" data-name="${esc(cname(c))}" ${prefOn(c,"phone")?"":"disabled"}>Call</button>
+      <button class="btn ghost sm ${prefOn(c,"sms")?"":"strike"}" data-act="textsms" data-id="${c.id}" ${prefOn(c,"sms")?"":"disabled"}>Text</button>
+      <button class="btn ghost sm ${prefOn(c,"email")?"":"strike"}" data-act="emailc" data-id="${c.id}" ${c.email&&prefOn(c,"email")?"":"disabled"}>Email</button>
+      <button class="btn ghost sm ${prefOn(c,"letter")?"":"strike"}" data-act="letterq" data-id="${c.id}" ${prefOn(c,"letter")?"":"disabled"}>Letter</button></div>
+    <div class="grid2"><button class="btn ghost" data-act="tile" data-tile="update" data-id="${props[0]?props[0].id:""}">Update record</button><button class="btn primary" data-act="newtodo" data-cid="${c.id}" data-pid="${props[0]?props[0].id:""}">+ To-do</button></div>
+    ${dupesOf(c).length?`<div class="card dupc"><span class="sec" style="color:#B4480F">POSSIBLE DUPLICATE${dupesOf(c).some(d=>d.owner===c.owner)?" · ALSO YOURS":""}</span>${dupesOf(c).map(d=>`<div style="margin-top:6px"><b>${esc(cname(d))}</b> <span class="small muted">· ${normMobile(d.mobile)===normMobile(c.mobile)&&c.mobile?L2("same mobile","手机相同"):L2("same email","邮箱相同")} · ${nNotes(d.notes.length)} · ${d.updated.d}</span></div>${d.owner===c.owner?`<button class="btn honey block" style="margin-top:8px" data-act="mergeopen" data-a="${c.id}" data-b="${d.id}">Compare and merge</button>`:`<button class="btn ghost block" style="margin-top:8px" data-act="contact" data-id="${d.id}">${L2("View","查看")}</button>`}`).join("")}</div>`:""}
+    <div class="card"><h2>${t("tags")}</h2><div class="btns">${c.tags.map(x=>tagChip(x)).join("")||`<span class="muted small">${t("none")}</span>`}</div><button class="btn sm ghost" style="margin-top:8px" data-act="tile" data-tile="tags" data-cid="${c.id}">${t("edit")}</button></div>
+    <div class="card"><h2>${t("history")}</h2><div class="tl">${tl.map(e=>`<div class="e"><span class="d">${e.d}</span><span>${noteText(e.t)}</span></div>`).join("")||`<div class="muted small">${t("none")}</div>`}</div></div>
+    <div class="card"><h2>${t("relationships")}</h2>${c.rels.map(r=>`<div class="row" style="padding:3px 0"><span class="role">${r.type}</span><span>${esc(r.name)}</span></div>`).join("")||`<div class="muted small">${t("none")}</div>`}<button class="btn sm ghost" style="margin-top:8px" data-act="addrel" data-id="${c.id}">${t("add_rel")}</button></div>
+    <div class="card"><h2>${t("linked_props")}</h2>${props.map(p=>`<button class="item" style="border:0;padding:6px 0" data-act="prop" data-id="${p.id}"><span class="dot ${propColor(p)}"></span><span class="grow">${propAddr(p)}</span><span class="arrow">›</span></button>`).join("")||`<div class="muted small">${t("none")}</div>`}</div>
+    ${c.buyerProfile?`<div class="card"><h2>${t("buyer_profile")}</h2><div class="small">${esc([c.buyerProfile.price,c.buyerProfile.suburbs,c.buyerProfile.beds?c.buyerProfile.beds+"+ bed":"",c.buyerProfile.finance].filter(Boolean).join(" · "))}</div><button class="btn sm ghost" style="margin-top:8px" data-act="moreinfo" data-id="${c.id}">${t("edit")}</button></div>`:""}`};
+};
+// ---------- To-dos (CR9) ----------
+SCREENS.todos = () => { const sets=myTodoSets(); const tab=view.tdTab||"mine"; const list=sets[tab];
+  const grp=(lab,fn)=>{ const l=list.filter(fn); return l.length?`<span class="sec">${lab}</span><div class="card" style="padding:4px 12px">${l.map(x=>todoRow2(x)).join("")}</div>`:""; };
+  return {title:"To-dos", back:true, body:`
+    <div class="seg sm3">${[["mine","Mine · "+sets.mine.length],["by","Assigned by me · "+sets.by.length],["done","Completed"]].map(([k,l])=>`<button class="${tab===k?"on":""}" data-act="tdtab" data-v="${k}">${l}</button>`).join("")}</div>
+    ${tab==="done"?(list.length?`<div class="card" style="padding:4px 12px">${list.map(x=>todoRow2(x)).join("")}</div>`:`<div class="card small muted">${L2("Nothing completed yet.","还没有已完成的待办。")}</div>`)
+      :(grp("OVERDUE",x=>x.d<TODAY)+grp("TODAY",x=>x.d===TODAY)+grp("UPCOMING",x=>x.d>TODAY)||`<div class="card small muted">${L2("Nothing here.","这里没有待办。")}</div>`)}
+    <button class="btn ghost block" data-act="newtodo" data-cid="" data-pid="">+ To-do</button>
+    <div class="small muted">${L2("Tap a to-do or the name to open the contact record. Tick to complete.","点待办或姓名打开联系人记录。勾选即完成。")}</div>`};
+};
+SHEETX.todo = () => { const s=sheet; const c=s.cid&&byId(S.contacts,s.cid); const p=s.propId&&byId(S.properties,s.propId); const me=ME();
+  const days=[[TODAY,L2("Today","今天")],[addDays(1),L2("Tomorrow","明天")],[addDays(5),dayLabel(addDays(5))]]; const times=["09:00","12:00","16:00"];
+  return `<h3>${ic("clock")} ${s.editId?"Edit to-do":"New to-do"}${c||p?` <span class="small muted" style="font-weight:400">${c?esc(cname(c)):""}${c&&p?" · ":""}${p?esc(shortAddr(p)):""}</span>`:""}</h3>
+    <div class="field"><label>TO-DO</label><div class="row notein"><input id="td_t" class="grow" value="${esc(s.t||"")}" placeholder="${L2("Send market update and call Thursday","发市场报告并在周四回电")}"><button class="nmic" data-act="notemic" data-t="td_t">${ICON.mic}</button></div></div>
+    <div class="field"><label>DATE</label><div class="chips" style="flex-wrap:wrap">${days.map(([d,l])=>`<button class="${s.d===d?"on":""}" data-act="tdd" data-v="${d}">${l}</button>`).join("")}<input type="date" id="td_d" value="${s.d}" style="width:auto;flex:none;min-height:36px"></div></div>
+    <div class="field"><label>TIME</label><div class="chips" style="flex-wrap:wrap">${times.map(x=>`<button class="${s.time===x?"on":""}" data-act="tdt" data-v="${x}">${x}</button>`).join("")}<input type="time" id="td_tm" value="${s.time||""}" style="width:auto;flex:none;min-height:36px"></div></div>
+    <div class="field"><label>ASSIGN TO · MY TEAM</label><div class="card" style="padding:0 12px">${teamNames().map(n=>`<label class="kvr" style="cursor:pointer"><span style="${s.who===n?"font-weight:700;color:var(--fg)":""}">${n===me?"Me ("+esc(n)+")":esc(n)}</span><input type="radio" name="td_who" value="${esc(n)}" ${s.who===n?"checked":""} data-act="tdw" style="width:20px;height:20px;min-height:0;flex:none;accent-color:var(--fg)"></label>`).join("")}</div></div>
+    <div class="info">${s.who===me?L2("Shows on your To-dos with a phone notification. Synced to Rex.","显示在你的 To-dos 里并推送通知。同步到 Rex。"):L2(`Shows on your To-dos (Assigned by me) and on ${esc(s.who.split(" ")[0])}'s To-dos, with a phone notification. Synced to Rex.`,`同时显示在你的 To-dos（Assigned by me）和 ${esc(s.who.split(" ")[0])} 的 To-dos 里，并推送通知。同步到 Rex。`)}</div>
+    <div class="btns"><button class="btn primary grow" data-act="tdsave">Save to-do</button><button class="btn ghost" data-act="closesheet">${t("cancel")}</button></div>`;
+};
+// ---------- Communication preferences sheet (CR8) and field editor (CR7) ----------
+/* Communication preferences is a page of its own (PDF 08), opened from the property page */
+function pfState(id){ if(!view.pf||view.pf.cid!==id){ const c=byId(S.contacts,id); const v={}; CH.forEach(([k])=>v[k]=prefOn(c,k)); view.pf={cid:id, v, reason:""}; } return view.pf; }
+SCREENS.prefs = ({id}) => { const c=byId(S.contacts,id); const p=S.properties.find(x=>x.ownerIds.includes(c.id)); const st=pfState(id); const v=st.v;
+  return {title:"Communication preferences", back:true, body:`
+    <div class="small muted">${esc(cname(c))}${p?" · "+esc(shortAddr(p)):""}</div>
+    <div class="info">${L2("Tap to opt out. Opted-out channels show in bold red on every record and their buttons are disabled. Logged to Rex with date and who changed it.","点一下即退订。已退订的渠道在每条记录上以红色粗体显示，对应按钮停用。写入 Rex 并记录日期和操作人。")}</div>
+    <div class="card kvc">${CH.map(([k,l])=>`<div class="kvr"><span>${k==="junk"?`<b style="color:var(--fg)">Junk mail</b><br><span class="small">${L2("Letterbox drops, flyers, “No junk mail” sign","信箱广告、传单、“No junk mail” 标识")}</span>`:l}</span>${v[k]?"":`<span class="optx">${k==="junk"?"NO JUNK MAIL":"OPTED OUT"}</span>`}<button class="switch pf ${v[k]?"on":"off"}" data-act="prefset" data-k="${k}" aria-label="${l}"><i></i></button></div>`).join("")}</div>
+    ${c.prefLog?`<div class="small muted">${esc(c.prefLog.t)} · ${c.prefLog.d} · ${esc(c.prefLog.by)}</div>`:""}
+    <div class="field"><label>REASON (OPTIONAL)</label><div class="row notein"><input id="pf_reason" class="grow" value="${esc(st.reason||"")}" placeholder="${L2("No junk mail sign on letterbox","信箱上贴了 No junk mail")}"><button class="nmic" data-act="notemic" data-t="pf_reason">${ICON.mic}</button></div></div>
+    <div class="grid2"><button class="btn ghost" data-act="prefcancel">${t("cancel")}</button><button class="btn primary" data-act="prefsave">${L2("Save","保存")}</button></div>`};
+};
+SHEETX.efield = () => { const c=byId(S.contacts,sheet.cid); const k=sheet.k; const labs={first:"First name",last:"Last name",mobile:"Mobile",email:"Email",address:"Address"};
+  return `<h3>${ic("pencil")} ${labs[k]} <span class="small muted" style="font-weight:400">${esc(cname(c))}</span></h3>
+    <div class="field"><input id="ef_v" value="${esc(c[k]||"")}" ${k==="mobile"?'inputmode="tel"':k==="email"?'inputmode="email"':""}></div>
+    ${k==="mobile"?`<div class="small muted">${L2("The full number is shown here because you are editing it. The change is logged.","因为正在修改，这里显示完整号码。修改会被记录。")}</div>`:""}
+    <div class="btns"><button class="btn primary grow" data-act="efsave">${t("save_rex")}</button><button class="btn ghost" data-act="closesheet">${t("cancel")}</button></div>`;
+};
+// ---------- Add enquiry (CR5, CR6) ----------
+/* Seller lead switch: the agent's choice wins; otherwise on for seller/landlord enquiries and for contacts already tagged */
+function e2slOn(v,mc){ return v.sl!=null?!!v.sl:(v.type!=="buyer"||isSL(mc)); }
+function e2(){ if(!view.enq2) view.enq2={type:"",mobile:"",first:"",last:"",email:"",addr:"",sl:null,listingId:"",propText:"",src:"phone",note:"",more:false}; return view.enq2; }
+function qaKeep(){ const g=k=>(document.getElementById(k)||{}).value||""; sheet.mobile=g("qa_mobile"); sheet.first=g("qa_first"); sheet.last=g("qa_last"); sheet.email=g("qa_email"); sheet.note=g("qa_note"); }
+function e2grab(){ const v=e2(); const g=(k,f)=>{ const el=document.getElementById(k); if(el) v[f]=el.value; }; g("e2_mobile","mobile"); g("e2_first","first"); g("e2_last","last"); g("e2_email","email"); g("e2_addr","addr"); g("e2_prop","propText"); g("e2_note","note"); g("e2_lq","lq"); g("e2_newmob","newMobile"); return v; }
+function e2match(v){ return normMobile(v.mobile).length>=10?matchContacts({mobile:v.mobile,email:""}):null; }
+function e2lrow(l,pick){ const me=ME(); const p=byId(S.properties,l.propertyId); const sub=esc((l.ofi&&l.ofi[0]?"OFI "+l.ofi[0].time+" · ":"")+l.price); const chip=`<span class="chip ${l.agent===me?"blue":""}">${l.agent===me?"Mine":"Team"}</span>`;
+  return pick?`<button class="kvr" data-act="e2lpick" data-id="${l.id}" style="text-align:left"><span style="min-width:0"><b style="color:var(--fg)">${esc(propAddr(p))}</b><br><span class="small">${sub}</span></span>${chip}</button>`
+    :`<div class="kvr"><span style="min-width:0"><b style="color:var(--fg)">${esc(propAddr(p))}</b><br><span class="small">${sub}</span></span>${chip}<button class="linkbtn small" data-act="e2lclear" style="text-decoration:none">${L2("Change","更换")}</button></div>`; }
+/* listing search results: nothing until the box is focused, then every listed property (mine first), narrowed as you type */
+function e2lres(q,open){ const me=ME(); q=(q||"").trim().toLowerCase(); if(!q&&!open) return "";
+  const l=S.listings.filter(x=>x.status==="listed"&&(!q||propAddr(byId(S.properties,x.propertyId)).toLowerCase().includes(q))).sort((a,b)=>(a.agent===me?0:1)-(b.agent===me?0:1));
+  return l.length?`<div class="card" style="padding:0 12px;margin-top:6px">${l.map(x=>e2lrow(x,true)).join("")}</div>`:`<div class="small muted" style="margin-top:6px">${L2("No listing found","没有找到挂牌房源")}</div>`; }
+/* seller / landlord: the card that says who will be linked as owner of which property; redrawn as the address or name is typed */
+function e2link(v,mc){ const sp=v.type&&v.type!=="buyer"&&v.propText?propInText(v.propText):null; if(!sp) return ""; const who=(v.first||(mc?mc.first:""))+" "+(v.last||(mc?mc.last:""));
+  return `<div class="card" style="margin-top:6px"><div class="row" style="align-items:flex-start"><i class="dot green" style="margin-top:5px"></i><div class="grow"><b>${L2("Will link","将关联")} ${esc(who.trim()||"contact")} ${L2("as owner of","为业主：")} ${esc(shortAddr(sp))}</b><div class="small muted">${sp.pfOwner?"Pricefinder owner: "+esc(sp.pfOwner)+" · ":""}${sp.beds||"—"} bed${sp.lastSale?", owned "+yearsSince(sp.lastSale)+" yrs":""}</div><div class="small muted">Tags: ${e2slOn(v,mc)?"Seller lead · ":""}${v.type==="landlord"?"Rental appraisal":"Appraisal request"}</div></div></div></div>`; }
+function e2form(){ const v=e2(); const m=e2match(v); const mc=m&&m.list[0]?m.list[0].c:null; const tyLab={buyer:"Buyer",seller:"Seller",landlord:"Landlord"}[v.type]||"";
+  const B=!!(v.type&&m); /* stage 2: the mobile is complete, so the type is settled and the details open */
+  
+  const er=(l,idk,val,ph="")=>`<div class="kvr"><span>${l}</span><input id="${idk}" value="${esc(val||"")}" placeholder="${ph}" style="text-align:right;border:0;min-height:32px;padding:0;font-weight:700;flex:1;min-width:0;text-overflow:ellipsis">${ic("pencil","s")}</div>`;
+  const stp=(n,l,on)=>`<span class="sec stp ${on?"":"off"}"><i>${n}</i>${l}</span>`;
+  const selL=byId(S.listings,v.listingId); const dup=mc?dupesOf(mc).filter(d=>d.owner===mc.owner).sort((a,b)=>(normMobile(b.mobile)===normMobile(mc.mobile))-(normMobile(a.mobile)===normMobile(mc.mobile))):[];
+  const head=`<div class="row"><div class="grow"><span class="small muted">Enquiry mode</span><h2 style="font-size:20px;line-height:26px;font-weight:700">Add enquiry${tyLab?" · "+tyLab:""}</h2></div>${B?`<button class="linkbtn small" data-act="e2reset" style="text-decoration:none;color:var(--link);font-weight:600">${L2("Start over","重新开始")}</button>`:""}</div>`;
+  if(!B) return `${head}
+  <button class="upl" data-act="e2shot">${ic("camera","l")} <b>Upload photo or screenshot</b> <span class="small">· ${L2("AI fills the form","AI 自动填表")}</span></button>
+  <div class="field">${stp(1,"CHOOSE TYPE",true)}<div class="chips" style="flex-wrap:wrap">${[["buyer","Buyer"],["seller","Seller / appraisal"],["landlord","Landlord"]].map(([k,l])=>`<button class="${v.type===k?"on":""}" data-act="e2type" data-v="${k}">${l}</button>`).join("")}</div></div>
+  <div class="field">${stp(2,"MOBILE · CHECKS REX FIRST",!!v.type)}<input id="e2_mobile" inputmode="tel" value="${esc(v.mobile)}" placeholder="04…" ${v.type?"":"disabled"}>
+    <div class="small muted">${v.type?L2("Searching Rex as you type…","边输入边在 Rex 搜索…"):L2("Choose a type first.","先选类型。")}</div></div>
+  <div class="field">${stp(3,"CONTACT DETAILS",false)}<div class="small muted">${L2("Shows the existing record if the mobile matches, or empty fields for a new contact.","手机号匹配到就显示已有记录，否则给出空白字段新建联系人。")}</div></div>
+  <div class="field">${stp(4,"ENQUIRY DETAILS",false)}</div>`;
+  return `${head}
+  ${v.shot?`<div class="info">${ic("zap","s")} ${L2("Read from the screenshot. Check every field, then save.","已从截图读取。逐项核对后再保存。")}</div>`:""}
+  <div class="row" style="position:relative"><input id="e2_mobile" inputmode="tel" value="${esc(v.mobile)}" placeholder="04…">${mc?`<span class="small ok" style="position:absolute;right:12px;font-weight:700">${ic("check","s")} Match</span>`:`<span class="small" style="position:absolute;right:12px;font-weight:700;color:var(--fg)">No match</span>`}</div>
+  ${mc?`<div class="card exist"><span class="sec" style="color:var(--link)">EXISTING CONTACT · EDIT ANY FIELD</span>
+      ${er("First name","e2_first",v.first||mc.first)}${er("Last name","e2_last",v.last||mc.last)}${er("Mobile","e2_newmob",v.newMobile||mc.mobile)}${er("Email","e2_email",v.email||mc.email)}${er("Address","e2_addr",v.addr||mc.address||((S.properties.find(p=>p.ownerIds.includes(mc.id))||{}).no?propAddr(S.properties.find(p=>p.ownerIds.includes(mc.id))):""))}
+      <div class="kvr"><span>Seller lead</span><button class="slsw ${e2slOn(v,mc)?"on":""}" data-act="e2sl">${BULB}<span>SELLER LEAD</span><i></i></button></div>
+      <div class="small muted" style="padding-top:6px">${L2("Owner","负责人")}: ${esc(mc.owner)}${mc.notes[0]?` · ${L2("last note","最近备注")} ${mc.notes[0].d}: “${noteText(mc.notes[0].t.slice(0,60))}”`:""}</div>
+      <button class="linkbtn small" data-act="contact" data-id="${mc.id}" style="text-decoration:none;align-self:flex-start;padding-top:6px;color:var(--link);font-weight:600">${L2("Open contact record","打开联系人记录")} ›</button></div>
+      ${dup.length?`<div class="card dupc"><span class="sec" style="color:#B4480F">POSSIBLE DUPLICATE · ALSO YOURS</span><div style="margin-top:6px"><b>${esc(cname(dup[0]))}</b> <span class="small muted">· ${normMobile(dup[0].mobile)===normMobile(mc.mobile)?L2("same mobile","手机相同"):L2("same email","邮箱相同")} · ${dup[0].updated.d}</span></div><button class="btn honey block" style="margin-top:8px" data-act="mergeopen" data-a="${mc.id}" data-b="${dup[0].id}">Compare and merge</button></div>`:""}`
+    :`<div class="warnbox">${v.shotName?L2("No match in Rex for this mobile, so this is a new contact. The name below was read from the screenshot, not from Rex. Check it.","Rex 里没有匹配到这个手机号，将新建联系人。下面的姓名是从截图读出来的，不是 Rex 里的记录，请核对。"):L2("No contact in Rex with this mobile. Create a new contact.","Rex 里没有这个手机号。新建联系人。")}</div>
+      <div class="grid2"><div class="field"><label>FIRST NAME</label><input id="e2_first" value="${esc(v.first)}"></div><div class="field"><label>LAST NAME</label><input id="e2_last" value="${esc(v.last)}" placeholder="Last name"></div></div>
+      <div class="field"><label>EMAIL</label><input id="e2_email" inputmode="email" value="${esc(v.email)}" placeholder="${L2("Email (optional)","邮箱（可选）")}"></div>
+      <div class="field"><label>ADDRESS · THEIR HOME</label><input id="e2_addr" value="${esc(v.addr)}" placeholder="${L2("Start typing address…","输入地址…")}"></div>
+      <div class="row"><span class="small muted grow">${v.type==="buyer"?L2("Selling and buying? Turn on","既卖又买？打开"):e2slOn(v,null)?L2("Seller enquiry turns this on. Tap to turn off.","卖家询盘自动打开，点一下可关闭"):L2("Turned off: no Seller lead tag for this enquiry","已关闭：这条询盘不打 Seller lead 标签")}</span><button class="slsw ${e2slOn(v,null)?"on":""}" data-act="e2sl">${BULB}<span>SELLER LEAD</span><i></i></button></div>`}
+  ${v.type==="buyer"?`<div class="field"><label>LISTING ENQUIRED ABOUT</label>${selL?`<div class="card" style="padding:0 12px">${e2lrow(selL,false)}</div>`:`<input id="e2_lq" value="${esc(v.lq||"")}" placeholder="${L2("Search listing address…","搜索挂牌房源地址…")}" autocomplete="off"><div id="e2_lr">${e2lres(v.lq,false)}</div>`}</div>`
+    :`<div class="field"><label>PROPERTY ADDRESS · THEIR PROPERTY</label><label class="check" style="min-height:40px;padding:4px 10px"><input type="checkbox" id="e2_same" data-act="e2same" ${v.same?"checked":""}><span>Same as residential address</span></label><input id="e2_prop" value="${esc(v.propText)}" placeholder="15 Becker St, Sunnybank" list="e2_pl" ${v.same?"readonly":""}><datalist id="e2_pl">${S.properties.map(p=>`<option value="${esc(propAddr(p))}">`).join("")}</datalist>
+      <div id="e2_lk">${e2link(v,mc)}</div></div>`}
+    <div class="field"><label>SOURCE</label><div class="chips" style="flex-wrap:wrap">${[["phone","Phone call"],["walkin","Walk-in"],["portal","Portal"],["referral","Referral"]].map(([k,l])=>`<button class="${v.src===k?"on":""}" data-act="e2src" data-v="${k}">${l}</button>`).join("")}</div></div>
+    <div class="field"><label>NOTE</label><div class="row notein"><input id="e2_note" class="grow" value="${esc(v.note)}" placeholder="${v.type==="buyer"?"Pre-approved, wants Form 2":L2("Wants appraisal, moving interstate","想估价，准备搬去外州")}"><button class="nmic" data-act="notemic" data-t="e2_note">${ICON.mic}</button></div></div>
+    <button class="linkbtn small" data-act="e2more" style="text-decoration:none;align-self:flex-start">${v.more?"▾":"▸"} More · ${L2("tags, marketing consent, assign to","标签、营销同意、指派人")}</button>
+    ${v.more?`<div class="card stack">${tagField({ctx:"enqPre"}, t("tags"))}${consentBox(mc, "cs")}<div class="field"><label>${t("assignee")}</label><select id="en_assignee">${ACCOUNTS.map(a=>`<option ${a.name===(v.assignee||ME())?"selected":""}>${a.name}</option>`).join("")}</select></div></div>`:""}
+    <div class="grid3 e2btns"><button class="btn ghost" data-act="e2save" data-then="todo">+ To-do</button><button class="btn honey" data-act="e2save" data-then="book">${v.type==="buyer"?"Book inspection":"Book appraisal"}</button><button class="btn primary" data-act="e2save" data-then="">Save to Rex</button></div>`;
+}
+SCREENS.enq = () => { const f=["leads","filed"].includes(view.enqF)?view.enqF:"add"; const list=S.enquiries.filter(e=>e.status==="new").sort((a,b)=>a.d<b.d?1:-1);
+  return {title:t("enq"), body:`
+    <div class="seg"><button class="${f==="add"?"on":""}" data-act="enqf" data-f="add">${t("add_enq")}</button><button class="${f==="leads"?"on":""}" data-act="enqf" data-f="leads">${t("inbox")} (${list.length})</button></div>
+    ${f==="add"?e2form():f==="filed"?`<div class="list">${S.enquiries.filter(e=>e.status==="filed").map(e=>`<button class="item" data-act="enquiry" data-id="${e.id}"><span class="chip green">${t("filed_ok")}</span><div class="grow"><div class="t">${esc(e.parsed.first+" "+e.parsed.last)}</div><div class="s mono">${e.source} · ${e.d}</div></div><span class="arrow">›</span></button>`).join("")||`<div class="item muted">${t("none")}</div>`}</div><button class="btn ghost block" data-act="enqf" data-f="leads">${t("inbox")}</button>`:`<div class="small muted">${t("share_hint")}</div><div class="list">${list.map(e=>{ const p=byId(S.properties,e.parsed.propertyId); return `<button class="item" data-act="enquiry" data-id="${e.id}"><span class="chip ${e.type==="seller"?"amber":"blue"}">${t(e.type)}</span><div class="grow"><div class="t">${esc(e.parsed.first+" "+e.parsed.last)}</div><div class="s">${p?propAddr(p):""} · ${esc(e.parsed.want)}</div><div class="s mono">${e.source} · ${e.d}</div></div><span class="arrow">›</span></button>`; }).join("")||`<div class="item muted">${t("none")}</div>`}</div>
+      <button class="btn ghost block" data-act="enqf" data-f="filed">${t("filed")} · ${S.enquiries.filter(e=>e.status==="filed").length}</button>`}`};
+};
+// ---------- handlers for the new screens ----------
+document.addEventListener("click", ev => { const el=ev.target.closest("[data-act]"); if(!el) return; const a=el.dataset.act, id=el.dataset.id;
+  if(a==="actp"){ view.actP=el.dataset.v; return render(); }
+  if(a==="goact") return go({name:"activity", cat:el.dataset.v, per:view.actP||"today"});
+  if(a==="gocap") return go({name:"captures"});
+  if(a==="gomarket") return go({name:"market"});
+  if(a==="gopatch") return go({name:"patch"});
+  if(a==="fullmap"){ view.mapSel=null; return go({name:"fullmap"}); }
+  if(a==="exitfull"){ view.mapSel=null; if(view.fmMode==="sat"||view.fmMode==="list") view.fmMode=view.sat?"sat":"map"; return back(); }
+  if(a==="fmmode"){ view.fmMode=el.dataset.v; if(view.fmMode!=="list") view.sat=view.fmMode==="sat"; return render(); }
+  if(a==="mapx"){ view.mapSel=null; return render(); }
+  if(a==="fmnote"){ sheet={kind:"note", propId:id}; return renderSheet(); }
+  if(a==="allnotes"){ view.allNotes=true; return render(); }
+  if(a==="capedit"){ const c=byId(S.captures,id); sheet={kind:"confirm", ctx:"dk", text:c.text, r:extract(c.text,"dk"), propId:c.propId, capId:c.id}; return renderSheet(); }
+  if(a==="capok"){ const sn=snap(); const c=byId(S.captures,id); const r=extract(c.text,"dk"); const m=matchContacts(r); const pp=byId(S.properties,c.propId);
+    if(!m.list[0]&&!r.mobile&&!r.email&&(!r.first||!r.last)){ const own=ownersOf(pp)[0]; pp.visits.push({d:TODAY,o:r.tags.includes("Not at home")?"not_home":r.tags.includes("Left card")?"left_card":"spoke"}); if(own){ r.tags.forEach(x=>{ if(!own.tags.includes(x)) own.tags.push(x); }); noteOn(own,c.text); } audit("DK", `${propAddr(pp)} · visit logged`); S.captures=S.captures.filter(x=>x.id!==id); persist(); render(); toast(L2("Visit logged to Rex","拜访已记录到 Rex")+" · "+shortAddr(pp), {undo:()=>restore(sn)}); return; }
+    r.pickId=m.list[0]?m.list[0].c.id:"new"; if(m.list[0]){ r.first=m.list[0].c.first; r.last=m.list[0].c.last; } const k=commitDK(r, c.propId); S.captures=S.captures.filter(x=>x.id!==id); persist(); render(); toast(`${t("filed_ok")} · ${k?cname(k):""}`, {undo:()=>restore(sn)}); return; }
+  if(a==="capdismiss"){ const sn=snap(); S.captures=S.captures.filter(x=>x.id!==id); persist(); render(); toast(L2("Capture dismissed","已忽略这条语音"), {undo:()=>restore(sn)}); return; }
+  if(a==="mkno"){ const sn=snap(); S.market=S.market.filter(x=>x.id!==id); persist(); render(); toast(L2("Alert dismissed · Rex unchanged","已忽略 · Rex 不变"), {undo:()=>restore(sn)}); return; }
+  if(a==="mkyes"){ const sn=snap(); const m=byId(S.market,id); const p=m.propId&&byId(S.properties,m.propId);
+    if(m.kind==="sale"&&p){ ownersOf(p).forEach(c=>{ c.roles=c.roles.filter(r=>r!=="owner"); if(!c.roles.includes("previous owner")) c.roles.push("previous owner"); c.tags=c.tags.filter(x=>x!=="Seller lead"); c.sellerStatus="Sold"; noteOn(c,`Market monitor: ${propAddr(p)} sold ${m.meta}. Moved to previous owner, seller lead status Sold.`,"AxleoCollect"); }); p.ownerIds=[]; p.pfOwner=""; p.lastSale="2026-11"; p.flags.dnc=false; p.pending=true; }
+    if(m.kind==="listing"){ if(p){ p.otherListing=true; ownersOf(p).forEach(c=>{ c.sellerStatus="Listed with competitor"; noteOn(c,`Market monitor: ${propAddr(p)} listed with ${m.agency}. Seller lead status: Listed with competitor.`,"AxleoCollect"); }); } }
+    audit("Market monitor", `${m.addr} · ${m.kind==="sale"?"ownership changed, Sold":"Listed with competitor"}`); S.market=S.market.filter(x=>x.id!==id); persist(); render(); toast(L2("Updated in Rex","已更新到 Rex")+" · "+m.addr, {undo:()=>restore(sn)}); return; }
+  if(a==="pdraw"){ view.radiusMode=false; view.drawing=true; view.drawLock=false; view.drawPts=[]; return render(); }
+  if(a==="pradius"){ view.drawing=false; view.drawPts=[]; view.radiusMode=true; view.radM=view.radM||300; return render(); }
+  if(a==="pradm"){ view.radM=+el.dataset.v; return render(); }
+  if(a==="pcancel"){ view.drawing=false; view.radiusMode=false; view.drawLock=false; view.drawPts=[]; return render(); }
+  if(a==="pzdel"){ const sn=snap(); const zz=byId(S.zones,id); if(zz) removeZoneTag(zz); S.zones=S.zones.filter(z=>z.id!==id); if(view.zone===id) view.zone=null; persist(); render(); toast(t("zone_deleted")+(zz?" · "+zz.name:""), {undo:()=>restore(sn)}); return; }
+  if(a==="psubrm"){ S.patch.suburbs=S.patch.suburbs.filter(s=>s!==el.dataset.v); persist(); return render(); }
+  if(a==="psave"){ audit("Patch", patchLine()); persist(); toast(L2("Patch saved · Pricefinder watches it daily","片区已保存 · Pricefinder 每天检查")); return back(); }
+  if(a==="sltoggle"){ const c=byId(S.contacts,id); if(!c) return; setSL(c,!isSL(c)); persist(); render(); toast(isSL(c)?L2("Seller lead on · tag sent to Rex","Seller lead 已打开 · 标签已写入 Rex"):L2("Seller lead off","Seller lead 已关闭")); return; }
+  if(a==="prefq"){ const sn=snap(); const c=byId(S.contacts,id); const k=el.dataset.k; applyPref(c,k,prefOn(c,k)?0:1,""); persist(); render(); toast((CH.find(x=>x[0]===k)||[])[1]+": "+(prefOn(c,k)?L2("opted in","已恢复"):L2("opted out","已退订")), {undo:()=>restore(sn)}); return; }
+  if(a==="prefs"){ view.pf=null; pfState(id); return go({name:"prefs", id}); }
+  if(a==="prefset"){ const st=view.pf; st.reason=(document.getElementById("pf_reason")||{}).value||""; st.v[el.dataset.k]=st.v[el.dataset.k]?0:1; return render(); }
+  if(a==="prefcancel"){ view.pf=null; return back(); }
+  if(a==="prefsave"){ const st=view.pf; const c=byId(S.contacts,st.cid); const reason=((document.getElementById("pf_reason")||{}).value||"").trim(); let n=0; CH.forEach(([k])=>{ if(prefOn(c,k)!==st.v[k]){ applyPref(c,k,st.v[k],reason); n++; } }); persist(); view.pf=null; back(); toast(n?L2("Preferences saved to Rex","联系偏好已保存到 Rex"):L2("No change","没有改动")); return; }
+  if(a==="letterq"){ const c=byId(S.contacts,id); noteOn(c,"Letter queued for print","AxleoCollect"); persist(); render(); return toast(L2("Letter queued","信件已加入打印队列")); }
+  if(a==="efield"){ sheet={kind:"efield", cid:id, k:el.dataset.k}; renderSheet(); setTimeout(()=>{ const i=document.getElementById("ef_v"); if(i) i.focus(); },40); return; }
+  if(a==="efsave"){ const c=byId(S.contacts,sheet.cid); const k=sheet.k; const v=(document.getElementById("ef_v").value||"").trim(); const old=c[k]||""; if(v!==old){ c[k]=v; touch(c); noteOn(c,`Field edited · ${k}`,"AxleoCollect"); audit("Record", `${cname(c)} · ${k}`); persist(); } sheet=null; render(); return toast(t("filed_ok")); }
+  if(a==="noteadd"){ const i=document.getElementById("pn_note"); const txt=(i&&i.value||"").trim(); if(!txt) return; const p=byId(S.properties,id); const c=ownersOf(p)[0]; if(!c) return toast(L2("Add a contact first","先添加联系人")); noteOn(c,txt); audit("Note", shortAddr(p)); persist(); render(); return toast(t("filed_ok")); }
+  if(a==="notemic"){ const i=document.getElementById(el.dataset.t); if(!i) return; const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR){ toast(L2("Dictation is not available in this browser. Type instead.","这个浏览器不支持听写，请直接输入。")); return i.focus(); }
+    try{ const r=new SR(); r.lang=voiceLang||"en-AU"; r.onresult=e=>{ i.value=(i.value?i.value+" ":"")+e.results[0][0].transcript; }; r.onerror=()=>toast(L2("Could not hear that","没有听清")); el.classList.add("live"); r.onend=()=>el.classList.remove("live"); r.start(); }catch(e){ i.focus(); } return; }
+  if(a==="newtodo"){ sheet={kind:"todo", cid:el.dataset.cid||"", propId:el.dataset.pid||"", d:addDays(1), time:"16:00", who:ME(), t:""}; return renderSheet(); }
+  if(a==="tdd"||a==="tdt"||a==="tdw"){ sheet.t=(document.getElementById("td_t")||{}).value||""; if(a==="tdd") sheet.d=el.dataset.v; if(a==="tdt") sheet.time=el.dataset.v; if(a==="tdw") sheet.who=el.value; return renderSheet(); }
+  if(a==="tdsave"){ const txt=(document.getElementById("td_t").value||"").trim(); if(!txt) return toast("* To-do"); const d=document.getElementById("td_d").value||sheet.d, tm=document.getElementById("td_tm").value||sheet.time; const who=sheet.who; const ex=sheet.editId&&byId(S.todos,sheet.editId);
+    if(ex){ if(ex.who!==who) ex.by=ME(); Object.assign(ex,{d, time:tm, t:txt, who}); audit("To-do", txt+" · "+who); persist(); sheet=null; render(); return toast(L2("To-do updated","待办已更新")); }
+    S.todos.push({id:uid("t"), d, time:tm, t:txt, who, by:ME(), kind:"call", cid:sheet.cid||"", propId:sheet.propId||""}); const c=sheet.cid&&byId(S.contacts,sheet.cid); if(c) noteOn(c,`To-do: ${txt} · ${d} ${tm} · ${who===ME()?"me":"assigned to "+who}`,"AxleoCollect"); audit("To-do", txt+" · "+who); persist(); sheet=null; render(); return toast(who===ME()?L2("To-do saved","待办已保存"):L2("To-do sent to ","待办已发给 ")+who.split(" ")[0]); }
+  if(a==="tdtab"){ view.tdTab=el.dataset.v; return render(); }
+  if(a==="tdtick"){ const sn=snap(); const x=byId(S.todos,id); x.done=!x.done; if(x.done){ x.doneAt=TODAY; audit("To-do done", x.t); const c=x.cid&&byId(S.contacts,x.cid); if(c) noteOn(c,`To-do done: ${x.t}`,"AxleoCollect"); } persist(); render(); toast(x.done?L2("Done · moved to Completed","已完成 · 移到 Completed"):L2("Reopened","已重新打开"), {undo:()=>restore(sn)}); return; }
+  if(a==="tdopen"){ const x=byId(S.todos,id); if(!x) return; const {c,p}=todoLink(x); if(c) return go({name:"contact", id:c.id}); if(p) return go({name:"prop", id:p.id});
+    sheet={kind:"todo", editId:x.id, cid:"", propId:"", d:x.d, time:x.time||"", who:x.who, t:x.t}; return renderSheet(); }
+  if(a==="qause"){ qaKeep(); const c=byId(S.contacts,id); sheet.use=id; sheet.notThis=null; sheet.first=c.first; sheet.last=c.last; sheet.email=c.email; return renderSheet(); }
+  if(a==="qanot"){ qaKeep(); sheet.notThis=id; sheet.use=null; renderSheet(); const i=document.getElementById("qa_first"); if(i) i.focus(); return; }
+  if(a==="qaundo"){ qaKeep(); sheet.notThis=null; return renderSheet(); }
+  if(a==="e2lpick"){ const v=e2grab(); v.listingId=id; v.lq=""; return render(); }
+  if(a==="e2lclear"){ const v=e2grab(); v.listingId=""; render(); const i=document.getElementById("e2_lq"); if(i) i.focus(); return; }
+  if(a==="e2reset"){ view.enq2=null; view.enqPre=null; _forceTop=true; return render(); }
+  if(a==="nbtoggle"){ const on=!el.classList.contains("on"); el.classList.toggle("on",on); const cu=current(); if(cu.name==="checkin"){ cu.pre=cu.pre||{}; cu.pre.nb=on; } else cu.nb=on; return; }
+  if(a==="e2same"){ const v=e2grab(); v.same=el.checked; if(v.same){ v.propText=v.addr||""; if(!v.propText) toast(L2("Fill in the home address above; the property address follows it","先填上面的住址，房产地址会跟着它")); } return render(); }
+  if(a==="e2type"){ const v=e2grab(); v.type=el.dataset.v; v.sl=null; render(); const i=document.getElementById("e2_mobile"); if(i&&!v.mobile) i.focus(); return; }
+  if(a==="e2src"){ const v=e2grab(); v.src=el.dataset.v; return render(); }
+  if(a==="e2list"){ const v=e2grab(); v.listingId=el.value; return; }
+  if(a==="e2sl"){ const v=e2grab(); const m=e2match(v); const mc=m&&m.list[0]?m.list[0].c:null; v.sl=!e2slOn(v,mc); return render(); }
+  if(a==="e2more"){ const v=e2grab(); v.more=!v.more; return render(); }
+  if(a==="e2shot"){ toast(t("shot_reading")); setTimeout(()=>{ const r=extract("Referral from Lisa Tran (Ray White Sunnybank) via WeChat: William Park, 0455 210 884, owner of 5 Gager St Sunnybank, thinking of selling before Christmas, wants an appraisal. Referral fee 20% agreed.","dk"); view.enq2={type:"seller",mobile:r.mobile,first:"William",last:"Park",email:"",addr:"",sl:true,listingId:"",propText:"5 Gager St, Sunnybank",src:"referral",note:"Referral from Lisa Tran (Ray White). Wants appraisal, selling before Christmas. Referral fee 20% agreed.",more:false,shot:true,shotName:true,shotData:{mobile:r.mobile,first:"William",last:"Park"}}; view.enqPre={tags:["Warm"],ai:["Warm"]}; view.enqF="add"; render(); },900); return; }
+  if(a==="e2save"){ const v=e2grab(); if(v.same) v.propText=v.addr||""; const then=el.dataset.then; if(!v.type) return toast("* Type"); if(normMobile(v.mobile).length<10) return toast("* "+t("mobile"));
+    const m=e2match(v); const mc=m&&m.list[0]?m.list[0].c:null; const tags=[...((view.enqPre||{}).tags||[])]; const wantSL=e2slOn(v,mc); if(wantSL&&!tags.includes("Seller lead")) tags.push("Seller lead");
+    const cons=document.getElementById("cs_email")?readConsent("cs"):null; const asg=(document.getElementById("en_assignee")||{}).value||ME(); const srcL={phone:"Phone call",walkin:"Walk-in",portal:"Portal",referral:"Referral"}[v.src];
+    const {c,matched}=upsertContact({first:v.first||(mc?mc.first:""),last:v.last||(mc?mc.last:""),mobile:v.mobile,email:v.email||(mc?mc.email:""),pickId:mc?mc.id:"new",consent:cons,consentHow:t("how_enq")+" · "+srcL,relation:v.type==="seller"?"owner":v.type==="landlord"?"landlord":"buyer",tags,note:""});
+    if(!wantSL) c.tags=c.tags.filter(x=>x!=="Seller lead"); if(v.addr) c.address=v.addr;
+    if(mc&&normMobile(v.newMobile).length>=10&&normMobile(v.newMobile)!==normMobile(c.mobile)){ c.mobile=v.newMobile.trim(); audit("Enquiry", cname(c)+" · mobile updated"); } let p=null, l=null;
+    if(v.type==="buyer"){ l=byId(S.listings,v.listingId); p=l&&byId(S.properties,l.propertyId); if(!c.buyerProfile) c.buyerProfile={price:"",suburbs:p?p.suburb:"",beds:"",finance:"Not yet",timing:"3 months",must:[]}; }
+    else { p=propInText(v.propText); if(p) linkOwner(c,p); }
+    const note=v.note||(v.type==="buyer"?"Buyer enquiry"+(p?" · "+shortAddr(p):""):v.type==="landlord"?"Rental appraisal request":"Appraisal request");
+    createLead(c,{propertyId:p?p.id:"", listingId:l?l.id:"", source:srcL, note, assignee:asg, type:v.type});
+    S.enquiries.unshift({id:uid("e"), source:srcL, d:TODAY+" "+new Date().toTimeString().slice(0,5), type:v.type==="buyer"?"buyer":"seller", status:"filed", raw:`${cname(c)}, ${v.mobile}, ${note}`, parsed:{first:c.first,last:c.last,mobile:v.mobile,email:c.email,propertyId:p?p.id:"",want:note}, tags});
+    audit("Enquiry", `${srcL} · ${cname(c)}`); persist(); view.enq2=null; view.enqPre=null; _forceTop=true;
+    if(then==="todo"){ sheet={kind:"todo", cid:c.id, propId:p?p.id:"", d:addDays(1), time:"16:00", who:ME(), t:""}; }
+    else if(then==="book"){ if(v.type==="buyer"){ S.todos.push({id:uid("t"), d:addDays(1), time:"10:00", t:`Book inspection · ${p?shortAddr(p):""}`, who:l?l.agent:ME(), by:ME(), kind:"appt", cid:c.id, propId:p?p.id:""}); persist(); } else if(p){ sheet={kind:"bookappr", propId:p.id, slot:1}; } }
+    render(); return toast(`${t("filed_ok")} · ${cname(c)}${matched?" ("+t("matched")+")":""}${then==="book"&&v.type==="buyer"?" · "+L2("inspection to-do sent to the listing agent","看房待办已发给挂牌经纪"):""}`); }
+});
+document.addEventListener("change", ev => { const el=ev.target;
+  if(el.id==="psub"&&el.value){ if(!S.patch.suburbs.includes(el.value)) S.patch.suburbs.push(el.value); persist(); render(); }
+  if(el.id==="td_d"&&sheet&&sheet.kind==="todo"){ sheet.t=(document.getElementById("td_t")||{}).value||""; sheet.d=el.value; renderSheet(); }
+  if(el.id==="td_tm"&&sheet&&sheet.kind==="todo"){ sheet.t=(document.getElementById("td_t")||{}).value||""; sheet.time=el.value; renderSheet(); }
+  if(el.id==="fmq"){ const q=el.value.trim().toLowerCase(); if(!q) return; const p=S.properties.find(x=>propAddr(x).toLowerCase().includes(q)); if(p){ view.street=p.street+", "+p.suburb; view.mapSel=p.id; render(); } else toast(L2("No address found","没有找到地址")); }
+});
+document.addEventListener("input", ev => { const el=ev.target; if(el.id!=="e2_mobile") return; const v=e2(); const cid=x=>{ const m=e2match(x); return m?(m.list[0]?m.list[0].c.id:"new"):""; };
+  const was=cid(v); e2grab(); const now=cid(v);
+  /* the name, email and address belong to the record the mobile matched: once the mobile points elsewhere they are cleared, so no match really means an empty form */
+  if(was!==now){ v.sl=null; const real=x=>x&&x!=="new"; if(real(was)||real(now)||v.shotName){ v.first=""; v.last=""; v.email=""; v.addr=""; v.newMobile=""; v.shotName=false; if(v.same) v.propText=""; }
+    /* the name read from the screenshot belongs to the number in the screenshot: typing that number back brings it back */
+    if(now==="new"&&v.shotData&&normMobile(v.mobile)===normMobile(v.shotData.mobile)){ v.first=v.shotData.first; v.last=v.shotData.last; v.shotName=true; } const pos=el.selectionStart; render(); const i=document.getElementById("e2_mobile"); if(i){ i.focus(); try{ i.setSelectionRange(pos,pos); }catch(e){} } } });
+/* same as residential address: the property address follows the home address as it is typed (no re-render, so focus is never lost) */
+document.addEventListener("input", ev => { const el=ev.target; if(el.id!=="e2_addr"||!e2().same) return; const pr=document.getElementById("e2_prop"); if(pr) pr.value=el.value; });
+document.addEventListener("input", ev => { const el=ev.target; if(!["e2_prop","e2_addr","e2_first","e2_last"].includes(el.id)) return; const k=document.getElementById("e2_lk"); if(!k) return; const v=e2grab(); const m=e2match(v); k.innerHTML=e2link(v, m&&m.list[0]?m.list[0].c:null); });
+["input","focusin"].forEach(n=>document.addEventListener(n, ev => { const el=ev.target; if(el.id!=="e2_lq") return; const r=document.getElementById("e2_lr"); if(r) r.innerHTML=e2lres(el.value,true); }));
+// swipe left on a capture card to dismiss
+let _sw=null;
+document.addEventListener("pointerdown", ev=>{ const c=ev.target.closest(".swipe"); if(!c||ev.target.closest("button")) return; _sw={el:c,x:ev.clientX,dx:0}; });
+document.addEventListener("pointermove", ev=>{ if(!_sw) return; _sw.dx=Math.min(0,ev.clientX-_sw.x); _sw.el.style.transform=`translateX(${_sw.dx}px)`; _sw.el.style.opacity=String(Math.max(.3,1+_sw.dx/260)); });
+const _swEnd=()=>{ if(!_sw) return; const s=_sw; _sw=null; if(s.dx<-90){ const id=s.el.dataset.cap; const b=document.createElement("button"); b.dataset.act="capdismiss"; b.dataset.id=id; b.hidden=true; document.body.appendChild(b); b.click(); b.remove(); } else { s.el.style.transform=""; s.el.style.opacity=""; } };
+document.addEventListener("pointerup", _swEnd); document.addEventListener("pointercancel", _swEnd);
+
+// ---------- guide text for the 10 Nov change requests ----------
+FB_SEC.cr={en:"Change requests, 10 Nov 2026 (Ping Han)",zh:"修改需求，2026 年 11 月 10 日（Ping Han）"};
+const crI=(en,zh,st="ok")=>({s:"cr",st,en,zh});
+Object.assign(FB,{
+  home:[crI("1 · My activity replaces My sales: Voice converted, Records updated, Appraisals booked; Today / Week / Month / FY vs previous period","1 · My activity 取代 My sales：语音转化、记录更新、已约估价；今天 / 本周 / 本月 / 财年，对比上一周期","sim"),crI("1 · Needs your approval: only Offline voice captures and Market monitor","1 · 待确认只保留离线语音记录和市场监控"),crI("1 · No mic in the bottom bar; logo opens Me; search removed (decision 11 Nov)","1 · 底部导航没有麦克风；点 Logo 进 Me；搜索已去掉（11 月 11 日决定）")],
+  captures:[crI("1 · Each capture: Edit and Approve (light green); swipe left to dismiss","1 · 每条记录：Edit 和 Approve（浅绿）；左滑忽略")],
+  activity:[crI("1 · Tap a number for the list; approved items only","1 · 点数字看清单；只含已确认的记录","sim")],
+  market:[crI("2 · New sales and new listings in my patch, from Pricefinder, checked daily","2 · 监控片区内的新成交和新挂牌，Pricefinder 每天检查","sim"),crI("2 · New sale: change ownership and update seller lead status? Yes / No","2 · 新成交：是否更改业主并更新卖家线索状态？Yes / No"),crI("2 · New listing: flag Listed with competitor? Yes / No","2 · 新挂牌：标记为竞争对手挂牌？Yes / No")],
+  patch:[crI("2 · Patch: draw an area or a radius, and/or add suburbs","2 · 片区：画区域或半径，和/或添加 suburb"),{s:"rex",st:"ok",en:"Areas are still written to Rex as 'Area: name' contact tags",zh:"区域仍以 “Area: 名称” 联系人标签写入 Rex"}],
+  dk:[crI("3 · Big Hold to speak stays; only DK mode has it (dark panel per the new mockup)","3 · 保留大的 Hold to speak，只有 DK mode 有（按新示意图用深色面板）"),crI("3 · The five One tap to update tiles are removed","3 · 去掉 One tap to update 五个图块"),crI("3 · Small map card with Full screen","3 · 小地图卡片，带 Full screen")],
+  fullmap:[crI("4 · Full screen and Exit full screen; walking agent, P listings, competitor listings, legend","4 · 全屏和退出全屏；步行中介、P 挂牌、竞争对手挂牌、图例"),crI("4 · Tap any dot: preview card with Open record and + Note","4 · 点任何标记：预览卡片，带 Open record 和 + Note"),crI("4 · Marker colours follow the new mockup: red = no contact yet, orange = other agency, star = pinned by you (decision 11 Nov)","4 · 标记颜色按新示意图：红 = 尚无联系人，橙 = 其他中介挂牌，星 = 你置顶的（11 月 11 日决定）","dev")],
+  prop:[crI("3 · One page with all info: Edit record, Add a note, + To-do, Book appraisal","3 · 一个页面显示全部信息：编辑记录、添加备注、+ To-do、预约估价"),crI("8 · Owner: first name, last name, mobile on separate lines; Edit communication preferences; NO JUNK MAIL in bold red","8 · 业主：名、姓、手机分行显示；编辑联系偏好；红色 NO JUNK MAIL"),crI("7 · Seller lead switch; the Potential seller tag is renamed Seller lead (decision 11 Nov)","7 · Seller lead 开关；Potential seller 标签改名为 Seller lead（11 月 11 日决定）")],
+  contact:[crI("7 · Seller lead switch next to the name; adds the Rex tag","7 · 姓名旁的 Seller lead 开关；在 Rex 添加标签"),crI("7 · One-tap opt-out: Text, Call, Email, Letter; bold red OPTED OUT; buttons disabled","7 · 一键退订：Text、Call、Email、Letter；红色 OPTED OUT；对应按钮停用"),crI("8 · Every field editable with a pencil","8 · 每个字段带编辑笔，可直接编辑"),crI("7 · Duplicate found: Compare and merge, also in Rex (simulated; waits for Kevin's answer on the merge API)","7 · 发现重复：对比并合并，Rex 同步合并（模拟；等 Kevin 关于合并接口的答复）","sim"),{s:"rex",st:"ok",en:"Text / Call / Email / Letter map to contact_by_sms / phone / email / letter; Junk mail is the No junk mail tag",zh:"Text / Call / Email / Letter 对应 contact_by_sms / phone / email / letter；Junk mail 对应 No junk mail 标签"}],
+  prefs:[crI("8 · Text, Call, Email, Letter, Junk mail: one tap to opt out, with reason; logged with date and who","8 · Text、Call、Email、Letter、Junk mail：一键退订，可填原因；记录日期和操作人")],
+  enq:[crI("5 · Choose Buyer, Seller / appraisal or Landlord first, then mobile; Rex is searched as you type","5 · 先选 Buyer、Seller / appraisal 或 Landlord，再填手机号；边输入边查 Rex"),crI("5 · Match: existing record, every field editable. No match: empty form for a new contact","5 · 匹配到：已有记录，每个字段可改。没有匹配：空白表单新建联系人"),crI("6 · Upload photo or screenshot; AI fills the form","6 · 上传照片或截图，AI 自动填表","sim"),crI("6 · Buyer picks the listing (mine first, then team); Seller address linked as owner; Seller lead switch; no Tenant","6 · 买家选房源（先自己的再团队的）；卖家地址关联为业主；Seller lead 开关；去掉 Tenant"),crI("6 · Tags, marketing consent and assignee sit under More (decision 11 Nov)","6 · 标签、营销同意、指派人收在 More 里（11 月 11 日决定）"),{s:"rex",st:"ok",en:"Rex calls: find-matching-contacts → contacts/create | update → leads/create (note required; property.id / listing.id optional)",zh:"Rex 调用：find-matching-contacts → contacts/create | update → leads/create（note 必填；property.id / listing.id 可选）"}],
+  todos:[crI("9 · + To-do replaces Follow-up: date, time, assign to a teammate","9 · + To-do 取代 Follow-up：日期、时间、指派给同事"),crI("9 · Tabs: Mine, Assigned by me, Completed; tick moves it to Completed","9 · 标签页：Mine、Assigned by me、Completed；勾选后移到 Completed"),crI("9 · Tap to open the contact","9 · 点开联系人记录")]
+});
+Object.assign(FB_SHEET,{ todo:[crI("9 · Shows on my screen and the assignee's, with a phone notification","9 · 同时显示在我和被指派人的页面，并推送通知","sim")], prefs:[crI("8 · Text, Call, Email, Letter, Junk mail: one tap to opt out, with reason; logged with date and who","8 · Text、Call、Email、Letter、Junk mail：一键退订，可填原因；记录日期和操作人")], efield:[crI("8 · Contact record: every field editable","8 · 联系人记录：每个字段可直接编辑")] });
+const gT=(k,te,we,tz,wz)=>{ GUIDE[k]={en:{title:te,what:we,steps:[],model:""},zh:{title:tz,what:wz,steps:[],model:""}}; };
+gT("home","Home","My activity for the chosen period, the two things that need approval, and the next to-dos. The logo opens Me.","Home","所选周期内我的工作量、两类待确认事项和接下来的待办。点 Logo 进入 Me。");
+gT("captures","Offline voice captures","Voice notes recorded without signal. Approve files them to Rex; Edit opens the full review; swipe left to dismiss.","Offline voice captures","没有信号时录下的语音。Approve 归档到 Rex；Edit 打开完整核对；左滑忽略。");
+gT("activity","My activity","The list behind a number on Home.","My activity","首页数字背后的清单。");
+gT("market","Market monitor","New sales and new listings inside my patch. Yes updates Rex, No dismisses the alert.","Market monitor","片区内的新成交和新挂牌。Yes 更新 Rex，No 忽略提醒。");
+gT("patch","My patch","The area watched for sales and listings: drawn areas, radius circles and suburbs, in any combination.","My patch","监控成交和挂牌的范围：画的区域、半径圆和 suburb，可以任意组合。");
+gT("dk","DK mode","Where you stand, one big Hold to speak, and a small map. Tap the property for everything else.","DK mode","你所在的位置、一个大的 Hold to speak 和小地图。其他操作点房产进入。");
+gT("fullmap","Full-screen map","Every home on the street with its status. Tap a marker for a preview; List shows the same homes as rows.","全屏地图","街上每户的状态。点标记看预览；List 以列表显示同一批房产。");
+gT("prop","Property page","Everything about one property on one page: property facts, owner, preferences, actions and notes.","房产页面","一处房产的全部信息在一页：房产信息、业主、联系偏好、操作和备注。");
+gT("contact","Contact record","Editable fields, Seller lead switch, one-tap contact preferences, duplicates, tags and history.","联系人记录","可编辑字段、Seller lead 开关、一键联系偏好、查重、标签和历史。");
+gT("enq","Add enquiry","Type first, then mobile. A match opens the existing record; otherwise an empty form.","添加询盘","先选类型，再填手机号。匹配到就打开已有记录，否则是空白表单。");
+gT("todos","To-dos","Mine, Assigned by me and Completed.","To-dos","Mine、Assigned by me 和 Completed。");
+looksLikeSearch=function(){ return false; }; cmdResults=function(){ return ""; };
 
 applyTheme();
 function tagZones(){ let n=0; S.zones.forEach(z=>{ if(!z.tagged){ applyZoneTag(z); z.tagged=true; n++; } }); if(n) persist(); }
