@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+const source = fs.readFileSync(new URL('../prototype/index.html', import.meta.url), 'utf8');
+const literal = source.slice(source.indexOf('const I18N ='), source.indexOf('let lang = "en";'));
+const dict = vm.runInNewContext(literal + '\nI18N');
+for (const lang of ['en', 'zh']) fs.writeFileSync(new URL(`../mobile/src/i18n/${lang}.ts`, import.meta.url), `// Generated from prototype/index.html by tools/extract-i18n.mjs\nexport default ${JSON.stringify(dict[lang], null, 2)} as Record<string, string>;\n`);
+const seedSource = source.slice(source.indexOf('const TODAY = "2026-11-07";'), source.indexOf('let S;\ntry{ S ='));
+const migrateSource = source.slice(source.indexOf('function migrate(){'), source.indexOf('migrate();'));
+const data = vm.runInNewContext(`${seedSource}\nlet S=seed();\n${migrateSource}\nfunction addDays(n){const d=new Date(TODAY);d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)}\nmigrate(); S`, {});
+fs.writeFileSync(new URL('../mobile/src/data/seed.ts', import.meta.url), `// Prototype seed() and migrate() snapshot. Regenerate with node tools/extract-i18n.mjs.\nimport type { AppState } from './types';\nexport const TODAY = '2026-11-07';\nexport const seed = (): AppState => JSON.parse(JSON.stringify(${JSON.stringify(data, null, 2)})) as AppState;\n`);

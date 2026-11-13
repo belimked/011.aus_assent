@@ -46,6 +46,7 @@ jobs:
           npx tsc --noEmit
           npx expo lint
           npm test -- --ci
+          npx expo export -p ios --output-dir "$RUNNER_TEMP/bundle-check"
       - id: secrets-check
         name: Check signing secrets
         env:
@@ -149,22 +150,22 @@ jobs:
       - name: Archive
         run: |
           xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release \
-            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/agentCollect.xcarchive" \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/AxleoCollect.xcarchive" \
             OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN" -quiet archive
 
       - name: Export IPA
         run: |
           sed -e "s/__TEAM_ID__/$TEAM_ID/" -e "s/__BUNDLE_ID__/$BUNDLE_ID/" -e "s/__PROFILE_UUID__/$PROFILE_UUID/" \
             ci/ExportOptions.plist > "$RUNNER_TEMP/ExportOptions.plist"
-          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/agentCollect.xcarchive" \
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/AxleoCollect.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export"
-          mv "$RUNNER_TEMP"/export/*.ipa "$RUNNER_TEMP/agentCollect.ipa"
-          ls -lh "$RUNNER_TEMP/agentCollect.ipa"
+          mv "$RUNNER_TEMP"/export/*.ipa "$RUNNER_TEMP/AxleoCollect.ipa"
+          ls -lh "$RUNNER_TEMP/AxleoCollect.ipa"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: agentCollect-${{ env.APP_VERSION }}-${{ github.run_number }}
-          path: ${{ runner.temp }}/agentCollect.ipa
+          name: AxleoCollect-${{ env.APP_VERSION }}-${{ github.run_number }}
+          path: ${{ runner.temp }}/AxleoCollect.ipa
           retention-days: 30
 
       - id: pages
@@ -175,7 +176,7 @@ jobs:
         run: |
           SITE="$RUNNER_TEMP/site"
           mkdir -p "$SITE"
-          cp "$RUNNER_TEMP/agentCollect.ipa" "$SITE/"
+          cp "$RUNNER_TEMP/AxleoCollect.ipa" "$SITE/"
           sips -z 57 57 assets/icon.png --out "$SITE/icon-57.png" > /dev/null
           sips -z 512 512 assets/icon.png --out "$SITE/icon-512.png" > /dev/null
           DATE=$(TZ=Australia/Brisbane date '+%-d %b %Y %H:%M')
@@ -187,7 +188,7 @@ jobs:
           # Second copy for Cloudflare Pages (github.io is unreachable from some networks, e.g. mainland China).
           CF="$RUNNER_TEMP/site-cf"
           mkdir -p "$CF"
-          cp "$SITE"/agentCollect.ipa "$SITE"/icon-*.png "$CF/"
+          cp "$SITE"/AxleoCollect.ipa "$SITE"/icon-*.png "$CF/"
           for f in index.html manifest.plist; do
             sed -e "s#__BASE_URL__#$CF_BASE_URL#g" -e "s#__VERSION__#$APP_VERSION#g" -e "s#__BUILD__#${{ github.run_number }}#g" \
               -e "s#__BUNDLE_ID__#$BUNDLE_ID#g" -e "s#__DATE__#$DATE#g" "ci/install/$f" > "$CF/$f"

@@ -11,7 +11,7 @@
           <key>kind</key>
           <string>software-package</string>
           <key>url</key>
-          <string>__BASE_URL__/agentCollect.ipa</string>
+          <string>__BASE_URL__/AxleoCollect.ipa</string>
         </dict>
         <dict>
           <key>kind</key>
@@ -35,7 +35,7 @@
         <key>kind</key>
         <string>software</string>
         <key>title</key>
-        <string>agentCollect</string>
+        <string>AxleoCollect</string>
       </dict>
     </dict>
   </array>

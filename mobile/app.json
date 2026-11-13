@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "agentCollect",
+    "name": "AxleoCollect",
     "slug": "agentcollect",
     "scheme": "agentcollect",
     "version": "0.1.0",
@@ -10,20 +10,48 @@
     "ios": {
       "bundleIdentifier": "com.placesunnybank.agentcollect",
       "supportsTablet": false,
-      "infoPlist": { "NSMicrophoneUsageDescription": "agentCollect uses the microphone for voice capture." }
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "AxleoCollect uses the microphone for voice capture."
+      }
     },
     "android": {
       "package": "com.placesunnybank.agentcollect",
-      "permissions": ["android.permission.RECORD_AUDIO"]
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      ["expo-splash-screen", { "image": "./assets/splash-icon.png", "imageWidth": 120, "resizeMode": "contain", "backgroundColor": "#0b5d8a" }],
-      ["expo-location", { "locationWhenInUsePermission": "agentCollect uses your location to show the property you're standing at.", "locationAlwaysAndWhenInUsePermission": false, "locationAlwaysPermission": false }],
-      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 120,
+          "resizeMode": "contain",
+          "backgroundColor": "#F6F7FA"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "AxleoCollect uses your location to show the property you are standing at.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Montserrat.ttf"
+          ]
+        }
+      ],
       "expo-maps"
     ],
-    "experiments": { "typedRoutes": true }
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }
