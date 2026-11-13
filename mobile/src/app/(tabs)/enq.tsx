@@ -1,1 +1,1 @@
-export {Enquiry as default} from '../../screens/Upcoming';
+export {Enq as default} from '../../screens/enq/Enq';

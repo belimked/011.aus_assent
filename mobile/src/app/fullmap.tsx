@@ -1,3 +1,1 @@
-import React from 'react';
-import {Placeholder} from '../screens/Upcoming';
-export default function Route(){return <Placeholder title="fullmap"/>}
+export {FullMap as default} from '../screens/dk/FullMap';

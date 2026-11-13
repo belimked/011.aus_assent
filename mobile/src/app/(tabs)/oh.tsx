@@ -1,1 +1,1 @@
-export {OFI as default} from '../../screens/Upcoming';
+export {OfiList as default} from '../../screens/ofi/OfiList';

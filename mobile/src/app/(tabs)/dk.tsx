@@ -1,1 +1,1 @@
-export {DK as default} from '../../screens/Upcoming';
+export {DK as default} from '../../screens/dk/DK';

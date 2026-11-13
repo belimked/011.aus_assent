@@ -1,3 +1,1 @@
-import React from 'react';
-import {Placeholder} from '../../screens/Upcoming';
-export default function Route(){return <Placeholder title="prop"/>}
+export {Property as default} from '../../screens/dk/Property';

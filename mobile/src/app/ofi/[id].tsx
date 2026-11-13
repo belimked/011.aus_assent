@@ -1,3 +1,1 @@
-import React from 'react';
-import {Placeholder} from '../../screens/Upcoming';
-export default function Route(){return <Placeholder title="ofi"/>}
+export {Ofi as default} from '../../screens/ofi/Ofi';

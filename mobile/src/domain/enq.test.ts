@@ -1,0 +1,10 @@
+import {seed} from '../data/seed';
+import {createLead,emptyEnq,enquiryMatch,fileEnquiry,listingResults,propertyResults,searchBuyers,sellerLeadOn} from './enq';
+
+describe('enquiry domain',()=>{
+  test('mobile matches Rex only when complete, and seller switch can override',()=>{const s=seed();expect(enquiryMatch(s,'0412 555 019')?.first).toBe('Mary');expect(enquiryMatch(s,'0412')).toBeUndefined();expect(sellerLeadOn({...emptyEnq(),type:'seller'},undefined)).toBe(true);expect(sellerLeadOn({...emptyEnq(),type:'seller',sl:false},undefined)).toBe(false)});
+  test('property results are bounded, listings are listed only',()=>{const s=seed();expect(propertyResults(s,'').length).toBeLessThanOrEqual(8);expect(listingResults(s,'').every(l=>l.status==='listed')).toBe(true)});
+  test('natural language buyer search filters beds and suburb',()=>{const s=seed();const buyers=searchBuyers(s,'buyers 4 bed in Runcorn up to 1.2m');expect(buyers.every(c=>!c.buyerProfile?.beds||c.buyerProfile.beds<=4)).toBe(true);expect(buyers.some(c=>c.first==='John')).toBe(true)});
+  test('create lead saves note, links owner and audits without mutating a separate seed',()=>{const s=seed();const d={...emptyEnq(),type:'seller',mobile:'0412 555 019',first:'Mary',last:'Chen',note:'Appraisal requested',propId:'p6'};const lead=createLead(s,d);expect(lead.note).toBe('Appraisal requested');expect(s.contacts.find(c=>c.id===lead.contactId)?.tags).toContain('Seller lead');expect(s.properties.find(p=>p.id==='p6')?.ownerIds).toContain(lead.contactId);expect(s.audit[0].t).toContain('note: Appraisal requested');expect(()=>createLead(s,{...d,note:''})).toThrow('Note required')});
+  test('file enquiry once and create buyer profile and follow up',()=>{const s=seed();const e=s.enquiries.find(x=>x.id==='e1')!;fileEnquiry(s,e,{buyerProfile:true,todo:true});expect(e.status).toBe('filed');expect(s.leads[0].note).toBe(e.parsed.want);expect(s.todos.some(t=>t.t.includes('Sarah'))).toBe(true);fileEnquiry(s,e);expect(s.leads).toHaveLength(1)})
+});
