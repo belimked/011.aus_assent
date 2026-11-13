@@ -78,7 +78,9 @@ a{color:var(--link)}
 .iconbtn{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;color:var(--fg2);position:relative;border:1px solid var(--line);background:var(--surface)}
 .iconbtn .badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;line-height:18px;font-weight:500;text-align:center}
 .logo{width:36px;height:36px;border-radius:10px;background:var(--brand);color:var(--brand-fg);display:grid;place-items:center;font-weight:600;font-size:16px;flex:none;user-select:none;-webkit-user-select:none;touch-action:none}
-.logo{background:var(--fg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 64'%3E%3Cline x1='32' y1='32' x2='90' y2='32' stroke='%23fff' stroke-width='8' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='32' r='22' fill='none' stroke='%23fff' stroke-width='13'/%3E%3Ccircle cx='32' cy='32' r='8' fill='%23FFB02E'/%3E%3C/svg%3E") 58% 50%/72% auto no-repeat}
+.logo{background:var(--fg);color:#fff}
+:root[data-company="place"] .logo{background:var(--brand)}
+.logo::after{content:var(--logo)}
 .logo.lg{width:56px;height:56px;border-radius:16px;font-size:26px}
 .body{flex:1;overflow-y:auto;padding:16px max(16px,env(safe-area-inset-right,0px)) 112px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px}
 .body>*{flex:none}
