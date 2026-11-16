@@ -1,0 +1,15 @@
+[Unit]
+Description=Axleo authorized market data pull (requires API contract)
+After=network-online.target axleo.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=axleo
+Group=axleo
+EnvironmentFile=-/etc/axleo/env
+WorkingDirectory=/opt/axleo/current
+ExecStart=/opt/axleo/current/axleo market-pull
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/data/axleo

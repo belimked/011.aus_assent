@@ -1,0 +1,10 @@
+[Unit]
+Description=Optional Axleo market pull schedule (do not enable until authorized)
+
+[Timer]
+OnCalendar=*-*-* 06:00:00
+Persistent=true
+Unit=axleo-market-pull.service
+
+[Install]
+WantedBy=timers.target

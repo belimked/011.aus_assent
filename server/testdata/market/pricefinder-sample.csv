@@ -1,0 +1,5 @@
+Property Address,Suburb,Postcode,Sale Price,Sale Date,Agency,Agent,Owner Names,Lot/Plan,Beds,Baths,Car,Land Size,Record ID
+2 Gager Street,Sunnybank,4109,1250000,2026-11-18,Example Realty,Jane Doe,K & L Tran,Lot 12 RP 123456,4,2,2,612,pf-sale-001
+4 Gager St,Sunnybank,4109,1300000,2026-11-19,Example Realty,Jane Doe,R Singh,Lot 13 RP 123456,4,2,2,640,pf-sale-002
+999 Unknown Rd,Sunnybank,4109,1100000,2026-11-20,Other Agency,Agent Name,,,3,2,1,500,pf-sale-003
+6 Gager St,Sunnybank,4109,not-a-price,2026-11-20,Example Realty,Jane Doe,H Papas,,3,1,1,605,pf-error-004

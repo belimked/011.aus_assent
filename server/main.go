@@ -399,6 +399,10 @@ func (a *app) get(kind, id string, p principal, deleted bool) (map[string]any, e
 	}
 	if kind == "properties" {
 		a.owners(m, p)
+		a.marketProperty(m, p)
+		if p.role != "admin" && !a.covered(str(m, "id"), p.id) {
+			delete(m, "pfOwner")
+		}
 	}
 	if kind == "listings" {
 		stripOFI(m)
@@ -678,6 +682,21 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 	if kind == "listings" {
 		stripOFI(m)
 	}
+	if kind == "properties" {
+		delete(m, "market")
+		if p.role != "admin" {
+			if method == "PATCH" {
+				var raw string
+				if a.db.QueryRow(`SELECT data FROM properties WHERE id=?`, id).Scan(&raw) == nil {
+					var original map[string]any
+					_ = json.Unmarshal([]byte(raw), &original)
+					m["pfOwner"] = str(original, "pfOwner")
+				}
+			} else {
+				delete(m, "pfOwner")
+			}
+		}
+	} // third-party market data is read-only
 	stamp := now()
 	m["id"] = id
 	delete(m, "version")

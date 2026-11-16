@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -30,6 +31,10 @@ func createUser(db *sql.DB, email, name, role, pass string) error {
 }
 func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/admin/")
+	if strings.HasPrefix(path, "market/") {
+		a.marketAdmin(w, r, p)
+		return
+	}
 	if path == "overview" && r.Method == "GET" {
 		a.overview(w)
 		return
@@ -466,6 +471,51 @@ func main() {
 		}
 		_, err = db.Exec(`DELETE FROM sessions WHERE user_id=(SELECT id FROM users WHERE email=?)`, os.Args[2])
 		fatal(err)
+	case "market-pull":
+		_, err := (pricefinderAPISource{}).Fetch(context.Background(), time.Time{})
+		if err != nil {
+			if os.Getenv("AXLEO_PRICEFINDER_API_KEY") != "" {
+				fatal(err)
+			}
+			fmt.Println(err)
+		}
+		return
+	case "market-import":
+		if len(os.Args) < 3 {
+			fatal(fmt.Errorf("CSV file required"))
+		}
+		provider, kind, dry := "pricefinder", "auto", false
+		for i := 3; i < len(os.Args); i++ {
+			switch os.Args[i] {
+			case "--provider", "--kind":
+				if i+1 >= len(os.Args) {
+					fatal(fmt.Errorf("missing flag value"))
+				}
+				i++
+				if os.Args[i-1] == "--provider" {
+					provider = os.Args[i]
+				} else {
+					kind = os.Args[i]
+				}
+			case "--dry-run":
+				dry = true
+			default:
+				fatal(fmt.Errorf("unknown flag %s", os.Args[i]))
+			}
+		}
+		info, err := os.Stat(os.Args[2])
+		fatal(err)
+		if info.Size() > 20<<20 {
+			fatal(fmt.Errorf("file exceeds 20MB"))
+		}
+		b, err := os.ReadFile(os.Args[2])
+		fatal(err)
+		var id string
+		fatal(db.QueryRow(`SELECT id FROM users WHERE role='admin' ORDER BY created_at LIMIT 1`).Scan(&id))
+		report, err := (&app{db: db}).importMarket(b, os.Args[2], provider, kind, dry, principal{id: id, role: "admin", device: "CLI"})
+		fatal(err)
+		out, _ := json.MarshalIndent(report, "", "  ")
+		fmt.Println(string(out))
 	case "serve":
 		a := &app{db: db, failures: map[string][]time.Time{}}
 		fatal(http.ListenAndServe(env("AXLEO_ADDR", "127.0.0.1:8082"), a.routes()))

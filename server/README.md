@@ -2,6 +2,9 @@
 
 Go 1.27, SQLite (pure Go), standard-library HTTP server. From `server/`:
 
+Market data is licensed to the agency (not supplied by Rex). Never export or redistribute provider records; the admin UI offers no bulk export. CSV (UTF-8/BOM) imports are supported; **XLSX 请另存为 CSV**. See `../docs/market-data.md` for aliases, privacy, API authorization and import instructions. `axleo market-import <file> [--provider pricefinder] [--kind auto|sale|listing|ownership] [--dry-run]`; admin-only `POST /api/v1/admin/market/imports` (multipart `file`, `kind`, `provider`, `dryRun`; 20 MB), `GET /api/v1/admin/market/imports`, `GET /api/v1/admin/market/imports/{id}`. `axleo market-pull` is a no-op until an authorized API contract/documentation is supplied; the optional deploy timer is disabled by default.
+
+
 ```sh
 go test ./... && go vet ./...
 go build -ldflags '-X main.version=local' -o axleo .
