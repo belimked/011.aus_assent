@@ -254,7 +254,7 @@ func seed(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
-	var demo struct{ Contacts, Properties, Todos []map[string]any }
+	var demo struct{ Contacts, Properties, Todos, Captures, Enquiries, Leads, Listings, Sales, Contracts, Referrals, Market, Zones, MyTags []map[string]any }
 	if err = json.Unmarshal(b, &demo); err != nil {
 		return err
 	}
@@ -282,7 +282,7 @@ func seed(db *sql.DB) error {
 			return err
 		}
 		for _, cid := range stringsFrom(m["ownerIds"]) {
-			_, err = db.Exec(`INSERT INTO property_owners(property_id,contact_id) VALUES(?,?) ON CONFLICT DO NOTHING`, id, cid)
+			_, err = db.Exec(`INSERT INTO property_owners(property_id,contact_id) SELECT ?,id FROM contacts WHERE id=? AND deleted_at IS NULL ON CONFLICT DO NOTHING`, id, cid)
 			if err != nil {
 				return err
 			}
@@ -293,6 +293,50 @@ func seed(db *sql.DB) error {
 		_, err = db.Exec(`INSERT INTO todos(id,assignee_id,created_by,due,time,text,kind,data,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING`, str(m, "id"), owner(str(m, "who")), owner(str(m, "by")), str(m, "d"), str(m, "time"), str(m, "t"), str(m, "kind"), string(payload), stamp, stamp)
 		if err != nil {
 			return err
+		}
+	}
+	groups := map[string][]map[string]any{"captures": demo.Captures, "enquiries": demo.Enquiries, "leads": demo.Leads, "listings": demo.Listings, "sales": demo.Sales, "contracts": demo.Contracts, "referrals": demo.Referrals, "market_items": demo.Market, "zones": demo.Zones, "tags": demo.MyTags}
+	for kind, items := range groups {
+		for i, m := range items {
+			id := str(m, "id")
+			if kind == "tags" {
+				id = fmt.Sprintf("seed-tag-%d", i)
+				m["id"] = id
+			}
+			who := str(m, "owner")
+			switch kind {
+			case "listings":
+				who = str(m, "agent")
+			case "tags":
+				who = str(m, "by")
+			}
+			ownerID := owner(who)
+			m["ownerId"] = ownerID
+			payload, _ := json.Marshal(m)
+			if kind == "referrals" || kind == "leads" {
+				_, err = db.Exec(`INSERT INTO `+kind+`(id,owner_id,contact_id,data,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING`, id, ownerID, str(m, "contactId"), string(payload), stamp, stamp)
+			} else {
+				_, err = db.Exec(`INSERT INTO `+kind+`(id,owner_id,data,created_at,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(id) DO NOTHING`, id, ownerID, string(payload), stamp, stamp)
+			}
+			if err != nil {
+				return err
+			}
+			if kind == "listings" {
+				for j, event := range sliceMaps(m["ofi"]) {
+					for k, attendee := range sliceMaps(event["attendees"]) {
+						aid := fmt.Sprintf("seed-ofi-%s-%d-%d", id, j, k)
+						attendee["id"] = aid
+						attendee["listingId"] = id
+						attendee["eventIndex"] = j
+						attendee["ownerId"] = ownerID
+						raw, _ := json.Marshal(attendee)
+						_, err = db.Exec(`INSERT INTO ofi_attendees(id,owner_id,event_id,contact_id,data,created_at,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING`, aid, ownerID, id, str(attendee, "contactId"), string(raw), stamp, stamp)
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
 		}
 	}
 	return nil

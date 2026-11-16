@@ -1162,24 +1162,25 @@ export const seed = (): AppState => JSON.parse(JSON.stringify({
       "Runcorn"
     ]
   },
+  "ofi_attendees": [],
   "myTags": [
     {
-      "n": "Cantonese speaking",
+      "id": "seed-tag-0", "n": "Cantonese speaking",
       "by": "Owen Chen",
       "d": "2026-10-02"
     },
     {
-      "n": "Call after 6pm",
+      "id": "seed-tag-1", "n": "Call after 6pm",
       "by": "Owen Chen",
       "d": "2026-10-14"
     },
     {
-      "n": "Spring 2027",
+      "id": "seed-tag-2", "n": "Spring 2027",
       "by": "Owen Chen",
       "d": "2026-10-20"
     },
     {
-      "n": "School catchment",
+      "id": "seed-tag-3", "n": "School catchment",
       "by": "Natalie Wong",
       "d": "2026-10-05"
     }

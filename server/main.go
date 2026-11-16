@@ -227,6 +227,8 @@ func (a *app) routes() http.Handler {
 			a.syncPull(w, r, p)
 		case r.Method == "POST" && r.URL.Path == "/api/v1/sync/push":
 			a.syncPush(w, r, p)
+		case strings.HasPrefix(r.URL.Path, "/api/v1/approvals") || strings.HasSuffix(r.URL.Path, "/merge") || strings.HasSuffix(r.URL.Path, "/reassign"):
+			a.approvalRoute(w, r, p)
 		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/"):
 			if p.role != "admin" {
 				problem(w, 404, "not found")
@@ -300,15 +302,39 @@ func (a *app) login(w http.ResponseWriter, r *http.Request) {
 
 // scope is the only authority for resource visibility. Every read and write uses it.
 func scope(kind string, p principal) (string, []any) {
-	if p.role == "admin" || kind == "properties" {
+	if p.role == "admin" || kind == "properties" || kind == "listings" {
 		return "", nil
 	}
-	if kind == "contacts" {
+	if kind == "tags" {
+		return " AND (owner_id=? OR owner_id='')", []any{p.id}
+	}
+	if kind == "contacts" || b3Kind(kind) || kind == "approvals" {
 		return " AND owner_id=?", []any{p.id}
 	}
 	return " AND (assignee_id=? OR created_by=?)", []any{p.id, p.id}
 }
-func allowedKind(k string) bool { return k == "contacts" || k == "properties" || k == "todos" }
+func writeScope(kind string, p principal) (string, []any) {
+	if p.role != "admin" && (kind == "listings" || kind == "tags") {
+		return " AND owner_id=?", []any{p.id}
+	}
+	return scope(kind, p)
+}
+func b3Kind(k string) bool {
+	switch k {
+	case "captures", "enquiries", "leads", "listings", "ofi_attendees", "sales", "contracts", "referrals", "market_items", "zones", "tags":
+		return true
+	}
+	return false
+}
+func allowedKind(k string) bool {
+	return k == "contacts" || k == "properties" || k == "todos" || b3Kind(k)
+}
+func (a *app) b3Owner(kind, id string) string {
+	var owner string
+	_ = a.db.QueryRow("SELECT owner_id FROM "+kind+" WHERE id=?", id).Scan(&owner)
+	return owner
+}
+
 func (a *app) get(kind, id string, p principal, deleted bool) (map[string]any, error) {
 	s, args := scope(kind, p)
 	q := `SELECT data,version,updated_at,deleted_at`
@@ -317,6 +343,9 @@ func (a *app) get(kind, id string, p principal, deleted bool) (map[string]any, e
 	}
 	if kind == "todos" {
 		q += `,assignee_id,created_by`
+	}
+	if b3Kind(kind) || kind == "approvals" {
+		q += `,owner_id`
 	}
 	q += ` FROM ` + kind + ` WHERE id=?` + s
 	if !deleted {
@@ -334,6 +363,9 @@ func (a *app) get(kind, id string, p principal, deleted bool) (map[string]any, e
 	if kind == "todos" {
 		scan = append(scan, &assignee, &creator)
 	}
+	if b3Kind(kind) || kind == "approvals" {
+		scan = append(scan, &owner)
+	}
 	if err := a.db.QueryRow(q, args...).Scan(scan...); err != nil {
 		return nil, err
 	}
@@ -348,6 +380,9 @@ func (a *app) get(kind, id string, p principal, deleted bool) (map[string]any, e
 		m["assigneeId"] = assignee
 		m["createdBy"] = creator
 	}
+	if b3Kind(kind) || kind == "approvals" {
+		m["ownerId"] = owner
+	}
 	m["version"] = ver
 	m["updated_at"] = updated
 	if del.Valid {
@@ -355,6 +390,9 @@ func (a *app) get(kind, id string, p principal, deleted bool) (map[string]any, e
 	}
 	if kind == "properties" {
 		a.owners(m, p)
+	}
+	if kind == "listings" {
+		stripOFI(m)
 	}
 	return m, nil
 }
@@ -497,6 +535,10 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 			problem(w, 404, "not found")
 			return
 		}
+		if kind == "listings" && p.role != "admin" && a.b3Owner(kind, id) != p.id {
+			problem(w, 404, "not found")
+			return
+		}
 		if method == "PATCH" {
 			v, ok := m["version"].(float64)
 			if !ok {
@@ -563,6 +605,24 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 		m["assigneeId"] = assignee
 		m["createdBy"] = creator
 	}
+	if b3Kind(kind) {
+		if method != "POST" {
+			owner = a.b3Owner(kind, id)
+		}
+		if p.role == "admin" && str(m, "ownerId") != "" {
+			owner = str(m, "ownerId")
+		}
+		if kind == "tags" && p.role == "admin" && method == "POST" && str(m, "ownerId") == "" {
+			owner = ""
+		}
+		if p.role != "admin" {
+			owner = p.id
+		}
+		m["ownerId"] = owner
+		if kind == "listings" && method == "POST" && p.role != "admin" {
+			m["agent"] = p.name
+		}
+	}
 	if kind == "properties" && method != "DELETE" {
 		if ownersChanged {
 			for _, cid := range stringsFrom(m["ownerIds"]) {
@@ -606,6 +666,9 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 			}
 		}
 	}
+	if kind == "listings" {
+		stripOFI(m)
+	}
 	stamp := now()
 	m["id"] = id
 	delete(m, "version")
@@ -628,6 +691,14 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 			_, err = tx.Exec(`INSERT INTO todos(id,assignee_id,created_by,due,time,text,kind,data,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`, id, assignee, creator, str(m, "d"), str(m, "time"), str(m, "t"), str(m, "kind"), string(b), stamp, stamp)
 		case "properties":
 			_, err = tx.Exec(`INSERT INTO properties(id,no,street,suburb,geometry,pf_owner,last_sale,data,created_at,updated_at,registered) VALUES(?,?,?,?,?,?,?,?,?,?,1)`, id, str(m, "no"), str(m, "street"), str(m, "suburb"), jsonField(m, "geometry"), str(m, "pfOwner"), str(m, "lastSale"), string(b), stamp, stamp)
+		case "leads", "referrals", "ofi_attendees":
+			if kind == "ofi_attendees" {
+				_, err = tx.Exec(`INSERT INTO ofi_attendees(id,owner_id,event_id,contact_id,data,created_at,updated_at) VALUES(?,?,?,?,?,?,?)`, id, owner, str(m, "listingId"), str(m, "contactId"), string(b), stamp, stamp)
+			} else {
+				_, err = tx.Exec(`INSERT INTO `+kind+`(id,owner_id,contact_id,data,created_at,updated_at) VALUES(?,?,?,?,?,?)`, id, owner, str(m, "contactId"), string(b), stamp, stamp)
+			}
+		default:
+			_, err = tx.Exec(`INSERT INTO `+kind+`(id,owner_id,data,created_at,updated_at) VALUES(?,?,?,?,?)`, id, owner, string(b), stamp, stamp)
 		}
 	case "PATCH":
 		q := `UPDATE ` + kind + ` SET data=?,updated_at=?,version=version+1`
@@ -640,17 +711,29 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 			q += `,due=?,time=?,text=?,kind=?,assignee_id=?,created_by=?`
 			args = append(args, str(m, "d"), str(m, "time"), str(m, "t"), str(m, "kind"), assignee, creator)
 		}
+		if b3Kind(kind) {
+			q += `,owner_id=?`
+			args = append(args, owner)
+			if kind == "leads" || kind == "referrals" || kind == "ofi_attendees" {
+				q += `,contact_id=?`
+				args = append(args, str(m, "contactId"))
+			}
+			if kind == "ofi_attendees" {
+				q += `,event_id=?`
+				args = append(args, str(m, "listingId"))
+			}
+		}
 		if kind == "properties" {
 			q += `,no=?,street=?,suburb=?,geometry=?,pf_owner=?,last_sale=?,registered=1`
 			args = append(args, str(m, "no"), str(m, "street"), str(m, "suburb"), jsonField(m, "geometry"), str(m, "pfOwner"), str(m, "lastSale"))
 		}
-		s, sc := scope(kind, p)
+		s, sc := writeScope(kind, p)
 		q += ` WHERE id=? AND version=? AND deleted_at IS NULL` + s
 		args = append(args, id, previousVersion)
 		args = append(args, sc...)
 		result, err = tx.Exec(q, args...)
 	case "DELETE":
-		s, sc := scope(kind, p)
+		s, sc := writeScope(kind, p)
 		args := append([]any{stamp, stamp, id, previousVersion}, sc...)
 		result, err = tx.Exec(`UPDATE `+kind+` SET deleted_at=?,updated_at=?,version=version+1 WHERE id=? AND version=? AND deleted_at IS NULL`+s, args...)
 	}
@@ -732,7 +815,7 @@ func (a *app) record(tx *sql.Tx, p principal, action, kind, id string, diff any)
 	if _, err := tx.Exec(`INSERT INTO audit_log(user_id,device,action,entity,entity_id,diff,at) VALUES(?,?,?,?,?,?,?)`, p.id, p.device, action, kind, id, string(b), stamp); err != nil {
 		return err
 	}
-	if kind == "contacts" || kind == "todos" {
+	if kind == "contacts" || kind == "todos" || kind == "enquiries" || kind == "leads" || kind == "ofi_attendees" || kind == "referrals" || (kind == "captures" && captureApproved(diff)) {
 		_, err := tx.Exec(`INSERT INTO rex_outbox(entity,entity_id,op,payload,created_at) VALUES(?,?,?,?,?)`, kind, id, action, string(b), stamp)
 		return err
 	}
@@ -785,4 +868,18 @@ func (a *app) note(w http.ResponseWriter, r *http.Request, p principal, id strin
 		return
 	}
 	respond(w, 201, m)
+}
+
+func stripOFI(m map[string]any) {
+	if events, ok := m["ofi"].([]any); ok {
+		for _, v := range events {
+			if event, ok := v.(map[string]any); ok {
+				event["attendees"] = []any{}
+			}
+		}
+	}
+}
+func captureApproved(v any) bool {
+	m, _ := v.(map[string]any)
+	return str(m, "status") == "approved" || str(m, "sync") == "approved"
 }

@@ -58,7 +58,7 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 	}
 	out := map[string]any{"cursor": base64.RawURLEncoding.EncodeToString([]byte(strconv.FormatInt(high, 10))), "full": since == ""}
 	deleted := map[string][]string{}
-	for _, kind := range []string{"contacts", "properties", "todos"} {
+	for _, kind := range syncKinds {
 		items := []any{}
 		gone := []string{}
 		scopeSQL, args := scope(kind, p)
@@ -98,7 +98,7 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 			}
 		}
 		// Records that left this user's scope (reassigned, owner changed) are sent as tombstones.
-		if since != "" && p.role != "admin" && kind != "properties" {
+		if since != "" && p.role != "admin" && kind != "properties" && kind != "listings" {
 			seen := map[string]bool{}
 			for _, id := range ids {
 				seen[id] = true
@@ -128,6 +128,8 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 	out["deleted"] = deleted
 	respond(w, 200, out)
 }
+
+var syncKinds = []string{"contacts", "properties", "todos", "captures", "enquiries", "leads", "listings", "ofi_attendees", "sales", "contracts", "referrals", "market_items", "zones", "tags", "approvals"}
 
 type syncOp struct {
 	OpID        string         `json:"opId"`

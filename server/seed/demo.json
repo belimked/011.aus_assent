@@ -89229,5 +89229,361 @@
       "ownerIds": [],
       "flags": {}
     }
+  ],
+  "captures": [
+    {
+      "id": "v1",
+      "text": "Spoke to Mary at 12 Gager St, kids moved out, might sell next year. Mobile 0412 555 019.",
+      "rec": "9:12am",
+      "sync": "9:40am",
+      "propId": "p6"
+    },
+    {
+      "id": "v2",
+      "text": "2 Gager St, not home, left card.",
+      "rec": "9:20am",
+      "sync": "9:40am",
+      "propId": "p1"
+    },
+    {
+      "id": "v3",
+      "text": "Mr Wu at 8 Gager St wants a market update, mobile 0401 777 302.",
+      "rec": "9:31am",
+      "sync": "9:40am",
+      "propId": "p4"
+    }
+  ],
+  "enquiries": [
+    {
+      "id": "e1",
+      "source": "realestate.com.au",
+      "d": "2026-11-07 08:12",
+      "type": "buyer",
+      "status": "new",
+      "raw": "Hi, I'm interested in 4 Gager St Sunnybank. Could I get the building and pest report and inspection times? Sarah Lim 0433 908 112 sarah.lim@example.com",
+      "parsed": {
+        "first": "Sarah",
+        "last": "Lim",
+        "mobile": "0433 908 112",
+        "email": "sarah.lim@example.com",
+        "propertyId": "p2",
+        "want": "B&P report + inspection times"
+      }
+    },
+    {
+      "id": "e2",
+      "source": "Phone",
+      "d": "2026-11-07 09:40",
+      "type": "seller",
+      "status": "new",
+      "raw": "Called the office. Peter Kowalski, 14 Gager St. Thinking of selling early next year, wants an appraisal. 0418 332 760.",
+      "parsed": {
+        "first": "Peter",
+        "last": "Kowalski",
+        "mobile": "0418 332 760",
+        "email": "",
+        "propertyId": "p7",
+        "want": "Appraisal, selling early 2027"
+      }
+    },
+    {
+      "id": "e3",
+      "source": "Domain",
+      "d": "2026-11-06 17:55",
+      "type": "buyer",
+      "status": "new",
+      "raw": "John Lee here, saw 4 Gager St listed, is Saturday's open home still on? 0433 221 877",
+      "parsed": {
+        "first": "John",
+        "last": "Lee",
+        "mobile": "0433 221 877",
+        "email": "",
+        "propertyId": "p2",
+        "want": "Open home time"
+      }
+    },
+    {
+      "id": "e5",
+      "source": "eplace.com.au",
+      "d": "2026-11-07 10:05",
+      "type": "seller",
+      "status": "new",
+      "raw": "Web form: J Chen, mary.chen@example.com, 12 Gager St Sunnybank. What would our place sell for now?",
+      "parsed": {
+        "first": "J",
+        "last": "Chen",
+        "mobile": "",
+        "email": "mary.chen@example.com",
+        "propertyId": "p6",
+        "want": "Appraisal / price indication"
+      }
+    },
+    {
+      "id": "e4",
+      "source": "eplace.com.au",
+      "d": "2026-11-04 12:20",
+      "type": "seller",
+      "status": "filed",
+      "raw": "Web form: Mary Chen, 12 Gager St, request market update.",
+      "parsed": {
+        "first": "Mary",
+        "last": "Chen",
+        "mobile": "0412 555 019",
+        "email": "mary.chen@example.com",
+        "propertyId": "p6",
+        "want": "Market update"
+      }
+    }
+  ],
+  "leads": [],
+  "listings": [
+    {
+      "id": "l1",
+      "propertyId": "p2",
+      "agent": "Owen Chen",
+      "price": "Offers over $1.05m",
+      "status": "listed",
+      "ofi": [
+        {
+          "d": "2026-11-07",
+          "time": "10:00–10:30",
+          "attendees": []
+        }
+      ],
+      "bpReport": true,
+      "form2": true
+    },
+    {
+      "id": "l2",
+      "propertyId": "p9",
+      "agent": "Natalie Wong",
+      "price": "Auction 22 Nov",
+      "status": "listed",
+      "ofi": [
+        {
+          "d": "2026-11-07",
+          "time": "11:00–11:30",
+          "attendees": [
+            {
+              "contactId": "c2",
+              "d": "2026-10-25",
+              "req": {
+                "bp": true
+              },
+              "ps": true,
+              "note": "Owns in Runcorn"
+            }
+          ]
+        },
+        {
+          "d": "2026-10-25",
+          "time": "11:00–11:30",
+          "attendees": [
+            {
+              "contactId": "c2",
+              "d": "2026-10-25",
+              "req": {
+                "bp": true
+              },
+              "ps": true,
+              "note": ""
+            }
+          ]
+        }
+      ],
+      "bpReport": false,
+      "form2": true
+    },
+    {
+      "id": "l3",
+      "propertyId": "p4",
+      "agent": "Owen Chen",
+      "price": "$1,180,000",
+      "status": "sold",
+      "ofi": [],
+      "bpReport": false,
+      "form2": false
+    }
+  ],
+  "sales": [
+    {
+      "id": "s1",
+      "propertyId": "p9",
+      "cat": "unconditional",
+      "seller": "B & C Moore",
+      "buyer": "Grace Ho",
+      "price": 1180000,
+      "gci": 29500,
+      "settle": "2026-12-05",
+      "reminders": []
+    },
+    {
+      "id": "s2",
+      "propertyId": "p10",
+      "cat": "unconditional",
+      "seller": "J Lee",
+      "buyer": "S & T Patel",
+      "price": 965000,
+      "gci": 24100,
+      "settle": "2026-11-28",
+      "reminders": []
+    },
+    {
+      "id": "s3",
+      "propertyId": "p4",
+      "cat": "settling",
+      "seller": "T & M Russo",
+      "buyer": "David Wu",
+      "price": 1180000,
+      "gci": 29500,
+      "settle": "2026-11-12",
+      "reminders": [
+        {
+          "type": "Final inspection",
+          "d": "2026-11-11",
+          "time": "10:00"
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "propertyId": "p8",
+      "cat": "appraisal",
+      "seller": "Y Zhang",
+      "buyer": "",
+      "price": 0,
+      "gci": 0,
+      "settle": "",
+      "when": "2026-11-10 16:00",
+      "reminders": []
+    },
+    {
+      "id": "s5",
+      "propertyId": "p12",
+      "cat": "appraisal",
+      "seller": "W Park",
+      "buyer": "",
+      "price": 0,
+      "gci": 0,
+      "settle": "",
+      "when": "2026-11-13 11:00",
+      "reminders": []
+    },
+    {
+      "id": "s6",
+      "propertyId": "p2",
+      "cat": "listed",
+      "seller": "R Singh",
+      "buyer": "",
+      "price": 1050000,
+      "gci": 26250,
+      "settle": "",
+      "reminders": []
+    },
+    {
+      "id": "s7",
+      "propertyId": "p9",
+      "cat": "listed",
+      "seller": "B & C Moore",
+      "buyer": "",
+      "price": 1150000,
+      "gci": 28750,
+      "settle": "",
+      "reminders": []
+    }
+  ],
+  "contracts": [
+    {
+      "id": "k1",
+      "listingId": "l3",
+      "buyerId": "c3",
+      "sellerIds": [],
+      "sellerName": "T & M Russo",
+      "d": "2024-05-04",
+      "price": "$1,180,000",
+      "status": "settled"
+    }
+  ],
+  "referrals": [
+    {
+      "id": "rf1",
+      "type": "broker",
+      "to": "Lisa Tran (Axleo Finance)",
+      "contactId": "c6",
+      "propertyId": "p2",
+      "d": "2026-11-01",
+      "status": "sent"
+    }
+  ],
+  "market": [
+    {
+      "id": "m1",
+      "kind": "sale",
+      "propId": "p3",
+      "addr": "6 Gager St, Sunnybank",
+      "meta": "Sold 3 Nov · $1.21m",
+      "sub": "Owner Helen Papas · tagged Seller lead (Warm)",
+      "owner": "Helen Papas"
+    },
+    {
+      "id": "m2",
+      "kind": "listing",
+      "propId": "p10",
+      "addr": "7 Hill St, Runcorn",
+      "meta": "Listed 9 Nov · Ray White",
+      "sub": "Owner John Lee · was your Seller lead (Hot)",
+      "owner": "John Lee",
+      "agency": "Ray White"
+    }
+  ],
+  "zones": [
+    {
+      "id": "z1",
+      "name": "Gager West",
+      "pts": [
+        [
+          -27.577191000000003,
+          153.05494000000002
+        ],
+        [
+          -27.577191000000003,
+          153.056008
+        ],
+        [
+          -27.576597999999997,
+          153.056008
+        ],
+        [
+          -27.576597999999997,
+          153.05494000000002
+        ]
+      ]
+    }
+  ],
+  "myTags": [
+    {
+      "id": "seed-tag-0",
+      "n": "Cantonese speaking",
+      "by": "Owen Chen",
+      "d": "2026-10-02"
+    },
+    {
+      "id": "seed-tag-1",
+      "n": "Call after 6pm",
+      "by": "Owen Chen",
+      "d": "2026-10-14"
+    },
+    {
+      "id": "seed-tag-2",
+      "n": "Spring 2027",
+      "by": "Owen Chen",
+      "d": "2026-10-20"
+    },
+    {
+      "id": "seed-tag-3",
+      "n": "School catchment",
+      "by": "Natalie Wong",
+      "d": "2026-10-05"
+    }
   ]
 }
