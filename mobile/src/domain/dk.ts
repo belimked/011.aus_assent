@@ -2,12 +2,15 @@ import type {AppState, Contact} from '../data/types';
 import {TODAY} from '../data/seed';
 import {addTodo, audit, byId, linkOwner, matchContacts, normMobile, noteOn} from './index';
 
+export const isLongHold=(durationMs:number)=>durationMs>=260;
+export const matchesAddress=(address:string,query:string)=>address.toLowerCase().includes(query.trim().toLowerCase());
+export const houseNumberOrder=(a:{no:string},b:{no:string})=>parseInt(a.no,10)-parseInt(b.no,10);
 export type DKFields = {first:string;last:string;mobile:string;email:string;relation:string;note:string;reason:string;tags:string[];followup?:string;linked?:string};
 export function commitDK(s:AppState, propId:string, r:DKFields, pick?:string) {
   const p=byId(s.properties,propId);
   const matches=matchContacts(s,r);
   if(matches.status==='multiple'&&!pick) throw new Error('Choose a matching contact before approving');
-  let c=pick?byId(s.contacts,pick):matches.status==='unique'?matches.list[0].c:undefined;
+  let c=pick==='new'?undefined:pick?byId(s.contacts,pick):matches.status==='unique'?matches.list[0].c:undefined;
   if(!c){
     c={id:'c'+Date.now(),first:r.first,last:r.last,mobile:r.mobile,email:r.email,owner:s.auth?.name||'Owen Chen',roles:[],tags:[],flags:{},notes:[],rels:[],updated:{by:s.auth?.name||'Owen Chen',d:TODAY}};
     s.contacts.push(c);
@@ -30,7 +33,7 @@ export function commitDK(s:AppState, propId:string, r:DKFields, pick?:string) {
   audit(s,'DK',`${c.first} ${c.last} · ${p?.street||'new contact'}`);
   return c;
 }
-export function duplicatesOf(s:AppState,c:Contact){return s.contacts.filter(x=>x.id!==c.id&&x.owner===c.owner&&((!!c.mobile&&normMobile(c.mobile)===normMobile(x.mobile))||!!c.email&&c.email.toLowerCase()===x.email.toLowerCase()));}
+export function duplicatesOf(s:AppState,c:Contact){return s.contacts.filter(x=>x.id!==c.id&&((!!c.mobile&&normMobile(c.mobile)===normMobile(x.mobile))||!!c.email&&c.email.toLowerCase()===x.email.toLowerCase()));}
 export function mergeContacts(s:AppState,aId:string,bId:string,fields:Record<string,'a'|'b'>={}){
   const a=byId(s.contacts,aId),b=byId(s.contacts,bId);
   if(!a||!b||a.id===b.id||a.owner!==b.owner)throw new Error('Contacts cannot be merged');

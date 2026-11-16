@@ -1,0 +1,2 @@
+import {periodLabel,periodRange} from './activity';
+test('period labels and FY boundary',()=>{expect(['today','week','month','fy'].map(x=>periodLabel(x))).toEqual(['today','this week','this month','this FY (1 Jul – 30 Jun)']);expect(periodLabel('fy',true)).toContain('7 月 1 日');expect(periodRange('fy',new Date(2026,5,30)).start).toBe('2025-07-01');expect(periodRange('fy',new Date(2026,6,1)).start).toBe('2026-07-01')});

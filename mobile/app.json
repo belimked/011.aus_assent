@@ -11,13 +11,16 @@
       "bundleIdentifier": "com.placesunnybank.agentcollect",
       "supportsTablet": false,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "AxleoCollect uses the microphone for voice capture."
+        "NSMicrophoneUsageDescription": "AxleoCollect uses the microphone for voice capture.",
+        "NSLocationWhenInUseUsageDescription": "AxleoCollect uses your location to show nearby properties while you are using the app."
       }
     },
     "android": {
       "package": "com.placesunnybank.agentcollect",
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

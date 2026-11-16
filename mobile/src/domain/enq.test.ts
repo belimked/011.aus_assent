@@ -1,7 +1,8 @@
 import {seed} from '../data/seed';
-import {createLead,emptyEnq,enquiryMatch,fileEnquiry,listingResults,propertyResults,searchBuyers,sellerLeadOn} from './enq';
+import {createLead,emptyEnq,mobileDraftChange,enquiryMatch,fileEnquiry,listingResults,propertyResults,searchBuyers,sellerLeadOn} from './enq';
 
 describe('enquiry domain',()=>{
+  test('changing matched mobile clears fields and restores screenshot name on re-entry',()=>{const shot={mobile:'0455 210 884',first:'William',last:'Park'};const d={...emptyEnq(),mobile:shot.mobile,first:shot.first,last:shot.last,email:'w@x.com',addr:'Home',propId:'p1'};const changed=mobileDraftChange(d,'0400 000 000',shot);expect([changed.first,changed.last,changed.email,changed.addr,changed.propId]).toEqual(['','','','','']);expect(mobileDraftChange(changed,shot.mobile,shot).first).toBe('William')});
   test('mobile matches Rex only when complete, and seller switch can override',()=>{const s=seed();expect(enquiryMatch(s,'0412 555 019')?.first).toBe('Mary');expect(enquiryMatch(s,'0412')).toBeUndefined();expect(sellerLeadOn({...emptyEnq(),type:'seller'},undefined)).toBe(true);expect(sellerLeadOn({...emptyEnq(),type:'seller',sl:false},undefined)).toBe(false)});
   test('property results are bounded, listings are listed only',()=>{const s=seed();expect(propertyResults(s,'').length).toBeLessThanOrEqual(8);expect(listingResults(s,'').every(l=>l.status==='listed')).toBe(true)});
   test('natural language buyer search filters beds and suburb',()=>{const s=seed();const buyers=searchBuyers(s,'buyers 4 bed in Runcorn up to 1.2m');expect(buyers.every(c=>!c.buyerProfile?.beds||c.buyerProfile.beds<=4)).toBe(true);expect(buyers.some(c=>c.first==='John')).toBe(true)});

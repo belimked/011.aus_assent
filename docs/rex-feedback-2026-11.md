@@ -62,3 +62,25 @@
 1. 接受 Rex 沙箱邀请，把账号交给我们（密码放到服务器的 `/etc/axleo/env`，不进仓库）。
 2. 在沙箱上跑 describe-model / read-fields / searchable-fields，补完 Q2、Q4、Q5、Q6 和自定义字段清单。
 3. 实现 Rex 连接器（限流队列、e-tag 对账、webhook 接收），把 `rex_outbox` 从 `waiting_auth` 改为真实推送——**只连沙箱**，正式账号等中介授权后切换。
+
+## 6. 未回答 / 需要追问（2026-11-16 对照问题清单）
+
+我们的问题清单（cc.saulxj.ggff.net/rex-api-requirements-en）里，以下几处 Rex 没有回答或答非所问：
+
+| # | 我们问的 | Rex 的回复 | 处理 |
+|---|---|---|---|
+| F1 | Contacts::create / update 时 related.contact_tags 写一个账号里还没有的标签，会不会自动创建？ | 未回答 | 追问；沙箱也能验证 |
+| F2 | Leads::create 直接指定 assignee 时，集成用户是否需要 leads.assign_to_anyone 权限？只传 listing 不传 assignee 时，会不会自动分给该挂牌的中介？ | 未回答 | 追问（影响询盘/OFI 线索分给谁） |
+| F3 | Reminders::create 指派给同事后，Rex 手机端会不会推送通知？ | 未回答 | 追问；决定我们要不要自己发推送 |
+| F4 | 03-3：签到时除了 lead，能否写 Rex 原生的开放参观到访记录，让到访出现在给卖家的报告里？ | 答成“反馈和线索是两种记录，只写线索即可” | 追问：集成能否写入开放参观到访者、是否进入 vendor report |
+| F5 | 03-11：要的是“这户不要投信”，按房产、可搜索、可按片区统计 | 给了联系人上的 contact_by_letter | 追问：contact_by_letter 能否作为 Contacts::search 条件？没有联系人的房产怎么标（房产标签是否可行）？ |
+| F6 | K1：超过 3,600 次/小时会怎样（拒绝/延迟/停用）？有没有每日上限、并发上限？ | 只说“目前是软限制，没有公布其他限额” | 追问超限时的响应（状态码/错误码），我们据此做退避 |
+| F7 | 02-1：联系人与房产的关系（业主/租客）如何批量拉取 | 只答了联系人、房产用 search 分页 | 先在沙箱验证 search 能否带出关系；不行再追问 |
+| F8 | （新）每位中介用自己的 Rex 账号授权（OAuth），记录创建人显示本人，是否允许？除 X-App-Identifier 外还需要什么？是否同样计入 3,600 次？ | 03-10 只回答了“集成用户不能代写” | 视业务方是否在意“创建人”再决定是否追问（见 §4 决策 2） |
+
+以下 Rex 只说“看 describe-model / read-fields / searchable-fields”，**不需要追问**，拿到沙箱后自己确认返回结构：02-3 Reminders::getRemindeeList、02-4 Dedupe::findPossibleDuplicates、02-7 AdminTags::search、02-8 Leads::search、02-9 Reminders::search、02-11 MatchProfiles::search、02-13 Oabs::search。
+
+### 当前在等的
+1. Rex 审批“免费集成用户”（邮件说已提交，批准后通知）。
+2. 沙箱邀请已发到 Sunnybankintegration@eplace.com.au：需要 Ping 接受邀请，把沙箱登录信息交给我们。
+3. 中介在 Rex 里：给集成用户开 Manage Webhooks / Create Zaps 权限；建自定义字段（同意方式、DNCR 核验日期等，清单在沙箱核对后给出）。
