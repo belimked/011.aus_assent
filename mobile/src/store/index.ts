@@ -23,6 +23,8 @@ const notifySheet = () => sheetListeners.forEach(fn => fn());
 export const openSheet = (s: Sheet) => { sheet = {...s, prev: sheet ?? undefined}; notifySheet(); };
 export const closeSheet = () => { sheet = sheet?.prev ?? null; notifySheet(); };
 export const dismissSheet = () => { sheet = null; notifySheet(); };
+export const markSheetDirty = () => { if(sheet) sheet.dirty = true; };
+export const dismissSheetBackdrop = () => { if(sheet?.dirty){showToast('Unsaved changes. Tap Cancel to discard.');return} dismissSheet(); };
 export const useSheet = () => useSyncExternalStore(fn => {sheetListeners.add(fn); return () => {sheetListeners.delete(fn)}}, () => sheet, () => null);
 let toast: {text:string;undo?:()=>void}|null = null;
 const toastListeners = new Set<() => void>();
