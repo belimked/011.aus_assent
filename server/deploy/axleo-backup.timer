@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Axleo backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+Unit=axleo-backup.service
+
+[Install]
+WantedBy=timers.target
