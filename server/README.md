@@ -1,4 +1,4 @@
-# AxleoCollect API (B3)
+# AxleoCollect API (B4)
 
 Go 1.27, SQLite (pure Go), standard-library HTTP server. From `server/`:
 
@@ -19,4 +19,4 @@ B3 CRUD kinds: `captures`, `enquiries`, `leads`, `listings`, `ofi_attendees`, `s
 
 Regenerate embedded demo data at repository root with `node tools/export-seed-json.mjs`. Demo `Owen Chen` is assigned to Mary; `Natalie Wong` to John. Original `owner`/`who`/`by` display strings are preserved.
 
-Deployment templates are in `deploy/`: run `setup-65.sh` on the target as root **after review**, set `/etc/axleo/env`, then run `release.sh` locally with Go and `SSHPASS` set. The scripts are provided but are not run automatically. Daily systemd timer uses `sqlite3 .backup` and retains 14 snapshots. Do not expose the service directly to the Internet without TLS/reverse proxy.
+Deployment templates are in `deploy/`: run `setup-65.sh` on the target as root **after review**, set `/etc/axleo/env`, then run `release.sh` locally with Go and `SSHPASS` set. The scripts are provided but are not run automatically. Daily systemd timer calls `axleo backup /data/axleo/backup` (SQLite online snapshot) and retains 14 snapshots. `axleo verify <file>` checks integrity/schema and prints table counts; `axleo restore <file>` requires the service stopped and saves a copy of the existing database first. `/admin/` serves the embedded administration UI; admin-only JSON endpoints include `/admin/overview`, `/admin/approvals?status=`, `/admin/data?kind=&before=`, plus filtered `/admin/audit` and `/admin/rex-outbox`. See `docs/ops-runbook.md` for operating instructions. Do not expose the service directly to the Internet without TLS/reverse proxy.

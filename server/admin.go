@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -29,6 +30,18 @@ func createUser(db *sql.DB, email, name, role, pass string) error {
 }
 func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/admin/")
+	if path == "overview" && r.Method == "GET" {
+		a.overview(w)
+		return
+	}
+	if path == "data" && r.Method == "GET" {
+		a.adminData(w, r, p)
+		return
+	}
+	if path == "approvals" && r.Method == "GET" {
+		a.adminApprovals(w, r)
+		return
+	}
 	if path == "audit" || path == "rex-outbox" {
 		if r.Method != "GET" {
 			problem(w, 405, "method not allowed")
@@ -42,12 +55,32 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 		if path == "rex-outbox" {
 			table = "rex_outbox"
 		}
-		q := `SELECT * FROM ` + table + ` WHERE id<? ORDER BY id DESC LIMIT ?`
+		q := `SELECT * FROM ` + table + ` WHERE id<?`
 		before, _ := strconvAtoi(r.URL.Query().Get("before"))
 		if before <= 0 {
 			before = 1 << 62
 		}
-		rows, err := a.db.Query(q, before, limit)
+		args := []any{before}
+		filters := map[string]string{}
+		if path == "audit" {
+			filters = map[string]string{"user": "user_id", "entity": "entity", "action": "action", "from": "at >=", "to": "at <="}
+		} else {
+			filters = map[string]string{"status": "status"}
+		}
+		for _, key := range []string{"user", "entity", "action", "from", "to", "status"} {
+			if val := r.URL.Query().Get(key); val != "" && filters[key] != "" {
+				col := filters[key]
+				if key == "from" || key == "to" {
+					q += " AND " + col + " ?"
+				} else {
+					q += " AND " + col + "=?"
+				}
+				args = append(args, val)
+			}
+		}
+		q += ` ORDER BY id DESC LIMIT ?`
+		args = append(args, limit)
+		rows, err := a.db.Query(q, args...)
 		if err != nil {
 			problem(w, 500, "database error")
 			return
@@ -76,7 +109,7 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 	if path == "users" {
 		switch r.Method {
 		case "GET":
-			rows, err := a.db.Query(`SELECT id,email,name,role,disabled,version FROM users WHERE deleted_at IS NULL ORDER BY email`)
+			rows, err := a.db.Query(`SELECT u.id,u.email,u.name,u.role,u.disabled,u.version, (SELECT max(created_at) FROM sessions WHERE user_id=u.id), (SELECT device FROM sessions WHERE user_id=u.id ORDER BY created_at DESC LIMIT 1) FROM users u WHERE u.deleted_at IS NULL ORDER BY u.email`)
 			if err != nil {
 				problem(w, 500, "database error")
 				return
@@ -86,8 +119,9 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 			for rows.Next() {
 				var id, email, name, role string
 				var disabled, ver int
-				if rows.Scan(&id, &email, &name, &role, &disabled, &ver) == nil {
-					out = append(out, map[string]any{"id": id, "email": email, "name": name, "role": role, "disabled": disabled != 0, "version": ver})
+				var last, device sql.NullString
+				if rows.Scan(&id, &email, &name, &role, &disabled, &ver, &last, &device) == nil {
+					out = append(out, map[string]any{"id": id, "email": email, "name": name, "role": role, "disabled": disabled != 0, "version": ver, "lastLogin": last.String, "device": device.String})
 				}
 			}
 			respond(w, 200, out)
@@ -99,6 +133,10 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 				return
 			}
 			role := str(m, "role")
+			if strings.TrimSpace(str(m, "email")) == "" || strings.TrimSpace(str(m, "name")) == "" {
+				problem(w, 400, "email and name required")
+				return
+			}
 			if role != "agent" && role != "admin" {
 				problem(w, 400, "invalid role")
 				return
@@ -142,6 +180,7 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 				respond(w, 409, map[string]any{"error": "version conflict", "current": map[string]any{"id": id, "role": role, "name": name, "disabled": disabled != 0, "version": ver}})
 				return
 			}
+			previousRole := role
 			if v, ok := m["role"]; ok {
 				role, _ = v.(string)
 				if role != "admin" && role != "agent" {
@@ -169,7 +208,7 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 			tx, _ := a.db.Begin()
 			defer tx.Rollback()
 			_, err = tx.Exec(`UPDATE users SET role=?,name=?,disabled=?,password_hash=CASE WHEN ?='' THEN password_hash ELSE ? END,version=version+1,updated_at=? WHERE id=? AND version=?`, role, name, disabled, hash, hash, now(), id, ver)
-			if err == nil && hash != "" {
+			if err == nil && (hash != "" || disabled != 0 || role != previousRole) {
 				_, err = tx.Exec(`DELETE FROM sessions WHERE user_id=?`, id)
 			}
 			delete(m, "password")
@@ -352,10 +391,39 @@ func sliceMaps(v any) []map[string]any {
 }
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed|passwd <email>")
+		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed|passwd <email>|backup <dir>|verify <file>|restore <file>")
 		os.Exit(2)
 	}
 	path := env("AXLEO_DB", "./axleo.db")
+	if os.Args[1] == "verify" || os.Args[1] == "restore" {
+		if len(os.Args) != 3 {
+			fatal(fmt.Errorf("file required"))
+		}
+		if os.Args[1] == "verify" {
+			counts, err := verify(os.Args[2])
+			fatal(err)
+			keys := make([]string, 0, len(counts))
+			for k := range counts {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			for _, k := range keys {
+				fmt.Printf("%s: %d\n", k, counts[k])
+			}
+		} else {
+			saved, err := restore(path, os.Args[2])
+			fatal(err)
+			fmt.Println("previous database saved:", saved)
+		}
+		return
+	}
+	var lock *os.File
+	if os.Args[1] == "serve" {
+		var err error
+		lock, err = serviceLock(path)
+		fatal(err)
+		defer lock.Close()
+	}
 	db, err := open(path)
 	if err != nil {
 		fatal(err)
@@ -365,6 +433,13 @@ func main() {
 		fatal(err)
 	}
 	switch os.Args[1] {
+	case "backup":
+		if len(os.Args) != 3 {
+			fatal(fmt.Errorf("directory required"))
+		}
+		file, err := backup(db, os.Args[2])
+		fatal(err)
+		fmt.Println(file)
 	case "migrate":
 		return
 	case "seed":

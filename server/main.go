@@ -207,6 +207,10 @@ func (a *app) routes() http.Handler {
 		respond(w, 200, map[string]any{"ok": true, "version": version, "schema": n})
 	})
 	m.HandleFunc("POST /api/v1/auth/login", a.login)
+	m.Handle("GET /admin/", http.StripPrefix("/admin/", http.FileServer(http.FS(webRoot()))))
+	m.HandleFunc("GET /admin", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/admin/", http.StatusMovedPermanently)
+	})
 	m.HandleFunc("/api/v1/", func(w http.ResponseWriter, r *http.Request) {
 		p, ok := a.auth(r)
 		if !ok {
@@ -240,6 +244,11 @@ func (a *app) routes() http.Handler {
 		}
 	})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/admin" || strings.HasPrefix(r.URL.Path, "/admin/") {
+			w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+			w.Header().Set("X-Frame-Options", "DENY")
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+		}
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")

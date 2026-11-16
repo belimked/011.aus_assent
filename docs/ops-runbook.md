@@ -1,0 +1,19 @@
+# AxleoCollect 运维速查（65）
+
+## 发布与回滚
+
+在本地 `server/` 执行 `go test ./... && go vet ./...`；审核变更后用 `SSHPASS=… deploy/release.sh` 发布。脚本切换 `/opt/axleo/current`、重启 `axleo.service`，健康检查失败自动回滚。手动回滚：在 65 以 root 执行 `ln -sfn "$(cat /data/axleo/previous-release)" /opt/axleo/current && systemctl restart axleo`；检查 `curl -fsS http://127.0.0.1:8082/api/v1/health` 和 `journalctl -u axleo -n 100`。**回滚二进制不能自动回退数据库 schema**；如需回退数据，按下面的恢复流程操作。发布前保留快照。
+
+## 备份与恢复
+
+`axleo-backup.timer` 每日 03:30 调用 `/opt/axleo/current/axleo backup /data/axleo/backup`，用 SQLite 在线快照；保留最近 14 份，文件位于 `/data/axleo/backup/axleo-*.db`。可手动执行相同命令。备份验证：`/opt/axleo/current/axleo verify /data/axleo/backup/<文件>.db`，输出完整性检查与各表行数。备份应额外异机保存。
+
+恢复（**会覆盖当前库**）：先确认要恢复的文件、维护窗口及程序版本。root 执行 `systemctl stop axleo`；确认无其他进程使用数据库；再以 `axleo` 用户、加载 `/etc/axleo/env` 的环境运行 `/opt/axleo/current/axleo restore <快照绝对路径>`。命令校验快照和 schema，将当前库另存于数据库同级 `backup/` 并输出文件名，然后替换数据库。恢复失败不要启动服务，先检查日志与备份。最后 `systemctl start axleo` 并检查健康、账号和业务数量。不要恢复比当前程序更新的 schema；不要在服务运行时替换 WAL 文件。
+
+## 只读演练
+
+在 65 以 root 设置 `AXLEO_ADMIN_EMAIL`、`AXLEO_ADMIN_PASSWORD`，运行 `server/deploy/restore-drill.sh`（先把脚本送至 65）。脚本从最新快照恢复至 `/data/axleo/drill/run.*`，在 `127.0.0.1:8092` 启动临时实例，检查健康和 admin 登录、对比线上与快照的各类记录数，退出时杀进程并清理临时文件；线上服务不停止。若线上在备份后有新写入，数量比较会不一致，需选择静默时段或手工核对差异。依赖 `curl`、`jq`。
+
+## 账号
+
+改密码：停止/不停服务均可，在加载 `/etc/axleo/env` 后执行 `printf '%s\n' '<新密码>' | /opt/axleo/current/axleo passwd <邮箱>`；会吊销旧 session，密码至少 8 位。加账号：在 `/admin/` 用管理员登录，在 Accounts 创建（邮箱、姓名、角色、初始密码），并通过安全渠道告知密码；需要时禁用账号或执行 Sign out devices。切勿把密码放在工单、命令行历史或截图中。
