@@ -221,6 +221,12 @@ func (a *app) routes() http.Handler {
 			respond(w, 200, map[string]any{"ok": true})
 		case r.Method == "GET" && r.URL.Path == "/api/v1/me":
 			respond(w, 200, map[string]any{"id": p.id, "name": p.name, "email": p.email, "role": p.role})
+		case r.Method == "GET" && r.URL.Path == "/api/v1/team":
+			a.team(w, p)
+		case r.Method == "GET" && r.URL.Path == "/api/v1/sync":
+			a.syncPull(w, r, p)
+		case r.Method == "POST" && r.URL.Path == "/api/v1/sync/push":
+			a.syncPush(w, r, p)
 		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/"):
 			if p.role != "admin" {
 				problem(w, 404, "not found")
@@ -231,7 +237,16 @@ func (a *app) routes() http.Handler {
 			a.resource(w, r, p)
 		}
 	})
-	return m
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		m.ServeHTTP(w, r)
+	})
 }
 func (a *app) login(w http.ResponseWriter, r *http.Request) {
 	m, err := body(r)
@@ -296,7 +311,14 @@ func scope(kind string, p principal) (string, []any) {
 func allowedKind(k string) bool { return k == "contacts" || k == "properties" || k == "todos" }
 func (a *app) get(kind, id string, p principal, deleted bool) (map[string]any, error) {
 	s, args := scope(kind, p)
-	q := `SELECT data,version,updated_at,deleted_at FROM ` + kind + ` WHERE id=?` + s
+	q := `SELECT data,version,updated_at,deleted_at`
+	if kind == "contacts" {
+		q += `,owner_id`
+	}
+	if kind == "todos" {
+		q += `,assignee_id,created_by`
+	}
+	q += ` FROM ` + kind + ` WHERE id=?` + s
 	if !deleted {
 		q += ` AND deleted_at IS NULL`
 	}
@@ -304,12 +326,27 @@ func (a *app) get(kind, id string, p principal, deleted bool) (map[string]any, e
 	var data, updated string
 	var ver int
 	var del sql.NullString
-	if err := a.db.QueryRow(q, args...).Scan(&data, &ver, &updated, &del); err != nil {
+	var owner, assignee, creator string
+	scan := []any{&data, &ver, &updated, &del}
+	if kind == "contacts" {
+		scan = append(scan, &owner)
+	}
+	if kind == "todos" {
+		scan = append(scan, &assignee, &creator)
+	}
+	if err := a.db.QueryRow(q, args...).Scan(scan...); err != nil {
 		return nil, err
 	}
 	var m map[string]any
 	if err := json.Unmarshal([]byte(data), &m); err != nil {
 		return nil, err
+	}
+	if kind == "contacts" {
+		m["ownerId"] = owner
+	}
+	if kind == "todos" {
+		m["assigneeId"] = assignee
+		m["createdBy"] = creator
 	}
 	m["version"] = ver
 	m["updated_at"] = updated
@@ -492,6 +529,9 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 		}
 		if method != "POST" {
 			owner = a.ownerID(kind, id)
+			if p.role == "admin" && method == "PATCH" && str(m, "ownerId") != "" {
+				owner = str(m, "ownerId") // admin reassigns directly
+			}
 		}
 		if p.role != "admin" {
 			owner = p.id
@@ -587,7 +627,7 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 		case "todos":
 			_, err = tx.Exec(`INSERT INTO todos(id,assignee_id,created_by,due,time,text,kind,data,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`, id, assignee, creator, str(m, "d"), str(m, "time"), str(m, "t"), str(m, "kind"), string(b), stamp, stamp)
 		case "properties":
-			_, err = tx.Exec(`INSERT INTO properties(id,no,street,suburb,geometry,pf_owner,last_sale,data,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`, id, str(m, "no"), str(m, "street"), str(m, "suburb"), jsonField(m, "geometry"), str(m, "pfOwner"), str(m, "lastSale"), string(b), stamp, stamp)
+			_, err = tx.Exec(`INSERT INTO properties(id,no,street,suburb,geometry,pf_owner,last_sale,data,created_at,updated_at,registered) VALUES(?,?,?,?,?,?,?,?,?,?,1)`, id, str(m, "no"), str(m, "street"), str(m, "suburb"), jsonField(m, "geometry"), str(m, "pfOwner"), str(m, "lastSale"), string(b), stamp, stamp)
 		}
 	case "PATCH":
 		q := `UPDATE ` + kind + ` SET data=?,updated_at=?,version=version+1`
@@ -601,7 +641,7 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 			args = append(args, str(m, "d"), str(m, "time"), str(m, "t"), str(m, "kind"), assignee, creator)
 		}
 		if kind == "properties" {
-			q += `,no=?,street=?,suburb=?,geometry=?,pf_owner=?,last_sale=?`
+			q += `,no=?,street=?,suburb=?,geometry=?,pf_owner=?,last_sale=?,registered=1`
 			args = append(args, str(m, "no"), str(m, "street"), str(m, "suburb"), jsonField(m, "geometry"), str(m, "pfOwner"), str(m, "lastSale"))
 		}
 		s, sc := scope(kind, p)

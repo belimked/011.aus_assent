@@ -80,6 +80,7 @@
       ],
       "expo-maps"
     ],
+    "extra": {"apiUrl": "https://axleo-api.saulxj.ggff.net/api/v1"},
     "experiments": {
       "typedRoutes": true
     }

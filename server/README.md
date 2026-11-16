@@ -1,4 +1,4 @@
-# AxleoCollect API (B1)
+# AxleoCollect API (B2)
 
 Go 1.27, SQLite (pure Go), standard-library HTTP server. From `server/`:
 
@@ -13,7 +13,7 @@ export AXLEO_DB=./axleo.db AXLEO_SEED_PASSWORD='a-long-initial-password'
 
 `AXLEO_ADDR` defaults to `127.0.0.1:8082`; `AXLEO_DB` to `./axleo.db`; migration snapshots use `AXLEO_BACKUP_DIR` (default `backup/` beside the DB). `axleo passwd <email>` reads the replacement password from stdin and revokes existing sessions. Without `AXLEO_SEED_PASSWORD`, the first seed prints a generated password **once**; save it. `seed` is repeatable and does not overwrite existing accounts or records.
 
-All protected endpoints use `Authorization: Bearer <token>`; `/api/v1/health` is public. Collections return JSON arrays, `?since=<RFC3339Nano updated_at>` includes updated and soft-deleted records; PATCH requires `version`, with stale updates returning `409` and `current`. Admin-only endpoints are under `/api/v1/admin/`.
+All protected endpoints use `Authorization: Bearer <token>`; `/api/v1/health` is public. Collections return JSON arrays; PATCH requires `version`, with stale updates returning `409` and `current`. `GET /sync?since=<opaque cursor>` returns `cursor`, `full`, registered contacts/properties/todos, and `deleted` ID arrays, all scoped to the bearer. An empty cursor requests a full snapshot. `POST /sync/push` accepts `ops` with `opId`, `kind`, `op`, `id`, optional `baseVersion`, and `data`; `results` contain per-op `status` and `record`. Op IDs are idempotent per user for seven days. `GET /team` returns same-team user IDs and names. API supports cross-origin bearer requests. Admin-only endpoints are under `/api/v1/admin/`.
 
 Regenerate embedded demo data at repository root with `node tools/export-seed-json.mjs`. Demo `Owen Chen` is assigned to Mary; `Natalie Wong` to John. Original `owner`/`who`/`by` display strings are preserved.
 

@@ -11,7 +11,10 @@ export const subscribe = (fn: () => void) => { listeners.add(fn); return () => {
 export function useStore<T>(selector: (state: AppState) => T): T { return selector(useSyncExternalStore(subscribe, getState, getState)); }
 export async function hydrate() { try { const raw = await AsyncStorage.getItem('ax_state'); const saved = raw && JSON.parse(raw); if (saved?.v === 8 && saved.contacts && saved.captures) state = saved; } catch {} ready = true; emit(); }
 export const useReady = () => useSyncExternalStore(subscribe, () => ready, () => true);
-export function update(fn: (draft: AppState) => void) { const next = structuredClone(state); fn(next); state = next; emit(); void AsyncStorage.setItem('ax_state', JSON.stringify(state)).catch(() => {}); }
+let localWrite: ((before: AppState, after: AppState) => void) | null = null;
+export const onLocalWrite = (fn: typeof localWrite) => { localWrite = fn; };
+export function replaceState(next: AppState) { state = next; emit(); void AsyncStorage.setItem('ax_state', JSON.stringify(state)).catch(() => {}); }
+export function update(fn: (draft: AppState) => void) { const before = state; const next = structuredClone(state); fn(next); replaceState(next); localWrite?.(before,next); }
 export function resetDemo() { state = seed(); emit(); void AsyncStorage.setItem('ax_state', JSON.stringify(state)).catch(() => {}); }
 type Sheet = {kind:string;prev?:Sheet;[key:string]:any};
 let sheet: Sheet | null = null;
