@@ -69,14 +69,14 @@
 
 | # | 我们问的 | Rex 的回复 | 处理 |
 |---|---|---|---|
-| F1 | Contacts::create / update 时 related.contact_tags 写一个账号里还没有的标签，会不会自动创建？ | 未回答 | 追问；沙箱也能验证 |
-| F2 | Leads::create 直接指定 assignee 时，集成用户是否需要 leads.assign_to_anyone 权限？只传 listing 不传 assignee 时，会不会自动分给该挂牌的中介？ | 未回答 | 追问（影响询盘/OFI 线索分给谁） |
-| F3 | Reminders::create 指派给同事后，Rex 手机端会不会推送通知？ | 未回答 | 追问；决定我们要不要自己发推送 |
-| F4 | 03-3：签到时除了 lead，能否写 Rex 原生的开放参观到访记录，让到访出现在给卖家的报告里？ | 答成“反馈和线索是两种记录，只写线索即可” | 追问：集成能否写入开放参观到访者、是否进入 vendor report |
-| F5 | 03-11：要的是“这户不要投信”，按房产、可搜索、可按片区统计 | 给了联系人上的 contact_by_letter | 追问：contact_by_letter 能否作为 Contacts::search 条件？没有联系人的房产怎么标（房产标签是否可行）？ |
-| F6 | K1：超过 3,600 次/小时会怎样（拒绝/延迟/停用）？有没有每日上限、并发上限？ | 只说“目前是软限制，没有公布其他限额” | 追问超限时的响应（状态码/错误码），我们据此做退避 |
-| F7 | 02-1：联系人与房产的关系（业主/租客）如何批量拉取 | 只答了联系人、房产用 search 分页 | 先在沙箱验证 search 能否带出关系；不行再追问 |
-| F8 | （新）每位中介用自己的 Rex 账号授权（OAuth），记录创建人显示本人，是否允许？除 X-App-Identifier 外还需要什么？是否同样计入 3,600 次？ | 03-10 只回答了“集成用户不能代写” | 视业务方是否在意“创建人”再决定是否追问（见 §4 决策 2） |
+| F1 | Contacts::create / update 时 related.contact_tags 写一个账号里还没有的标签，会不会自动创建？ | 未回答 | 沙箱验证（axleo rex-probe） |
+| F2 | Leads::create 直接指定 assignee 时，集成用户是否需要 leads.assign_to_anyone 权限？只传 listing 不传 assignee 时，会不会自动分给该挂牌的中介？ | 未回答 | 沙箱验证（axleo rex-probe） |
+| F3 | Reminders::create 指派给同事后，Rex 手机端会不会推送通知？ | 未回答 | 沙箱验证，需人工看手机推送 |
+| F4 | 03-3：签到时除了 lead，能否写 Rex 原生的开放参观到访记录，让到访出现在给卖家的报告里？ | 答成“反馈和线索是两种记录，只写线索即可” | 沙箱验证（axleo rex-probe）API 部分；vendor report 人工核对 |
+| F5 | 03-11：要的是“这户不要投信”，按房产、可搜索、可按片区统计 | 给了联系人上的 contact_by_letter | 沙箱验证（axleo rex-probe） |
+| F6 | K1：超过 3,600 次/小时会怎样（拒绝/延迟/停用）？有没有每日上限、并发上限？ | 只说“目前是软限制，没有公布其他限额” | 邮件追问 |
+| F7 | 02-1：联系人与房产的关系（业主/租客）如何批量拉取 | 只答了联系人、房产用 search 分页 | 沙箱验证（axleo rex-probe） |
+| F8 | （新）每位中介用自己的 Rex 账号授权（OAuth），记录创建人显示本人，是否允许？除 X-App-Identifier 外还需要什么？是否同样计入 3,600 次？ | 03-10 只回答了“集成用户不能代写” | 邮件追问 |
 
 以下 Rex 只说“看 describe-model / read-fields / searchable-fields”，**不需要追问**，拿到沙箱后自己确认返回结构：02-3 Reminders::getRemindeeList、02-4 Dedupe::findPossibleDuplicates、02-7 AdminTags::search、02-8 Leads::search、02-9 Reminders::search、02-11 MatchProfiles::search、02-13 Oabs::search。
 
