@@ -597,6 +597,7 @@ export const seed = (): AppState => JSON.parse(JSON.stringify({
     },
     {
       "id": "p6",
+      "market": {"lastSalePrice": 1250000, "lastSaleDate": "2018-06-12", "source": "Pricefinder", "updatedAt": "2026-11-07", "owners": "Mary Chen and John Chen"},
       "no": "12",
       "street": "Gager St",
       "suburb": "Sunnybank",

@@ -1,13 +1,13 @@
 export type Contact = {id:string;first:string;last:string;mobile:string;email:string;owner:string;roles:string[];tags:string[];flags:{dnc?:boolean};notes:{d:string;a:string;t:string}[];[key:string]:any};
-export type Property = {id:string;no:string;street:string;suburb:string;ownerIds:string[];pfOwner:string;lastSale:string;flags:{dnc?:boolean};pending?:boolean;otherAgent?:boolean;[key:string]:any};
+export type Property = {id:string;no:string;street:string;suburb:string;ownerIds:string[];pfOwner:string;lastSale:string;flags:{dnc?:boolean};pending?:boolean;otherAgent?:boolean;market?:{lastSalePrice:number|null;lastSaleDate:string;source:string;updatedAt:string;owners?:string};[key:string]:any};
 export type Todo = {id:string;d:string;time?:string;t:string;who:string;by?:string;kind:string;done?:boolean;cid?:string;propId?:string};
 export type Sale = {id:string;propertyId:string;cat:string;seller:string;buyer:string;price:number;gci:number;settle:string;when?:string;reminders:{type:string;d:string;time?:string}[]};
 export type Listing = {id:string;propertyId:string;agent:string;price:string;status:string;ofi:any[];[key:string]:any};
-export type Enquiry = {id:string;source:string;d:string;type:string;status:string;raw:string;parsed:Record<string,string>};
+export type Enquiry = {id:string;source:string;d:string;type:string;status:string;raw:string;parsed:Record<string,string>;bpReport?:boolean;marketingConsent?:boolean};
 export type Approval = {id:string;kind:string;t?:string;sub?:string;propertyId?:string;status?:string;primaryId?:string;secondaryId?:string;entity?:string;targetId?:string;[key:string]:any};
 export type Capture = {id:string;text:string;rec:string;sync:string;propId:string;status?:string;[key:string]:any};
 export type MarketItem = {id:string;kind:string;propId:string;addr:string;meta:string;sub:string;owner:string;agency?:string};
-export type Zone = {id:string;name:string;pts:number[][]};
+export type Zone = {id:string;name:string;pts?:number[][];type?:'suburbs';suburbs?:string[]};
 export type MyTag = {id:string;n:string;by:string;d:string;used?:number;[key:string]:any};
 export type AuditEntry = {d:string;a:string;t:string};
 export type SyncItem = {id:string;d:string;what:string;status:string;tries:number;err:string};
