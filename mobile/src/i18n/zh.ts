@@ -1,6 +1,12 @@
 // Generated from prototype/index.html by tools/extract-i18n.mjs
 export default {
   "home": "Home",
+  "tr_warming": "正在准备双语交流…",
+  "tr_skip": "点击跳过",
+  "tr_welcome": "欢迎！我们聊聊。",
+  "tr_privacy": "开放日说的话，就留在开放日 🤫",
+  "tr_demo": "文字演示",
+  "tr_preview": "和我说 · 预览翻译",
   "dk": "DK",
   "oh": "OFI",
   "enq": "Enquiry",

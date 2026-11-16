@@ -1,6 +1,12 @@
 // Generated from prototype/index.html by tools/extract-i18n.mjs
 export default {
   "home": "Home",
+  "tr_warming": "Warming up both brains…",
+  "tr_skip": "Tap to skip",
+  "tr_welcome": "Welcome! Let’s talk.",
+  "tr_privacy": "What's said at the open home stays at the open home 🤫",
+  "tr_demo": "Demo text",
+  "tr_preview": "Talk to me · preview translation",
   "dk": "DK",
   "oh": "OFI",
   "enq": "Enquiry",

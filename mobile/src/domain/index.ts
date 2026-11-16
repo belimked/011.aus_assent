@@ -5,7 +5,7 @@ export const propAddr = (p:Property) => `${p.no} ${p.street}, ${p.suburb}`;
 export const shortAddr = (p:Property) => `${p.no} ${p.street}`;
 export const cname = (c:Contact) => `${c.first} ${c.last}`.trim();
 export const money = (n:number) => n>=1e6?'$'+(n/1e6).toFixed(2).replace(/0$/,'')+'m':'$'+Math.round(n/1000)+'k';
-export const propColor = (p:Property) => p.flags.dnc?'red':p.pending?'pending':p.ownerIds.length?(p.otherAgent?'sky':'green'):'orange';
+export const propColor = (p:Property) => p.flags.dnc?'red':p.pending?'pending':p.ownerIds.length?(p.otherAgent||p.otherListing?'sky':'green'):'orange';
 export const yearsSince = (ym:string) => ym?2026-parseInt(ym.slice(0,4),10):'';
 export const normMobile = (m:string) => (m||'').replace(/\D/g,'');
 export const mask = (m:string) => {if(!m)return '—'; const d=normMobile(m);return d.length<8?m:d.slice(0,4)+' '+d.slice(4,7)+' ••••'};
