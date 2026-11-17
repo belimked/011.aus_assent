@@ -1,0 +1,818 @@
+[
+  {
+    "id": "A01",
+    "category": "A",
+    "scene": "门口 DK 户外风",
+    "langs": [
+      "en-AU"
+    ],
+    "reference": "Hi, I spoke with Alex Tan at 12 Mains Rd, Sunnybank. Alex may sell next year. Call 0400 000 101.",
+    "keys": [
+      "Alex Tan",
+      "0400 000 101",
+      "12 Mains Rd",
+      "Sunnybank",
+      "next year"
+    ],
+    "expected": {
+      "contactName": "Alex Tan",
+      "phone": "0400 000 101",
+      "email": null,
+      "address": "12 Mains Rd",
+      "suburb": "Sunnybank",
+      "intent": "sell",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": null,
+      "notes": null,
+      "language": "en"
+    }
+  },
+  {
+    "id": "A02",
+    "category": "A",
+    "scene": "开放日 OFI 安静",
+    "langs": [
+      "en-AU"
+    ],
+    "reference": "Jamie Lee visited 8 Kessels Rd, Macgregor. Budget is 1.2 million. Phone 0400 000 102.",
+    "keys": [
+      "Jamie Lee",
+      "8 Kessels Rd",
+      "1.2 million",
+      "0400 000 102"
+    ],
+    "expected": {
+      "contactName": "Jamie Lee",
+      "phone": "0400 000 102",
+      "email": null,
+      "address": "8 Kessels Rd",
+      "suburb": null,
+      "intent": "buy",
+      "priceMin": 1200000,
+      "priceMax": 1200000,
+      "timeframe": null,
+      "notes": null,
+      "language": "en"
+    }
+  },
+  {
+    "id": "A03",
+    "category": "A",
+    "scene": "询盘回电 车流",
+    "langs": [
+      "en-AU"
+    ],
+    "reference": "Morgan Wu called about 25 Station Rd, Sunnybank. Wants an appraisal in June. Number 0400 000 103.",
+    "keys": [
+      "Morgan Wu",
+      "25 Station Rd",
+      "June",
+      "0400 000 103"
+    ],
+    "expected": {
+      "contactName": "Morgan Wu",
+      "phone": "0400 000 103",
+      "email": null,
+      "address": "25 Station Rd",
+      "suburb": null,
+      "intent": "appraisal",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": "June",
+      "notes": null,
+      "language": "en"
+    }
+  },
+  {
+    "id": "A04",
+    "category": "A",
+    "scene": "门口 DK 风",
+    "langs": [
+      "en-AU"
+    ],
+    "reference": "Taylor Chen is renting at 4 Mains Rd, Sunnybank and plans to buy in three months. Call 0400 000 104.",
+    "keys": [
+      "Taylor Chen",
+      "4 Mains Rd",
+      "three months",
+      "0400 000 104"
+    ],
+    "expected": {
+      "contactName": "Taylor Chen",
+      "phone": "0400 000 104",
+      "email": null,
+      "address": "4 Mains Rd",
+      "suburb": null,
+      "intent": "buy",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": "three months",
+      "notes": null,
+      "language": "en"
+    }
+  },
+  {
+    "id": "A05",
+    "category": "A",
+    "scene": "开放日 OFI 人声",
+    "langs": [
+      "en-AU"
+    ],
+    "reference": "Casey Lin wants to sell 16 Kessels Rd for 1.5 million. Contact 0400 000 105.",
+    "keys": [
+      "Casey Lin",
+      "16 Kessels Rd",
+      "1.5 million",
+      "0400 000 105"
+    ],
+    "expected": {
+      "contactName": "Casey Lin",
+      "phone": "0400 000 105",
+      "email": null,
+      "address": "16 Kessels Rd",
+      "suburb": null,
+      "intent": "sell",
+      "priceMin": 1500000,
+      "priceMax": 1500000,
+      "timeframe": null,
+      "notes": null,
+      "language": "en"
+    }
+  },
+  {
+    "id": "A06",
+    "category": "A",
+    "scene": "询盘回电 安静",
+    "langs": [
+      "en-AU"
+    ],
+    "reference": "Jordan Ho asked for a rental in Sunnybank by Friday. Their made-up number is 0400 000 106.",
+    "keys": [
+      "Jordan Ho",
+      "Sunnybank",
+      "Friday",
+      "0400 000 106"
+    ],
+    "expected": {
+      "contactName": "Jordan Ho",
+      "phone": "0400 000 106",
+      "email": null,
+      "address": null,
+      "suburb": "Sunnybank",
+      "intent": "rent",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": "Friday",
+      "notes": null,
+      "language": "en"
+    }
+  },
+  {
+    "id": "B01",
+    "category": "B",
+    "scene": "门口 DK 安静",
+    "langs": [
+      "zh-CN",
+      "en-AU",
+      "zh-HK"
+    ],
+    "reference": "陈安说她明年 maybe sell，地址是 Sunnybank 的 10 Mains Rd，电话 0400 000 201。",
+    "keys": [
+      "陈安",
+      "明年",
+      "Sunnybank",
+      "10 Mains Rd",
+      "0400 000 201"
+    ],
+    "expected": {
+      "contactName": "陈安",
+      "phone": "0400 000 201",
+      "email": null,
+      "address": "10 Mains Rd",
+      "suburb": "Sunnybank",
+      "intent": "sell",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": "明年",
+      "notes": null,
+      "language": "zh"
+    }
+  },
+  {
+    "id": "B02",
+    "category": "B",
+    "scene": "开放日 OFI 人声",
+    "langs": [
+      "zh-CN",
+      "en-AU",
+      "zh-HK"
+    ],
+    "reference": "李明说 open home 周六来，想买 2 Kessels Rd，budget 大概 one point five million，电话 0400 000 202。",
+    "keys": [
+      "李明",
+      "周六",
+      "2 Kessels Rd",
+      "one point five million",
+      "0400 000 202"
+    ],
+    "expected": {
+      "contactName": "李明",
+      "phone": "0400 000 202",
+      "email": null,
+      "address": "2 Kessels Rd",
+      "suburb": null,
+      "intent": "buy",
+      "priceMin": 1500000,
+      "priceMax": 1500000,
+      "timeframe": "周六",
+      "notes": null,
+      "language": "zh"
+    }
+  },
+  {
+    "id": "B03",
+    "category": "B",
+    "scene": "询盘回电 车流",
+    "langs": [
+      "zh-CN",
+      "en-AU",
+      "zh-HK"
+    ],
+    "reference": "王可想要 appraisal，Sunnybank 18 Mains Rd，下周联系 0400 000 203。",
+    "keys": [
+      "王可",
+      "appraisal",
+      "18 Mains Rd",
+      "下周",
+      "0400 000 203"
+    ],
+    "expected": {
+      "contactName": "王可",
+      "phone": "0400 000 203",
+      "email": null,
+      "address": "18 Mains Rd",
+      "suburb": null,
+      "intent": "appraisal",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": "下周",
+      "notes": null,
+      "language": "zh"
+    }
+  },
+  {
+    "id": "B04",
+    "category": "B",
+    "scene": "门口 DK 户外风",
+    "langs": [
+      "zh-CN",
+      "en-AU",
+      "zh-HK"
+    ],
+    "reference": "赵宁说 maybe rent 在 Macgregor，下个月入住，call 0400 000 204。",
+    "keys": [
+      "赵宁",
+      "Macgregor",
+      "下个月",
+      "0400 000 204"
+    ],
+    "expected": {
+      "contactName": "赵宁",
+      "phone": "0400 000 204",
+      "email": null,
+      "address": null,
+      "suburb": "Macgregor",
+      "intent": "rent",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": "下个月",
+      "notes": null,
+      "language": "zh"
+    }
+  },
+  {
+    "id": "B05",
+    "category": "B",
+    "scene": "开放日 OFI 安静",
+    "langs": [
+      "zh-CN",
+      "en-AU",
+      "zh-HK"
+    ],
+    "reference": "周琳看了 6 Kessels Rd，想买，预算一百五十万，电话 0400 000 205。",
+    "keys": [
+      "周琳",
+      "6 Kessels Rd",
+      "一百五十万",
+      "0400 000 205"
+    ],
+    "expected": {
+      "contactName": "周琳",
+      "phone": "0400 000 205",
+      "email": null,
+      "address": "6 Kessels Rd",
+      "suburb": null,
+      "intent": "buy",
+      "priceMin": 1500000,
+      "priceMax": 1500000,
+      "timeframe": "周琳",
+      "notes": null,
+      "language": "zh"
+    }
+  },
+  {
+    "id": "B06",
+    "category": "B",
+    "scene": "门口 DK 车流",
+    "langs": [
+      "zh-CN",
+      "en-AU",
+      "zh-HK"
+    ],
+    "reference": "孙浩说今年年底 sell Sunnybank 的 20 Mains Rd，号码 0400 000 206。",
+    "keys": [
+      "孙浩",
+      "年底",
+      "20 Mains Rd",
+      "0400 000 206"
+    ],
+    "expected": {
+      "contactName": "孙浩",
+      "phone": "0400 000 206",
+      "email": null,
+      "address": "20 Mains Rd",
+      "suburb": null,
+      "intent": "sell",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": "年底",
+      "notes": null,
+      "language": "zh"
+    }
+  },
+  {
+    "id": "B07",
+    "category": "B",
+    "scene": "询盘回电 安静",
+    "langs": [
+      "zh-CN",
+      "en-AU",
+      "zh-HK"
+    ],
+    "reference": "吴芳说 open home 后想报价 1.2 million 给 3 Kessels Rd，电话 0400 000 207。",
+    "keys": [
+      "吴芳",
+      "1.2 million",
+      "3 Kessels Rd",
+      "0400 000 207"
+    ],
+    "expected": {
+      "contactName": "吴芳",
+      "phone": "0400 000 207",
+      "email": null,
+      "address": "3 Kessels Rd",
+      "suburb": null,
+      "intent": "buy",
+      "priceMin": 1200000,
+      "priceMax": 1200000,
+      "timeframe": null,
+      "notes": null,
+      "language": "zh"
+    }
+  },
+  {
+    "id": "B08",
+    "category": "B",
+    "scene": "开放日 OFI 户外风",
+    "langs": [
+      "zh-CN",
+      "en-AU",
+      "zh-HK"
+    ],
+    "reference": "郑宇想租 Sunnybank 两房，next Friday 搬，电话 0400 000 208。",
+    "keys": [
+      "郑宇",
+      "Sunnybank",
+      "next Friday",
+      "0400 000 208"
+    ],
+    "expected": {
+      "contactName": "郑宇",
+      "phone": "0400 000 208",
+      "email": null,
+      "address": null,
+      "suburb": "Sunnybank",
+      "intent": "rent",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": "next Friday",
+      "notes": null,
+      "language": "zh"
+    }
+  },
+  {
+    "id": "C01",
+    "category": "C",
+    "scene": "门口 DK 风",
+    "langs": [
+      "zh-HK",
+      "en-AU"
+    ],
+    "reference": "阿明話下年可能 sell Sunnybank 嘅 11 Mains Rd，電話 0400 000 301。",
+    "keys": [
+      "阿明",
+      "下年",
+      "11 Mains Rd",
+      "0400 000 301"
+    ],
+    "expected": {
+      "contactName": "阿明",
+      "phone": "0400 000 301",
+      "email": null,
+      "address": "11 Mains Rd",
+      "suburb": null,
+      "intent": "sell",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": "下年",
+      "notes": null,
+      "language": "yue"
+    }
+  },
+  {
+    "id": "C02",
+    "category": "C",
+    "scene": "開放日 OFI 人聲",
+    "langs": [
+      "zh-HK",
+      "en-AU"
+    ],
+    "reference": "阿欣睇咗 9 Kessels Rd，budget 1.2 million，電話 0400 000 302。",
+    "keys": [
+      "阿欣",
+      "9 Kessels Rd",
+      "1.2 million",
+      "0400 000 302"
+    ],
+    "expected": {
+      "contactName": "阿欣",
+      "phone": "0400 000 302",
+      "email": null,
+      "address": "9 Kessels Rd",
+      "suburb": null,
+      "intent": "buy",
+      "priceMin": 1200000,
+      "priceMax": 1200000,
+      "timeframe": null,
+      "notes": null,
+      "language": "yue"
+    }
+  },
+  {
+    "id": "C03",
+    "category": "C",
+    "scene": "詢盤回電 車流",
+    "langs": [
+      "zh-HK",
+      "en-AU"
+    ],
+    "reference": "阿健想幫 7 Mains Rd 做 appraisal，下個月 call 0400 000 303。",
+    "keys": [
+      "阿健",
+      "7 Mains Rd",
+      "下個月",
+      "0400 000 303"
+    ],
+    "expected": {
+      "contactName": "阿健",
+      "phone": "0400 000 303",
+      "email": null,
+      "address": "7 Mains Rd",
+      "suburb": null,
+      "intent": "appraisal",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": "下個月",
+      "notes": null,
+      "language": "yue"
+    }
+  },
+  {
+    "id": "C04",
+    "category": "C",
+    "scene": "門口 DK 安靜",
+    "langs": [
+      "zh-HK",
+      "en-AU"
+    ],
+    "reference": "阿玲想 rent Sunnybank 嘅屋，星期五之前覆 0400 000 304。",
+    "keys": [
+      "阿玲",
+      "Sunnybank",
+      "星期五",
+      "0400 000 304"
+    ],
+    "expected": {
+      "contactName": "阿玲",
+      "phone": "0400 000 304",
+      "email": null,
+      "address": null,
+      "suburb": "Sunnybank",
+      "intent": "rent",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": "星期五",
+      "notes": null,
+      "language": "yue"
+    }
+  },
+  {
+    "id": "C05",
+    "category": "C",
+    "scene": "開放日 OFI 户外風",
+    "langs": [
+      "zh-HK",
+      "en-AU"
+    ],
+    "reference": "阿德睇 5 Kessels Rd 想買，出價一百五十萬，電話 0400 000 305。",
+    "keys": [
+      "阿德",
+      "5 Kessels Rd",
+      "一百五十萬",
+      "0400 000 305"
+    ],
+    "expected": {
+      "contactName": "阿德",
+      "phone": "0400 000 305",
+      "email": null,
+      "address": "5 Kessels Rd",
+      "suburb": null,
+      "intent": "buy",
+      "priceMin": 1500000,
+      "priceMax": 1500000,
+      "timeframe": null,
+      "notes": null,
+      "language": "yue"
+    }
+  },
+  {
+    "id": "C06",
+    "category": "C",
+    "scene": "詢盤回電 安靜",
+    "langs": [
+      "zh-HK",
+      "en-AU"
+    ],
+    "reference": "阿琪話下星期 sell Macgregor 嘅 13 Mains Rd，電話 0400 000 306。",
+    "keys": [
+      "阿琪",
+      "下星期",
+      "13 Mains Rd",
+      "0400 000 306"
+    ],
+    "expected": {
+      "contactName": "阿琪",
+      "phone": "0400 000 306",
+      "email": null,
+      "address": "13 Mains Rd",
+      "suburb": null,
+      "intent": "sell",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": "下星期",
+      "notes": null,
+      "language": "yue"
+    }
+  },
+  {
+    "id": "D01",
+    "category": "D",
+    "scene": "门口 DK 安静",
+    "langs": [
+      "zh-CN"
+    ],
+    "reference": "刘洁想出售 Sunnybank 的 14 Mains Rd，三个月内联系 0400 000 401。",
+    "keys": [
+      "刘洁",
+      "14 Mains Rd",
+      "三个月",
+      "0400 000 401"
+    ],
+    "expected": {
+      "contactName": "刘洁",
+      "phone": "0400 000 401",
+      "email": null,
+      "address": "14 Mains Rd",
+      "suburb": null,
+      "intent": "sell",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": "三个月",
+      "notes": null,
+      "language": "zh"
+    }
+  },
+  {
+    "id": "D02",
+    "category": "D",
+    "scene": "开放日 OFI 人声",
+    "langs": [
+      "zh-CN"
+    ],
+    "reference": "马辉想买 17 Kessels Rd，预算一百二十万，电话 0400 000 402。",
+    "keys": [
+      "马辉",
+      "17 Kessels Rd",
+      "一百二十万",
+      "0400 000 402"
+    ],
+    "expected": {
+      "contactName": "马辉",
+      "phone": "0400 000 402",
+      "email": null,
+      "address": "17 Kessels Rd",
+      "suburb": null,
+      "intent": "buy",
+      "priceMin": 1200000,
+      "priceMax": 1200000,
+      "timeframe": null,
+      "notes": null,
+      "language": "zh"
+    }
+  },
+  {
+    "id": "D03",
+    "category": "D",
+    "scene": "询盘回电 车流",
+    "langs": [
+      "zh-CN"
+    ],
+    "reference": "何雨想给 Macgregor 的房子估价，明天回电 0400 000 403。",
+    "keys": [
+      "何雨",
+      "Macgregor",
+      "明天",
+      "0400 000 403"
+    ],
+    "expected": {
+      "contactName": "何雨",
+      "phone": "0400 000 403",
+      "email": null,
+      "address": null,
+      "suburb": "Macgregor",
+      "intent": "appraisal",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": "明天",
+      "notes": null,
+      "language": "zh"
+    }
+  },
+  {
+    "id": "E01",
+    "category": "E",
+    "scene": "门口 DK 十秒短句",
+    "langs": [
+      "zh-CN",
+      "en-AU",
+      "zh-HK"
+    ],
+    "reference": "买房，Sunnybank，0400 000 501。",
+    "keys": [
+      "Sunnybank",
+      "0400 000 501"
+    ],
+    "expected": {
+      "contactName": null,
+      "phone": "0400 000 501",
+      "email": null,
+      "address": null,
+      "suburb": "Sunnybank",
+      "intent": "buy",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": null,
+      "notes": null,
+      "language": "zh"
+    }
+  },
+  {
+    "id": "E02",
+    "category": "E",
+    "scene": "户外强风 DK",
+    "langs": [
+      "zh-CN",
+      "en-AU",
+      "zh-HK"
+    ],
+    "reference": "林秋要卖 19 Mains Rd，下周打 0400 000 502。",
+    "keys": [
+      "林秋",
+      "19 Mains Rd",
+      "下周",
+      "0400 000 502"
+    ],
+    "expected": {
+      "contactName": "林秋",
+      "phone": "0400 000 502",
+      "email": null,
+      "address": "19 Mains Rd",
+      "suburb": null,
+      "intent": "sell",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": "下周",
+      "notes": null,
+      "language": "zh"
+    }
+  },
+  {
+    "id": "E03",
+    "category": "E",
+    "scene": "开放日 OFI 多人说话",
+    "langs": [
+      "zh-CN",
+      "en-AU",
+      "zh-HK"
+    ],
+    "reference": "陈玉想买 21 Kessels Rd，预算一百五十万，0400 000 503。",
+    "keys": [
+      "陈玉",
+      "21 Kessels Rd",
+      "一百五十万",
+      "0400 000 503"
+    ],
+    "expected": {
+      "contactName": "陈玉",
+      "phone": "0400 000 503",
+      "email": null,
+      "address": "21 Kessels Rd",
+      "suburb": null,
+      "intent": "buy",
+      "priceMin": 1500000,
+      "priceMax": 1500000,
+      "timeframe": null,
+      "notes": null,
+      "language": "zh"
+    }
+  },
+  {
+    "id": "E04",
+    "category": "E",
+    "scene": "车流询盘短句",
+    "langs": [
+      "zh-CN",
+      "en-AU",
+      "zh-HK"
+    ],
+    "reference": "租 Sunnybank，星期五，0400 000 504。",
+    "keys": [
+      "Sunnybank",
+      "星期五",
+      "0400 000 504"
+    ],
+    "expected": {
+      "contactName": "星期五",
+      "phone": "0400 000 504",
+      "email": null,
+      "address": null,
+      "suburb": "Sunnybank",
+      "intent": "rent",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": "星期五",
+      "notes": null,
+      "language": "zh"
+    }
+  },
+  {
+    "id": "E05",
+    "category": "E",
+    "scene": "户外风开放日",
+    "langs": [
+      "zh-CN",
+      "en-AU",
+      "zh-HK"
+    ],
+    "reference": "阿文話想 appraisal，Macgregor，0400 000 505。",
+    "keys": [
+      "阿文",
+      "Macgregor",
+      "0400 000 505"
+    ],
+    "expected": {
+      "contactName": "阿文",
+      "phone": "0400 000 505",
+      "email": null,
+      "address": null,
+      "suburb": "Macgregor",
+      "intent": "appraisal",
+      "priceMin": null,
+      "priceMax": null,
+      "timeframe": null,
+      "notes": null,
+      "language": "zh"
+    }
+  }
+]

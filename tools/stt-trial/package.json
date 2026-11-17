@@ -1,0 +1,1 @@
+{"name":"stt-trial","private":true,"type":"module","engines":{"node":">=22"},"scripts":{"test":"node --test test/","prep":"node prep.mjs","trial":"node run.mjs all"},"optionalDependencies":{"microsoft-cognitiveservices-speech-sdk":"^1.47.0"}}

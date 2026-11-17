@@ -1,0 +1,8 @@
+audio/
+.env
+.out/
+samples/images/*.png
+samples/images/*.jpg
+samples/images/*.jpeg
+samples/images/*.webp
+node_modules/
