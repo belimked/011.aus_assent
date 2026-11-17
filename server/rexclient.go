@@ -148,6 +148,17 @@ func safeRexError(raw json.RawMessage) string { // Do not echo credentials embed
 			x = x[:300]
 		}
 		return x
+	case map[string]any:
+		if msg, ok := x["message"].(string); ok && msg != "" {
+			if len(msg) > 300 {
+				msg = msg[:300]
+			}
+			if t, ok := x["type"].(string); ok && t != "" {
+				return t + ": " + msg
+			}
+			return msg
+		}
+		return "error (see redacted raw file)"
 	default:
 		return "error (see redacted raw file)"
 	}

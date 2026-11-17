@@ -207,6 +207,7 @@ func (a *app) routes() http.Handler {
 		respond(w, 200, map[string]any{"ok": true, "version": version, "schema": n})
 	})
 	m.HandleFunc("POST /api/v1/auth/login", a.login)
+	m.HandleFunc("POST /api/v1/rex/webhook/{token}", a.rexWebhook)
 	m.Handle("GET /admin/", http.StripPrefix("/admin/", http.FileServer(http.FS(webRoot()))))
 	m.HandleFunc("GET /admin", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin/", http.StatusMovedPermanently)

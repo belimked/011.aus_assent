@@ -69,13 +69,13 @@
 
 | # | 我们问的 | Rex 的回复 | 处理 |
 |---|---|---|---|
-| F1 | Contacts::create / update 时 related.contact_tags 写一个账号里还没有的标签，会不会自动创建？ | 未回答 | 沙箱验证（axleo rex-probe） |
-| F2 | Leads::create 直接指定 assignee 时，集成用户是否需要 leads.assign_to_anyone 权限？只传 listing 不传 assignee 时，会不会自动分给该挂牌的中介？ | 未回答 | 沙箱验证（axleo rex-probe） |
-| F3 | Reminders::create 指派给同事后，Rex 手机端会不会推送通知？ | 未回答 | 沙箱验证，需人工看手机推送 |
-| F4 | 03-3：签到时除了 lead，能否写 Rex 原生的开放参观到访记录，让到访出现在给卖家的报告里？ | 答成“反馈和线索是两种记录，只写线索即可” | 沙箱验证（axleo rex-probe）API 部分；vendor report 人工核对 |
-| F5 | 03-11：要的是“这户不要投信”，按房产、可搜索、可按片区统计 | 给了联系人上的 contact_by_letter | 沙箱验证（axleo rex-probe） |
+| F1 | Contacts::create / update 时 related.contact_tags 写一个账号里还没有的标签，会不会自动创建？ | 未回答 | **已确认（2026-11-17 沙箱写入）**：写 `related.contact_tags: [{tag}]`，账号里没有的标签照样保存在联系人上，读回可见；不会出现在 AdminTags（后台预设标签列表）。自由文本标签可直接用 |
+| F2 | Leads::create 直接指定 assignee 时，集成用户是否需要 leads.assign_to_anyone 权限？只传 listing 不传 assignee 时，会不会自动分给该挂牌的中介？ | 未回答 | **部分确认（2026-11-17）**：指定 assignee 可写入（共享沙箱只测了指派给集成用户自己，派给其他用户是否要 assign_to_anyone 仍未知，到正式账户或邮件确认）；只传 listing 时 **不会自动分配**（assignee 为 null），需要我们自己指定负责中介 |
+| F3 | Reminders::create 指派给同事后，Rex 手机端会不会推送通知？ | 未回答 | 2026-11-17 已能创建（必填：`remindee:{id,type:"user"}`、`reminder_type:{id:"task"}`、`reminder_date`，且必须挂在 contact/property/listing 等对象上）；推送需人工用集成账号登录 Rex 手机端查看 |
+| F4 | 03-3：签到时除了 lead，能否写 Rex 原生的开放参观到访记录，让到访出现在给卖家的报告里？ | 答成“反馈和线索是两种记录，只写线索即可” | 沙箱验证（axleo rex-probe）API 部分；vendor report 人工核对。**2026-11-17 只读结果**：没有 `ListingEventAttendees`；Rex 有 `OpenHomeCheckIns`（`read` / `checkIn`），两者都要一个 check-in token，token 从哪来未知。**到访记录的正确入口是 Feedback**：`feedback_type=ofi` 的 Feedback 记录挂在 `listing` + `date_of` 上，到访人在 `related.feedback_individual[{contacts, interest_level, enquiry_source, price_indication, note}]`，`Feedback::create` 可写；`Feedback::searchOpenHomeAttendance` / `searchVendorSendStage` 显示这些记录会进入给卖家的反馈。**2026-11-17 沙箱写入已确认**：`Feedback::create`（必填 `date_time_start`，格式 `HH:MM:SS`）写入 `feedback_type ofi + listing + date_of + related.feedback_contacts + related.feedback_individual[{contacts:[{contact:{id}}], interest_level:{id:hot/warm/cold}, enquiry_source:{id:"198" Open Home}, price_indication, note}]`；读回一致；`searchOpenHomeAttendance` 能查到；在 `searchVendorSendStage(to_send)` 以 `kind: attendee` 出现，即进入给卖家的反馈队列。Feedback 只有 trash，没有 purge。Rex 网页 vendor report 未人工看 |
+| F5 | 03-11：要的是“这户不要投信”，按房产、可搜索、可按片区统计 | 给了联系人上的 contact_by_letter | **2026-11-17 只读结果**：房产本身有 `property.is_dnd`（Do Not Contact，真实字段，可搜索）；联系人可按 `contact.contact_by_letter` 搜索；房产也可按 `owning_contacts.contact.contact_by_letter` 搜索。是否用 `property.is_dnd` 表示“不投信”需业务确认（它是“不联系”，比“不投信”宽） |
 | F6 | K1：超过 3,600 次/小时会怎样（拒绝/延迟/停用）？有没有每日上限、并发上限？ | 只说“目前是软限制，没有公布其他限额” | 邮件追问 |
-| F7 | 02-1：联系人与房产的关系（业主/租客）如何批量拉取 | 只答了联系人、房产用 search 分页 | 沙箱验证（axleo rex-probe） |
+| F7 | 02-1：联系人与房产的关系（业主/租客）如何批量拉取 | 只答了联系人、房产用 search 分页 | **已确认（2026-11-17）**：`Properties::search` 加 `extra_options.extra_fields: ["contact_reln_property"]`，每条房产返回 `related.contact_reln_property[{contact, reln_type, do_not_contact, id}]`，可分页批量拉 |
 | F8 | （新）每位中介用自己的 Rex 账号授权（OAuth），记录创建人显示本人，是否允许？除 X-App-Identifier 外还需要什么？是否同样计入 3,600 次？ | 03-10 只回答了“集成用户不能代写” | 邮件追问 |
 
 以下 Rex 只说“看 describe-model / read-fields / searchable-fields”，**不需要追问**，拿到沙箱后自己确认返回结构：02-3 Reminders::getRemindeeList、02-4 Dedupe::findPossibleDuplicates、02-7 AdminTags::search、02-8 Leads::search、02-9 Reminders::search、02-11 MatchProfiles::search、02-13 Oabs::search。
@@ -84,3 +84,86 @@
 1. Rex 审批“免费集成用户”（邮件说已提交，批准后通知）。
 2. 沙箱邀请已发到 Sunnybankintegration@eplace.com.au：需要 Ping 接受邀请，把沙箱登录信息交给我们。
 3. 中介在 Rex 里：给集成用户开 Manage Webhooks / Create Zaps 权限；建自定义字段（同意方式、DNCR 核验日期等，清单在沙箱核对后给出）。
+
+## 7. 连接器接口沙箱验证（2026-11-17，账户 2057，测试数据已清理）
+
+| # | 接口 | 结果 | 请求要点 / 注意 |
+|---|---|---|---|
+| A1 | `Notes::create` | ✅ | `data:{note, note_type:{id:"note"}, related:{note_contacts:[{contact:{id}}], note_properties:[{property:{id}}]}}`；创建人为集成用户 |
+| A2 | `Reminders::toggleCompletionState` | ✅ | `{id, is_completed:true, create_activity_entry:true}`；读回 `system_completed_time` / `system_completed_by_user` |
+| A3 | `Dedupe::combineRecords` | ✅ | `{service_name:"Contacts", winning_id, losing_ids:[...]}`；副记录变为 trashed，电话等子记录并入主记录（重复项不去重，需要时我们自己清理）。查重 `findPossibleDuplicates` 需 `service_name`、`record_id`、`match_fields`（只能是 name / email / phone） |
+| A4 | `Contacts::update` 联系渠道 | ✅ 有坑 | 只改 `contact_by_letter:0` 不影响其他渠道。**`is_dnd:1` 会把四个渠道全部置 0；`is_dnd:0` 会把四个渠道全部恢复为 1，之前的不投信设置被覆盖**。取消 DND 后必须再单独写一次 `contact_by_letter:0` |
+| A5 | `Leads::create` 带联系人 | ✅ | `data:{contact:{id}, listing:{id}, assignee:{id}, note}` |
+| A6 | 房产-联系人关系写入 | ✅ | `Properties::update` `data:{id, related:{contact_reln_property:[{contact:{id}, reln_type:{id:"owner"}}]}}`；联系人侧同步可见。reln_type：owner / tenant / past_owner / past_tenant |
+| A7 | `Properties::update` / `getHistory` | ✅ | update 用 `data:{id, ...}`；房产 `is_dnd` 可写（可作为“这户不联系”）；`getHistory` 返回 listed / appraisal 等事件流 |
+| A8 | e-tag | ✅ | `search` 加 `result_format:"etags"` 返回 `[{id, etag}]`（etag = `id-修改时间`），记录修改后变化 |
+| A9 | `Appraisals::create` | ✅ | `data:{property:{id}, appraisal_type:{id:"sale"}, appraisal_date, agent_1:{id}, price_min, price_max}`；出现在房产历史 |
+| A10 | `BatchRequests::execute` | ✅ 有坑 | `requests:[{method:"Contacts::read", args:{...}}]`，返回按顺序的结果数组。**任一子请求失败整个批量返回错误、拿不到其他结果**；连接器里批量只用于不会失败的读，写入逐条发 |
+
+删除方式：Leads / Notes / Contacts / Properties / Feedback 用 trash；Reminders / Appraisals 可 purge。
+
+## 8. 第二轮沙箱验证（2026-11-17，B 组，测试数据已清理）
+
+| # | 功能 | 结果 | 请求要点 / 注意 |
+|---|---|---|---|
+| B1 | 录入前查重 `Contacts::findPossibleDuplicates` | ✅ 有坑 | 不需要已有记录 ID，直接传 `phone` / `email` / `name_first+name_last`。电话忽略空格标点；邮箱不区分大小写。**`+61412…` 和 `0412…` 不算相同**，查重前必须统一成 `04…`。默认 classic 模式只给姓名时返回空；Rex 建议集成用 `match_behaviour:"strict"`（给了姓名必须同时匹配） |
+| B2 | 给已有联系人追加标签 | ✅ | `Contacts::update` 的 `related.contact_tags:[{tag}]` 是**追加**，原有标签保留 |
+| B3 | 加入邮件列表 | ✅ | `related.contact_mailing_lists:[{mailing_list_name}]`（要用名称，传 id 报错 “Mailing list name must be specified”）；列表读 `AdminMailingLists::search`；成员数 `getListMembers` |
+| B4 | 联系人-挂牌关系 | ✅ | `Contacts::update` `related.contact_reln_listing:[{listing:{id}, reln_type:{id:"purchtenant"}}]`；类型只有 owner / purchtenant |
+| B5 | 删除关系（撤销） | ✅ | `related.<子表>:[{id, _destroy:true}]`；业主关系、挂牌关系可只传 id；**删标签必须同时带 `tag` 值**，否则报 tag is required |
+| B6 | 按区域查房产 | ✅ 有坑 | 条件 `property.adr_suburb_or_town` / `property.adr_postcode`（多个用 `type:"in"`）；`result_format:"map"` 返回 `{id, adr_latitude, adr_longitude}`；etags 一次最多 50,000、ids 最多 1,000,000，沙箱 3,450 套一次拿完。**增量 `system_modtime` 必须传 Unix 秒数，传日期字符串会被静默忽略并返回全部记录** |
+| B7 | 地址查重 `Properties::findPossibleDuplicate` | ✅ | 平铺 `adr_*` 参数，返回 id 或 false；`St` 与 `Street` 视为相同，缺邮编也能匹配；**单元号必须放 `adr_unit_number`**，不带单元号查不到 `2/7` |
+| B8 | `Properties::setGeoLocation` | ✅ | `{id, latitude, longitude}`，写入 `adr_latitude/adr_longitude` |
+| B9 | 读最近备注 `Notes::search` | ✅ | 条件 `related_property.id` 或 `related_contact.id`，`order_by:{system_ctime:"DESC"}` |
+| B10 | `name_etags` | ✅ | 行为 `{id:"cid:<联系人>_pid:<姓名行>", etag}`，一个联系人多个姓名时多行；单页上限 10,000 |
+| B11 | token 过期 | ✅ | 过期返回 **HTTP 401 `TokenException`（code 3）**，消息 “The token you provided has just expired.”。`token_lifetime` 最长 1 周，有活动会续期。**`rexclient.go` 目前没有过期重登，连接器要加：遇 TokenException 重新登录后重试一次** |
+
+## 9. 自定义字段（2026-11-17，沙箱，用其他集成商已建的字段在我们自己的测试记录上读写，已清理）
+
+| 功能 | 结果 | 要点 |
+|---|---|---|
+| 读字段定义 | ✅ | `AdminCustomFields::getFlatDefinition({module_name:"contacts"/"properties"})`，返回 `field_id / field_name / field_fq_name(Tab.Group.Field) / field_type / field_options`；支持 Contacts / Properties / Listings / AccountUsers |
+| 写值 | ✅ | `CustomFields::setFieldValues({service_name:"Properties", service_object_id, value_map:{<field_id 或字段名>: 值}})`，返回该记录全部自定义字段 |
+| 写值 + 改主记录一次完成 | ✅ | `setFieldValuesAndUpdateRecord({..., value_map, data:{id,...}, return_custom_fields_keyed_by:"field_name"})` |
+| 读值 | ✅ | `readFieldValuesAndRecord` 或 `getValuesKeyedByFieldName`（service_name 必须首字母大写 `Properties`）；普通 `Contacts::read` **不带**自定义字段 |
+| 按自定义字段搜索 | ✅ | `Properties::search` 条件名 `cf.Properties.<field_id>` 可直接用 |
+| 下拉字段 | ⚠️ | 写不在选项里的值（"Landlord"）**不报错**，校验要我们自己做 |
+| 新建字段 / 分组 / 标签页 | ✅（沙箱） | `AdminCustomFields::createTab({data:{module_name:"properties", label, priority}})` → `createGroup({data:{tab_id, label, priority}})` → `createField({data:{group_id, label, field_type_id:"select", options:[...], priority}})`，均返回带 id 的对象；字段立即出现在 `getFlatDefinition`，可写值、可用 `cf.Properties.<id>` 搜索；`updateField({data:{id, options}})` 可加选项。删除：`purgeField({id, confirm:true})`（会删掉所有已存值），`purgeGroup` / `purgeTab` 只收 `{id}`，须先删字段再删组再删标签页。**下拉字段写不在选项里的值（"Bogus"）照样保存**。集成用户在沙箱有建字段权限；正式账户 758 是否同样有权限未知 |
+
+## 10. 初始导入演练（2026-11-17，沙箱 2057，只读）
+
+脚本 `tools/rex-import-dryrun.sh`（只落 id / 类型 / 关系，不存姓名电话）。全量 **132 次调用、约 4 分钟、0 错误**。
+
+| 对象 | 数量 | 方法 | 带回的关系 |
+|---|---|---|---|
+| 房产 | 3,449 | `Properties::search` + `extra_fields:["contact_reln_property"]`，每页 100 | 业主/租客关系、坐标（全部有）、负责人 `system_owner_user` |
+| 联系人 | 7,856（person 7,817 / company 39） | `Contacts::search` + `extra_fields:["related.contact_reln_property","related.contact_reln_listing"]` | 房产关系、挂牌关系、负责人、DND、不投信 |
+| 挂牌 | 1,413（current 1,196 / sold 128 / leased 47 / withdrawn 42） | `Listings::search` | 房产 id（全部能对上）、listing_agent_1/2 |
+| 用户 | 214 | `AccountUsers::search` | — |
+
+关系两侧对账：房产侧与联系人侧一致 1,591 条；差异都能解释：
+- 房产侧有 **375 条关系的 contact 为 null**（联系人已删除或不可见），导入时跳过；
+- 有 **81 条重复关系**（同一联系人、同一类型、不同关系 id），导入时按 (房产, 联系人, 类型) 去重；同一联系人在同一房产上可有多种类型（如 tenant + past_owner），属正常；
+- 有 47 条 reln_type 为 null；挂牌关系里出现自定义类型 id（如 `1166`），不在标准值列表里，要按“其他”处理。
+
+要注意：
+- **search 返回的 `is_dnd` / `contact_by_letter` 是字符串 "1"/"0"，read 返回布尔值**，解析时统一；
+- **负责人对不上**：128 个负责人 id 中 21 个（含 `0`）在 AccountUsers 里查不到（已删除的用户），涉及 1,223 条记录 → 导入时归为“未分配”，由管理员处理；
+- 按 3,600 次/小时算，这个规模的全量导入占 132 次；Place Sunnybank 正式数据量要在 758 上数一下才能估。
+
+## 11. Webhook 实测（2026-11-17，沙箱 2057 → 65）
+
+- 接收端：`POST /api/v1/rex/webhook/{token}`（`server/rexwebhook.go`），token 来自 `AXLEO_REX_WEBHOOK_TOKEN`（≥32 位，未设置时 404）；只记录事件名和记录 id，回 202。经 Cloudflare Tunnel `https://axleo-api.saulxj.ggff.net` 对外。65 上部署版本 `461c75d4b114-wh1`（未提交代码，手动发布，`/data/axleo/previous-release` 指向 `461c75d4b114`）。
+- 集成用户有 `AdminWebhooks` 权限。创建：`AdminWebhooks::create({data:{name, url, send_format_id:"v1_context_only", is_enabled:true, events:[{event_id:"contacts.created"}, ...]}, return_id:true})`（events 要用 `event_id`，不是 `{event:{id}}`）；删除 `purge({id})`。
+- Rex **不签名**，只能靠 URL 里的随机 token 防伪造。
+- 收到的内容（v1_context_only）：`{id:<事件uuid>, type:"contacts.updated", account_id, service:"Contacts", record_id, 操作人 id}`，不含字段值。
+
+| 事件 | 延迟 |
+|---|---|
+| `sendTestEvent`（type=sample） | 约 98 秒（刚创建 webhook 后） |
+| 第一次 contacts.updated | 约 68 秒（同上） |
+| **第一次 contacts.created** | **没收到**（webhook 刚创建约 10 秒时） |
+| properties.created / updated | 7–8 秒 |
+| contacts.updated / contacts.created（之后） | 4–5 秒 |
+
+结论：稳定后几秒内送达，满足“1 分钟内更新地图”；但**刚创建时有延迟、且丢过一条**，事件 id 每条唯一可用于去重；夜间 etag 对账必须保留作兜底。测试 webhook 和测试记录已删除。

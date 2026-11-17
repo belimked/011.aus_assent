@@ -33,3 +33,11 @@ mkdir -p /data/axleo/rex-probes
 ## 安全边界
 
 沙箱与其他公司**共享**，API 写入可能触发 Rex 自动化、通知及推送；所有写入必须先获得许可。所有新记录以 `AXLEO TEST - ` 开头；不要更新已有沙箱记录。创建返回 ID 后立即写入 state.json，默认结束时尝试 delete，失败尝试 archive；有失败必须人工检查。默认客户端每秒最多 1 次请求（仍与办公室共用每小时 3,600 次额度），遇到 429 按 Retry-After 有界重试。凭证和 token 不写入报告；不要将报告或凭证上传到公开位置。
+
+## 2026-11-17 实际运行记录
+
+- 集成账号能访问两个账户：**2057 = Integration Partners Testing Account（共享沙箱）**、**758 = Place Sunnybank（正式，禁止运行 probe）**。登录必须带 `account_id`。
+- 本机凭证：`/etc/axleo/rex-sandbox.env`（600），用法 `set -a; . /etc/axleo/rex-sandbox.env; set +a`。
+- 集成用户 ID 为 `80559`。共享沙箱有 200 多个其他集成商用户，`--remindee 80559` 同时用作 F2 的指定负责人，**不要派给其他用户**。
+- Rex 没有通用 `delete`：清理按 purge → trash → archive 依次尝试；联系人和房产只能 trash/archive。
+- 结论见 `rex-feedback-2026-11.md` §6。

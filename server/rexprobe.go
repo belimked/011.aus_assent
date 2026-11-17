@@ -25,49 +25,65 @@ var probeMethods = map[string]probeSpec{
 	"accounts": {"UserProfile", "getAccessibleAccounts", func(_ map[string]string) any { return map[string]any{} }},
 	"path":     {"Listings", "search", func(_ map[string]string) any { return map[string]any{"limit": 1} }},
 	"tags": {"AdminTags", "search", func(v map[string]string) any {
-		return map[string]any{"criteria": []any{map[string]any{"name": v["tag"]}}, "limit": 2}
+		// Verified in sandbox 2026-11-17: criteria are {name: <search field>, value}; AdminTags fields: id, object_type, tag, cached_count.
+		return map[string]any{"criteria": []any{map[string]any{"name": "tag", "value": v["tag"]}}, "limit": 2}
 	}},
 	"listings": {"Listings", "search", func(_ map[string]string) any { return map[string]any{"limit": 1} }},
 	"users":    {"AccountUsers", "search", func(_ map[string]string) any { return map[string]any{"limit": 2} }},
+	// Write shapes verified against existing sandbox records 2026-11-17 (names/tags live under related.*).
 	"contactCreate": {"Contacts", "create", func(v map[string]string) any {
-		return map[string]any{"data": map[string]any{"name": v["name"], "related": map[string]any{"contact_tags": []any{v["tag"]}}}, "return_id": true}
+		return map[string]any{"data": map[string]any{"type": "person", "related": map[string]any{
+			"contact_names": []any{map[string]any{"name_first": v["name"], "name_last": "AXLEO TEST - probe"}},
+			"contact_tags":  []any{map[string]any{"tag": v["tag"]}},
+		}}, "return_id": true}
 	}},
 	"leadAssigned": {"Leads", "create", func(v map[string]string) any {
-		return map[string]any{"data": map[string]any{"listing": map[string]any{"id": v["listing"]}, "assignee": map[string]any{"id": v["user"]}, "notes": v["name"] + " lead assigned"}, "return_id": true}
+		return map[string]any{"data": map[string]any{"listing": map[string]any{"id": v["listing"]}, "assignee": map[string]any{"id": v["user"]}, "note": v["name"] + " lead assigned"}, "return_id": true}
 	}},
 	"leadListing": {"Leads", "create", func(v map[string]string) any {
-		return map[string]any{"data": map[string]any{"listing": map[string]any{"id": v["listing"]}, "notes": v["name"] + " lead listing"}, "return_id": true}
+		return map[string]any{"data": map[string]any{"listing": map[string]any{"id": v["listing"]}, "note": v["name"] + " lead listing"}, "return_id": true}
 	}},
-	"leadRead": {"Leads", "read", func(v map[string]string) any { return map[string]any{"id": v["lead"]} }},
+	"leadRead":    {"Leads", "read", func(v map[string]string) any { return map[string]any{"id": v["lead"]} }},
+	"contactRead": {"Contacts", "read", func(v map[string]string) any { return map[string]any{"id": v["contact"]} }},
 	"reminderCreate": {"Reminders", "create", func(v map[string]string) any {
-		return map[string]any{"data": map[string]any{"remindee": map[string]any{"id": v["remindee"]}, "description": "AXLEO TEST - push check"}, "return_id": true}
+		// Rex requires the reminder to be attached to a record; use this run's test contact (F1 runs first).
+		return map[string]any{"data": map[string]any{"remindee": map[string]any{"id": v["remindee"], "type": "user"}, "contact": map[string]any{"id": v["contact"]}, "reminder_type": map[string]any{"id": "task"}, "reminder_description": "AXLEO TEST - push check", "reminder_date": time.Now().Add(24 * time.Hour).Format("2006-01-02")}, "return_id": true}
 	}},
 	"events": {"ListingEvents", "search", func(v map[string]string) any {
-		return map[string]any{"criteria": []any{map[string]any{"listing_id": v["listing"], "event_type": "open home"}}, "limit": 2}
+		return map[string]any{"criteria": []any{map[string]any{"name": "listing_id", "value": v["listing"]}}, "limit": 2}
 	}},
-	"eventsFields":   {"ListingEvents", "describeSearchFields", func(_ map[string]string) any { return map[string]any{} }},
-	"attendeeFields": {"ListingEventAttendees", "describeModel", func(_ map[string]string) any { return map[string]any{} }},
+	"eventsFields": {"ListingEvents", "describeSearchFields", func(_ map[string]string) any { return map[string]any{} }},
+	// There is no ListingEventAttendees class; Rex exposes OpenHomeCheckIns (read, checkIn) instead.
+	"attendeeFields": {"OpenHomeCheckIns", "describe", func(_ map[string]string) any { return map[string]any{"include_detail": true} }},
 	"letter": {"Contacts", "search", func(_ map[string]string) any {
-		return map[string]any{"criteria": []any{map[string]any{"contact_by_letter": 0}}, "limit": 1}
+		return map[string]any{"criteria": []any{map[string]any{"name": "contact.contact_by_letter", "value": "0"}}, "limit": 1, "result_format": "ids"}
+	}},
+	// Property-level Do Not Contact (search field property.is_dnd, real field).
+	"propertyDnd": {"Properties", "search", func(_ map[string]string) any {
+		return map[string]any{"criteria": []any{map[string]any{"name": "property.is_dnd", "value": "1"}}, "limit": 1, "result_format": "ids"}
 	}},
 	"contactFields": {"Contacts", "describeSearchFields", func(_ map[string]string) any { return map[string]any{} }},
 	"propertyCreate": {"Properties", "create", func(v map[string]string) any {
-		return map[string]any{"data": map[string]any{"address": v["name"], "related": map[string]any{"property_tags": []any{v["tag"]}}}, "return_id": true}
+		return map[string]any{"data": map[string]any{"property_category": map[string]any{"id": "residential"}, "adr_street_number": "1", "adr_street_name": v["name"], "adr_suburb_or_town": "Sunnybank", "adr_state_or_region": "QLD", "adr_postcode": "4109",
+			"related": map[string]any{"property_tags": []any{map[string]any{"tag": v["tag"]}}}}, "return_id": true}
 	}},
 	"propertyRead": {"Properties", "read", func(v map[string]string) any {
-		return map[string]any{"id": v["property"], "extra_fields": []string{"related", "owners", "tenants"}}
+		return map[string]any{"id": v["property"]}
 	}},
+	// Owner/tenant links: search extra_options.extra_fields contact_reln_property -> related.contact_reln_property[{contact, reln_type, do_not_contact}].
 	"properties": {"Properties", "search", func(_ map[string]string) any {
-		return map[string]any{"limit": 3, "extra_fields": []string{"related", "owners", "tenants"}}
+		return map[string]any{"limit": 3, "extra_options": map[string]any{"extra_fields": []string{"contact_reln_property"}}}
 	}},
-	"remindees":  {"Reminders", "getRemindeeList", func(_ map[string]string) any { return map[string]any{} }},
-	"dedupe":     {"Dedupe", "findPossibleDuplicates", func(v map[string]string) any { return map[string]any{"record_type": "contacts", "id": v["contact"]} }},
+	"remindees": {"Reminders", "getRemindeeList", func(_ map[string]string) any { return map[string]any{} }},
+	"dedupe": {"Dedupe", "findPossibleDuplicates", func(v map[string]string) any {
+		return map[string]any{"service_name": "Contacts", "record_id": v["contact"], "match_fields": []string{"name", "email", "phone"}}
+	}},
 	"leads":      {"Leads", "search", func(_ map[string]string) any { return map[string]any{"limit": 1} }},
 	"reminders":  {"Reminders", "search", func(_ map[string]string) any { return map[string]any{"limit": 1} }},
 	"matches":    {"MatchProfiles", "search", func(_ map[string]string) any { return map[string]any{"limit": 1} }},
 	"oabs":       {"Oabs", "search", func(_ map[string]string) any { return map[string]any{"limit": 1} }},
 	"categories": {"SystemValues", "getValueCategories", func(_ map[string]string) any { return map[string]any{} }},
-	"values":     {"SystemValues", "getCategoryValues", func(v map[string]string) any { return map[string]any{"category": v["category"]} }},
+	"values":     {"SystemValues", "getCategoryValues", func(v map[string]string) any { return map[string]any{"list_name": v["category"]} }},
 }
 var probeS1 = []string{"remindees", "dedupe", "tags", "leads", "reminders", "matches", "oabs", "events", "categories", "values"}
 
@@ -99,7 +115,7 @@ func probeID(raw json.RawMessage) string {
 	}
 	if m, ok := v.(map[string]any); ok {
 		if id, ok := m["id"]; ok {
-			return fmt.Sprint(id)
+			return probeIDValue(id)
 		}
 		if r, ok := m["result"]; ok {
 			return probeIDValue(r)
@@ -110,14 +126,14 @@ func probeID(raw json.RawMessage) string {
 func probeIDValue(v any) string {
 	if m, ok := v.(map[string]any); ok {
 		if id, ok := m["id"]; ok {
-			return fmt.Sprint(id)
+			return probeIDValue(id)
 		}
 	}
 	switch x := v.(type) {
 	case string:
 		return x
 	case float64:
-		return fmt.Sprint(x)
+		return strconv.FormatFloat(x, 'f', -1, 64)
 	}
 	return ""
 }
@@ -201,16 +217,47 @@ func (p *probeRun) save(check, key string, request, raw any, err error) string {
 	p.counts[check]++
 	file := fmt.Sprintf("raw/%s-%d.json", check, p.counts[check])
 	var v any
-	if b, ok := raw.([]byte); ok {
+	switch b := raw.(type) {
+	case json.RawMessage:
+		_ = json.Unmarshal(b, &v)
+	case []byte:
 		_ = json.Unmarshal(b, &v)
 	}
 	doc := map[string]any{"method": key, "request": probeMask(request, p.c.Token, os.Getenv("REX_PASSWORD")), "response": probeMask(v, p.c.Token, os.Getenv("REX_PASSWORD")), "key_tree": probeTree(v)}
 	if err != nil {
-		doc["outcome"] = "ERROR (see verdict)"
+		doc["outcome"] = "ERROR: " + err.Error()
+		// Rex error objects describe the API, not records; keep them readable (secrets still redacted).
+		if m, ok := v.(map[string]any); ok && m["error"] != nil {
+			doc["error"] = probeRedact(m["error"], p.c.Token, os.Getenv("REX_PASSWORD"), os.Getenv("REX_EMAIL"))
+		}
 	}
 	b, _ := json.MarshalIndent(doc, "", "  ")
 	_ = os.WriteFile(filepath.Join(p.dir, file), b, 0600)
 	return file
+}
+func probeRedact(v any, secrets ...string) any {
+	switch x := v.(type) {
+	case map[string]any:
+		m := map[string]any{}
+		for k, y := range x {
+			m[k] = probeRedact(y, secrets...)
+		}
+		return m
+	case []any:
+		a := make([]any, len(x))
+		for i, y := range x {
+			a[i] = probeRedact(y, secrets...)
+		}
+		return a
+	case string:
+		for _, s := range secrets {
+			if s != "" && strings.Contains(x, s) {
+				x = strings.ReplaceAll(x, s, "[REDACTED]")
+			}
+		}
+		return x
+	}
+	return v
 }
 func (p *probeRun) call(ctx context.Context, check, key string) (json.RawMessage, error) {
 	spec := probeMethods[key]
@@ -275,19 +322,45 @@ func (p *probeRun) runCheck(ctx context.Context, id string) {
 			outcome(err, "")
 			return
 		}
+		read, readErr := call("contactRead")
 		tags, tagErr := call("tags")
-		if tagErr != nil {
-			outcome(tagErr, "")
-		} else if strings.Contains(string(tags), p.vars["tag"]) {
-			p.row(id, "PASS", "新标签在 AdminTags 搜索中出现：自动创建", files...)
+		var env struct {
+			Result struct {
+				Related struct {
+					Tags []struct {
+						Tag string `json:"tag"`
+					} `json:"contact_tags"`
+				} `json:"related"`
+			} `json:"result"`
+		}
+		_ = json.Unmarshal(read, &env)
+		onContact := false
+		for _, t := range env.Result.Related.Tags {
+			onContact = onContact || t.Tag == p.vars["tag"]
+		}
+		var tagEnv struct {
+			Result struct {
+				Total any `json:"total"`
+			} `json:"result"`
+		}
+		_ = json.Unmarshal(tags, &tagEnv)
+		inAdmin := fmt.Sprint(tagEnv.Result.Total) != "0" && tagEnv.Result.Total != nil
+		if readErr != nil || tagErr != nil {
+			outcome(errors.Join(readErr, tagErr), "")
+		} else if onContact {
+			p.row(id, "PASS", fmt.Sprintf("未预建的标签已保存在联系人上（读回确认）；是否出现在 AdminTags：%v", inAdmin), files...)
 		} else {
-			p.row(id, "UNKNOWN", "联系人创建成功，但搜索未找到新标签；需核对搜索条件或标签创建规则", files...)
+			p.row(id, "UNKNOWN", "联系人创建成功，但读回时没有这个标签：未预建的标签可能被丢弃", files...)
 		}
 	case "F2":
 		l, el := call("listings")
 		u, eu := call("users")
 		p.vars["listing"] = probeFirst(l)
 		p.vars["user"] = probeFirst(u)
+		// Shared sandbox: never assign to other integrators' users; use our own user (--remindee) when given.
+		if p.vars["remindee"] != "" {
+			p.vars["user"] = p.vars["remindee"]
+		}
 		if el != nil || eu != nil || p.vars["listing"] == "" || p.vars["user"] == "" {
 			p.row(id, "UNKNOWN", "未找到挂牌或其他账号用户，或搜索参数不被接受", files...)
 			return
@@ -344,6 +417,8 @@ func (p *probeRun) runCheck(ctx context.Context, id string) {
 	case "F5":
 		_, e := call("letter")
 		_, e2 := call("contactFields")
+		_, e3 := call("propertyDnd")
+		e2 = errors.Join(e2, e3)
 		if p.write {
 			raw, ce := call("propertyCreate")
 			if ce == nil {
@@ -422,9 +497,11 @@ func probeCleanup(ctx context.Context, c *rexClient, file string) error {
 	var failures []error
 	for i := len(state.Records) - 1; i >= 0; i-- {
 		r := state.Records[i]
-		_, _, err = c.Call(ctx, r.Service, "delete", map[string]any{"id": r.ID})
-		if err != nil {
-			_, _, err = c.Call(ctx, r.Service, "archive", map[string]any{"id": r.ID})
+		// Rex has no generic delete: purge (leads/reminders) > trash > archive.
+		for _, m := range []string{"purge", "trash", "archive"} {
+			if _, _, err = c.Call(ctx, r.Service, m, map[string]any{"id": r.ID}); err == nil {
+				break
+			}
 		}
 		if err != nil {
 			failures = append(failures, fmt.Errorf("%s id %s: %w", r.Service, r.ID, err))

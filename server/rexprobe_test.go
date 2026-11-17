@@ -135,7 +135,7 @@ func TestRexProbeGuardsAndFullRun(t *testing.T) {
 	}
 	foundDelete := false
 	for _, path := range *calls {
-		if strings.HasSuffix(path, "/delete") {
+		if strings.HasSuffix(path, "/purge") || strings.HasSuffix(path, "/trash") {
 			foundDelete = true
 		}
 	}
