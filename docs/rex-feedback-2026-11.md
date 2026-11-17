@@ -167,3 +167,39 @@
 | contacts.updated / contacts.created（之后） | 4–5 秒 |
 
 结论：稳定后几秒内送达，满足“1 分钟内更新地图”；但**刚创建时有延迟、且丢过一条**，事件 id 每条唯一可用于去重；夜间 etag 对账必须保留作兜底。测试 webhook 和测试记录已删除。
+
+## 12. 沙箱测不了的三项：已知信息与下一步（2026-11-17）
+
+**限流（F6）**
+- Rex 文档 Rate Limits：**3,600 次/小时，按中介公司账户计**（多个中介账户可以分别用满）；目前是软限制，“以后会严格执行”。Sync 文档：请求过多“可能被限速，甚至被停用 API 访问”。
+- 响应头 CORS 暴露了 `Retry-After`，推测超限时会返回 429 + `Retry-After`（未证实）。没有用量响应头，只能自己计数。
+- 做法：连接器按账户令牌桶，上限按 3,000/小时（留 1/6 余量），交互请求优先；遇 429/5xx 按 `Retry-After` 或指数退避。白天估算约 800 次/小时（`rex-integration.md` §10），初始导入在沙箱规模是 132 次。
+- 仍要问 Rex：超限后是 429 还是直接停用、`Retry-After` 是否可靠、有没有并发/每日上限。
+
+**每位中介用自己的 Rex 账号授权（F8）**
+- 接口有 `loginWithOAuthAccessToken({access_token(at+jwt), account_id})`，但 Rex 公开文档的 Authentication 只写了用户名密码登录，**没有任何 OAuth 客户端申请、授权地址的说明**，属于未公开功能。
+- 另一种做法是中介在 App 里输入自己的 Rex 账号密码换 token（文档提到交互式应用可用 token 做会话）：只存 token 不存密码，token 最长 1 周、有活动自动续期。但 `login` 没有 MFA 参数，沙箱 200 个用户中 93 个开了 MFA，**开 MFA 的中介很可能无法这样登录**（未证实）；且把 Rex 密码交给第三方 App 需要中介同意。
+- 限额按账户计，所以每人授权也**不会增加额度**，仍共享 3,600。
+- 目前按“决策 2”：集成用户统一写入 + 正文署名 + 负责人字段，不依赖此项。要问 Rex：OAuth 是否开放给集成商、怎么申请 client、记录创建人是否显示本人。
+
+**正式账户 758 的数据结构（Q2/Q4）**
+- 需要只读跑一次，内容：总数（房产/联系人/挂牌/用户，约 6 次调用）→ 关系类型实际取值 → 负责人字段分布与用户对应 → 已有自定义字段/标签/邮件列表 → 集成用户在 758 的权限（能否建 webhook / 自定义字段）。
+- 只存数量和 id，不落个人信息；调用量按沙箱比例约 150–300 次，占当小时额度 5–10%，会在 Rex 审计里留下集成用户的读取记录。需要业务方 / Ping 同意后执行。
+
+## 13. 补测（2026-11-17，沙箱 2057，测试记录已清理）
+
+对照 cc.saulxj.ggff.net/rex-api-requirements 清单，补测之前没调用过的接口。逐项结果已更新到该页面（“沙箱实测”标签页：通过 34、有注意事项 16、未通过 2、未能测试 6）。
+
+| 接口 | 结果 | 要点 |
+|---|---|---|
+| `UserProfile::read` | ✅ | 返回集成用户资料 |
+| `Contacts::findMatchingContacts` | ✅ | 电话 / 邮箱 / 姓名都返回 `verdict:"unique"`；**`+61400…` 与 `0400…` 视为同一号码**，邮箱不区分大小写 → 录入查重用它，而不是 `findPossibleDuplicates` |
+| `Leads::read` / `update` | ✅ | |
+| `Leads::toggleCompletionState` | ✅ 有坑 | 没有 `lead_type` 时报 “You must specify a lead type”；建 lead 时带 `lead_type:{id:"general"/"appraisal_request"/"listing_enquiry"}` |
+| `Reminders::update` | ✅ | `data:{id, reminder_description, reminder_date}` |
+| `Appraisals::search` | ✅ | 沙箱 408 条 |
+| `ListingEvents::search` | ✅ | 不加条件 675 条，字段 event_type / event_date / event_time / event_timezone / listing |
+| `MatchProfiles::create` / `update` / `search` | ✅ | `data:{contact_id, profile_name, category}`；删除 purge |
+| `ProspectingMap::searchPropertyPinsInArea` | ✅ | `{polygon: GeoJSON（经度在前）}` → `{rows:[{id,lat,lng,status,is_ai_prospect}], truncated}`；集成用户可用 |
+| `CalendarAvailabilities::getAvailability` | ✅ | `{user_ids, times:[{from,to}]}`；不带时区按 UTC |
+| `CalendarEvents::create` | ❌ | `calendar_id`（`Calendars::search` 里用户的默认日历 uuid）+ `starts_at/ends_at:{date_time, timezone}` 通过校验，但 **Rex 返回 HTTP 500 空响应**；`CalendarEvents::search` 也报 Rex 内部错误（`GuzzleHttp\Promise\rejection_for()` 未定义）。要报给 Rex |
