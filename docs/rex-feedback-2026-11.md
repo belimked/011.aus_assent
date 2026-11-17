@@ -70,13 +70,13 @@
 | # | 我们问的 | Rex 的回复 | 处理 |
 |---|---|---|---|
 | F1 | Contacts::create / update 时 related.contact_tags 写一个账号里还没有的标签，会不会自动创建？ | 未回答 | **已确认（2026-11-17 沙箱写入）**：写 `related.contact_tags: [{tag}]`，账号里没有的标签照样保存在联系人上，读回可见；不会出现在 AdminTags（后台预设标签列表）。自由文本标签可直接用 |
-| F2 | Leads::create 直接指定 assignee 时，集成用户是否需要 leads.assign_to_anyone 权限？只传 listing 不传 assignee 时，会不会自动分给该挂牌的中介？ | 未回答 | **部分确认（2026-11-17）**：指定 assignee 可写入（共享沙箱只测了指派给集成用户自己，派给其他用户是否要 assign_to_anyone 仍未知，到正式账户或邮件确认）；只传 listing 时 **不会自动分配**（assignee 为 null），需要我们自己指定负责中介 |
-| F3 | Reminders::create 指派给同事后，Rex 手机端会不会推送通知？ | 未回答 | 2026-11-17 已能创建（必填：`remindee:{id,type:"user"}`、`reminder_type:{id:"task"}`、`reminder_date`，且必须挂在 contact/property/listing 等对象上）；推送需人工用集成账号登录 Rex 手机端查看 |
+| F2 | Leads::create 直接指定 assignee 时，集成用户是否需要 leads.assign_to_anyone 权限？只传 listing 不传 assignee 时，会不会自动分给该挂牌的中介？ | 未回答 | **部分确认（2026-11-17）**：指定 assignee 可写入（共享沙箱只测了指派给集成用户自己，派给其他用户是否要 assign_to_anyone 仍未知，到正式账户或邮件确认）；只传 listing 时 **不会自动分配**（assignee 为 null），需要我们自己指定负责中介（→ §14 Q2）|
+| F3 | Reminders::create 指派给同事后，Rex 手机端会不会推送通知？ | 未回答 | 2026-11-17 已能创建（必填：`remindee:{id,type:"user"}`、`reminder_type:{id:"task"}`、`reminder_date`，且必须挂在 contact/property/listing 等对象上）；推送需人工用集成账号登录 Rex 手机端查看（→ §14 Q3）|
 | F4 | 03-3：签到时除了 lead，能否写 Rex 原生的开放参观到访记录，让到访出现在给卖家的报告里？ | 答成“反馈和线索是两种记录，只写线索即可” | 沙箱验证（axleo rex-probe）API 部分；vendor report 人工核对。**2026-11-17 只读结果**：没有 `ListingEventAttendees`；Rex 有 `OpenHomeCheckIns`（`read` / `checkIn`），两者都要一个 check-in token，token 从哪来未知。**到访记录的正确入口是 Feedback**：`feedback_type=ofi` 的 Feedback 记录挂在 `listing` + `date_of` 上，到访人在 `related.feedback_individual[{contacts, interest_level, enquiry_source, price_indication, note}]`，`Feedback::create` 可写；`Feedback::searchOpenHomeAttendance` / `searchVendorSendStage` 显示这些记录会进入给卖家的反馈。**2026-11-17 沙箱写入已确认**：`Feedback::create`（必填 `date_time_start`，格式 `HH:MM:SS`）写入 `feedback_type ofi + listing + date_of + related.feedback_contacts + related.feedback_individual[{contacts:[{contact:{id}}], interest_level:{id:hot/warm/cold}, enquiry_source:{id:"198" Open Home}, price_indication, note}]`；读回一致；`searchOpenHomeAttendance` 能查到；在 `searchVendorSendStage(to_send)` 以 `kind: attendee` 出现，即进入给卖家的反馈队列。Feedback 只有 trash，没有 purge。Rex 网页 vendor report 未人工看 |
 | F5 | 03-11：要的是“这户不要投信”，按房产、可搜索、可按片区统计 | 给了联系人上的 contact_by_letter | **2026-11-17 只读结果**：房产本身有 `property.is_dnd`（Do Not Contact，真实字段，可搜索）；联系人可按 `contact.contact_by_letter` 搜索；房产也可按 `owning_contacts.contact.contact_by_letter` 搜索。是否用 `property.is_dnd` 表示“不投信”需业务确认（它是“不联系”，比“不投信”宽） |
 | F6 | K1：超过 3,600 次/小时会怎样（拒绝/延迟/停用）？有没有每日上限、并发上限？ | 只说“目前是软限制，没有公布其他限额” | **不再追问（2026-11-17）**：按 Rex 文档每账户 3,600 次/小时处理，连接器令牌桶上限 3,000/小时，遇 429 按 Retry-After 退避（见 §12） |
 | F7 | 02-1：联系人与房产的关系（业主/租客）如何批量拉取 | 只答了联系人、房产用 search 分页 | **已确认（2026-11-17）**：`Properties::search` 加 `extra_options.extra_fields: ["contact_reln_property"]`，每条房产返回 `related.contact_reln_property[{contact, reln_type, do_not_contact, id}]`，可分页批量拉 |
-| F8 | （新）每位中介用自己的 Rex 账号授权（OAuth），记录创建人显示本人，是否允许？除 X-App-Identifier 外还需要什么？ | 03-10 只回答了“集成用户不能代写” | 邮件追问（OAuth 怎么申请、创建人是否显示本人、MFA 用户能否用）；限额不问，文档已写明按账户计 |
+| F8 | （新）每位中介用自己的 Rex 账号授权（OAuth），记录创建人显示本人，是否允许？除 X-App-Identifier 外还需要什么？ | 03-10 只回答了“集成用户不能代写” | 邮件追问（OAuth 怎么申请、创建人是否显示本人、MFA 用户能否用）；限额不问，文档已写明按账户计（→ §14 Q4）|
 
 以下 Rex 只说“看 describe-model / read-fields / searchable-fields”，**不需要追问**，拿到沙箱后自己确认返回结构：02-3 Reminders::getRemindeeList、02-4 Dedupe::findPossibleDuplicates、02-7 AdminTags::search、02-8 Leads::search、02-9 Reminders::search、02-11 MatchProfiles::search、02-13 Oabs::search。
 
@@ -203,3 +203,29 @@
 | `ProspectingMap::searchPropertyPinsInArea` | ✅ | `{polygon: GeoJSON（经度在前）}` → `{rows:[{id,lat,lng,status,is_ai_prospect}], truncated}`；集成用户可用 |
 | `CalendarAvailabilities::getAvailability` | ✅ | `{user_ids, times:[{from,to}]}`；不带时区按 UTC |
 | `CalendarEvents::create` | ❌ | `calendar_id`（`Calendars::search` 里用户的默认日历 uuid）+ `starts_at/ends_at:{date_time, timezone}` 通过校验，但 **Rex 返回 HTTP 500 空响应**；`CalendarEvents::search` 也报 Rex 内部错误（`GuzzleHttp\Promise\rejection_for()` 未定义）。要报给 Rex |
+
+## 14. 给 Rex 的最终问题（2026-11-17 定稿）
+
+需求清单页面已更新为沙箱实测版，**Rex 只需要回答下面 4 个问题**，其余条目不再问 Rex。
+
+- 页面：中文 https://cc.saulxj.ggff.net/rex-api-requirements ，英文 https://cc.saulxj.ggff.net/rex-api-requirements-en
+- 源文件：GitHub `belimked/ccaount@main` 的 `rex-api-requirements.html` / `rex-api-requirements-en.html`（手写 HTML，没有生成脚本）。推送到 main 后 Cloudflare Pages（项目 `ccaount`）自动部署，约 30 秒生效。
+- 页面结构：“沙箱实测”标签页（`#test`）列出 58 项结果：通过 50、未通过 2、未能测试 6，另有需 Rex 确认的 4 个问题（`#q1`–`#q4`）。相关条目上有红色“需 Rex 确认 Qn”标签。
+- 逐项结果数据：`.tmp/rex/extra/items.json`（临时，可删）。
+
+| # | 问 Rex 什么 | 相关条目 | 对应 |
+|---|---|---|---|
+| Q1 | `CalendarEvents::create`（calendar_id + starts_at/ends_at `{date_time, timezone}`）返回 HTTP 500 空响应，`CalendarEvents::search` 也报服务器内部错误。是故障还是参数不对？请修复或给可用的请求示例 | 01 CalendarEvents::create、03-2 | §13 |
+| Q2 | 集成用户把 Lead 指派给其他经纪人，是否需要 `leads.assign_to_anyone`？正式账户里集成用户给哪个权限组？ | 01 Leads::create | F2 |
+| Q3 | 提醒指派给经纪人后，Rex 手机 App 会不会推送通知？ | 01 Reminders::create | F3 |
+| Q4 | 能否让每位经纪人用自己的 Rex 账号授权（`loginWithOAuthAccessToken`）？OAuth 客户端怎么申请？创建人是否显示本人？开了 MFA 的用户能否使用？ | 03-10 | F8 |
+
+**不问 Rex 的（已定）**
+- 限额 3,600 次/小时（F6、K1）：按文档每账户计，自己限流（令牌桶 3,000/小时，429 按 Retry-After 退避）。
+- “通过但有注意事项”的条目：属于我们自己的实现细节，在页面上一律标“通过”，只写接口用法。内部注意事项在本文 §7–§13，写连接器时照做（如 is_dnd 覆盖四个渠道、批量一个失败整批报错、system_modtime 用 Unix 秒、查重用 findMatchingContacts、Lead 完成前要有 lead_type、webhook 刚建时会延迟或丢失）。
+- 第 2 项写入方式：统一用集成用户（D1），Q4 的答复只影响以后是否改成每人授权。
+- 正式账户 758：暂不动，页面上注明“正式账户还没有调用过”。
+
+**Pricefinder 仍然需要（如果要成交价 / 业主 / Market 页）**：Rex 里的房产只是中介接触过的记录，不是片区全量；成交和登记业主 Rex 不提供（02-15、02-16）。片区地址用 G-NAF / DCDB。是否接 Pricefinder 见 §4 决策 1。
+
+追问邮件可直接引用页面上的 Q1–Q4，不必另列问题。
