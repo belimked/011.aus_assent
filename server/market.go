@@ -92,7 +92,7 @@ func (pricefinderAPISource) Fetch(context.Context, time.Time) ([]MarketEvent, er
 }
 
 var aliases = map[string][]string{
-	"address": {"Address", "Street Address", "Property Address"}, "lot_plan": {"Lot/Plan", "Lot Plan"}, "suburb": {"Suburb", "Locality"}, "postcode": {"Postcode", "Post Code"}, "price": {"Sale Price", "Price"}, "date": {"Sale Date", "Contract Date", "Listed Date", "Event Date"}, "agency": {"Agency", "Listing Agency"}, "agent": {"Agent", "Listing Agent"}, "owners": {"Owner Name(s)", "Owner Names", "Owner Name"}, "beds": {"Beds", "Bedrooms"}, "baths": {"Baths", "Bathrooms"}, "cars": {"Car", "Cars", "Parking"}, "land": {"Land Size", "Land"}, "kind": {"Kind", "Event Type", "Type"}, "provider_id": {"Property ID", "Listing ID", "Sale ID", "Record ID", "Provider ID"},
+	"address": {"Address", "Street Address", "Property Address", "Street"}, "lot_plan": {"Lot/Plan", "Lot Plan", "Legal Description"}, "suburb": {"Suburb", "Locality"}, "postcode": {"Postcode", "Post Code"}, "price": {"Sale Price", "Price", "Last Sale"}, "date": {"Sale Date", "Contract Date", "Listed Date", "Event Date", "Last Sale Date"}, "agency": {"Agency", "Listing Agency"}, "agent": {"Agent", "Listing Agent"}, "owners": {"Owner Name(s)", "Owner Names", "Owner Name", "Current Owners"}, "beds": {"Beds", "Bedrooms"}, "baths": {"Baths", "Bathrooms"}, "cars": {"Car", "Cars", "Parking", "Car Parks"}, "land": {"Land Size", "Land", "Area"}, "kind": {"Kind", "Event Type", "Type"}, "provider_id": {"Property ID", "Listing ID", "Sale ID", "Record ID", "Provider ID", "PDS ID"},
 }
 
 func key(s string) string {
@@ -162,7 +162,14 @@ func addressKey(s string) string {
 	}
 	return strings.Join(words, " ")
 }
-func lotKey(s string) string { return key(strings.ReplaceAll(strings.ToLower(s), "lot", "")) }
+func lotKey(s string) string {
+	s = key(s)
+	s = strings.TrimPrefix(s, "lot")
+	if len(s) > 1 && s[0] == 'l' && s[1] >= '0' && s[1] <= '9' {
+		s = s[1:]
+	}
+	return s
+}
 
 var seedPostcodes = map[string]string{"sunnybank": "4109", "sunnybankhills": "4109", "robertson": "4109", "macgregor": "4109", "runcorn": "4113"}
 
@@ -273,9 +280,10 @@ func (a *app) covered(id, user string) bool {
 func (a *app) marketProperty(m map[string]any, p principal) {
 	id := str(m, "id")
 	var names, source, stamp string
+	var absentee bool
 	var price sql.NullInt64
 	var date sql.NullString
-	if a.db.QueryRow(`SELECT owner_names,last_sale_price,last_sale_date,source,updated_at FROM property_ownership WHERE property_id=?`, id).Scan(&names, &price, &date, &source, &stamp) != nil {
+	if a.db.QueryRow(`SELECT owner_names,last_sale_price,last_sale_date,source,updated_at,absentee_owner FROM property_ownership WHERE property_id=?`, id).Scan(&names, &price, &date, &source, &stamp, &absentee) != nil {
 		return
 	}
 	market := map[string]any{"lastSalePrice": nil, "lastSaleDate": date.String, "source": source, "updatedAt": stamp}
@@ -284,6 +292,7 @@ func (a *app) marketProperty(m map[string]any, p principal) {
 	}
 	if p.role == "admin" || a.covered(id, p.id) {
 		market["owners"] = names
+		market["absenteeOwner"] = absentee
 	}
 	m["market"] = market
 }
@@ -295,6 +304,10 @@ type importReport struct {
 	Skipped            int                 `json:"skipped"`
 	Errors             int                 `json:"errors"`
 	Unmatched          int                 `json:"unmatched"`
+	Ignored            int                 `json:"ignored"`
+	OwnershipUpdated   int                 `json:"ownershipUpdated"`
+	SalesRecorded      int                 `json:"salesRecorded"`
+	SalesNotified      int                 `json:"salesNotified"`
 	UnmatchedAddresses []map[string]string `json:"unmatchedAddresses,omitempty"`
 	Details            []string            `json:"errorDetails"`
 	Agents             map[string]int      `json:"agentCounts"`
@@ -323,12 +336,14 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 	if err != nil {
 		return r, err
 	}
-	reader := csv.NewReader(bytes.NewReader(bytes.TrimPrefix(data, []byte{0xef, 0xbb, 0xbf})))
-	reader.FieldsPerRecord = -1
-	head, err := reader.Read()
+	rows, err := marketRows(data)
 	if err != nil {
 		return r, err
 	}
+	if len(rows) == 0 {
+		return r, io.EOF
+	}
+	head := rows[0]
 	cols := map[string]int{}
 	for field, names := range mapping {
 		for i, h := range head {
@@ -355,19 +370,11 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 			return r, err
 		}
 	}
-	rowNum := 1
-	for {
-		line, e := reader.Read()
-		if e == io.EOF {
-			break
-		}
-		rowNum++
+	snapshot := kind == "auto" && !hasColumn(cols, "kind") && hasColumn(cols, "owners") && hasColumn(cols, "date") && key(head[cols["date"]]) == "lastsaledate"
+	for rowIndex, line := range rows[1:] {
+		var e error
+		rowNum := rowIndex + 2
 		r.Rows++
-		if e != nil {
-			r.Errors++
-			r.Details = append(r.Details, fmt.Sprintf("row %d: %v", rowNum, e))
-			continue
-		}
 		get := func(k string) string {
 			if i, ok := cols[k]; ok && i < len(line) {
 				return strings.TrimSpace(line[i])
@@ -375,8 +382,15 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 			return ""
 		}
 		address := get("address")
+		if (ignoredMarketRow(line) && (address == "" || footerOnlyMarketRow(line))) || (address == "" && footerOnlyMarketRow(line) && len(line) > 0 && strings.TrimSpace(line[0]) != "" && cols["address"] != 0) {
+			r.Ignored++
+			continue
+		}
 		eventKind := kind
-		if kind == "auto" {
+		if snapshot {
+			eventKind = "snapshot"
+		}
+		if kind == "auto" && !snapshot {
 			eventKind = strings.ToLower(get("kind"))
 			if eventKind == "" {
 				if get("owners") != "" && get("date") == "" {
@@ -388,7 +402,7 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 				}
 			}
 		}
-		if eventKind != "sale" && eventKind != "listing" && eventKind != "withdrawn" && eventKind != "ownership" || address == "" {
+		if eventKind != "sale" && eventKind != "listing" && eventKind != "withdrawn" && eventKind != "ownership" && eventKind != "snapshot" || address == "" {
 			r.Errors++
 			r.Details = append(r.Details, fmt.Sprintf("row %d: missing address or invalid kind", rowNum))
 			continue
@@ -407,13 +421,12 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 				continue
 			}
 		}
-		date := get("date")
-		if date != "" {
-			if _, e = time.Parse("2006-01-02", date); e != nil {
-				r.Errors++
-				r.Details = append(r.Details, fmt.Sprintf("row %d: date must be YYYY-MM-DD", rowNum))
-				continue
-			}
+		dateValue := normalMarketExcelDate(get("date"), data)
+		date, dateErr := marketDate(dateValue)
+		if dateErr != nil {
+			r.Errors++
+			r.Details = append(r.Details, fmt.Sprintf("row %d: date must be YYYY-MM-DD or DD/MM/YYYY", rowNum))
+			continue
 		}
 		event := MarketEvent{Kind: eventKind, Address: address, LotPlan: get("lot_plan"), Suburb: get("suburb"), Postcode: get("postcode"), ProviderID: get("provider_id")}
 		var prop string
@@ -426,34 +439,66 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 			r.Unmatched++
 			r.UnmatchedAddresses = append(r.UnmatchedAddresses, map[string]string{"address": address, "suburb": event.Suburb, "postcode": event.Postcode, "kind": eventKind})
 		}
+		if snapshot && date != "" {
+			event.ProviderID += ":" + date
+		}
 		if event.ProviderID == "" {
 			h := sha256.Sum256([]byte(eventKind + "|" + addressKey(address) + "|" + date))
 			event.ProviderID = hex.EncodeToString(h[:])
 		}
 		raw := map[string]string{}
 		for i, h := range head {
-			if i < len(line) {
-				raw[h] = line[i]
+			if i < len(line) && safeMarketHeader(h) {
+				value := line[i]
+				switch key(h) {
+				case "lastsaledate", "saledate", "valuationdate", "loaddate", "listeddate", "eventdate":
+					value = normalMarketExcelDate(value, data)
+				}
+				raw[h] = value
 			}
 		}
 		rawJSON, _ := json.Marshal(raw)
+		var previous string
+		if snapshot && prop != "" {
+			if dry {
+				_ = a.db.QueryRow(`SELECT last_sale_date FROM property_ownership WHERE property_id=?`, prop).Scan(&previous)
+			} else {
+				_ = tx.QueryRow(`SELECT last_sale_date FROM property_ownership WHERE property_id=?`, prop).Scan(&previous)
+			}
+		}
+		notifySnapshot := snapshot && prop != "" && date != "" && date > previous && recentMarketSale(date)
+		if snapshot {
+			if prop != "" {
+				r.OwnershipUpdated++
+			}
+			if date != "" {
+				r.SalesRecorded++
+			}
+			if notifySnapshot {
+				r.SalesNotified++
+			}
+		}
 		if dry {
 			r.Success++
 			continue
 		}
-		if eventKind != "ownership" {
+		if eventKind != "ownership" && (eventKind != "snapshot" || date != "") {
+			storedKind := eventKind
+			if snapshot {
+				storedKind = "sale"
+			}
 			id := ulid()
-			_, e = tx.Exec(`INSERT INTO market_events(id,provider,provider_id,kind,address,address_key,lot_plan,suburb,postcode,price,event_date,agency,agent,beds,baths,cars,land,import_id,property_id,raw) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(provider,provider_id,kind) DO UPDATE SET address=excluded.address,address_key=excluded.address_key,lot_plan=excluded.lot_plan,suburb=excluded.suburb,postcode=excluded.postcode,price=excluded.price,event_date=excluded.event_date,agency=excluded.agency,agent=excluded.agent,beds=excluded.beds,baths=excluded.baths,cars=excluded.cars,land=excluded.land,import_id=excluded.import_id,property_id=excluded.property_id,raw=excluded.raw`, id, provider, event.ProviderID, eventKind, address, addressKey(address), event.LotPlan, event.Suburb, event.Postcode, price, date, get("agency"), get("agent"), get("beds"), get("baths"), get("cars"), get("land"), r.ID, sql.NullString{String: prop, Valid: prop != ""}, string(rawJSON))
-			if e == nil && prop != "" && (eventKind == "sale" || eventKind == "listing") {
+			_, e = tx.Exec(`INSERT INTO market_events(id,provider,provider_id,kind,address,address_key,lot_plan,suburb,postcode,price,event_date,agency,agent,beds,baths,cars,land,import_id,property_id,raw) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(provider,provider_id,kind) DO UPDATE SET address=excluded.address,address_key=excluded.address_key,lot_plan=excluded.lot_plan,suburb=excluded.suburb,postcode=excluded.postcode,price=excluded.price,event_date=excluded.event_date,agency=excluded.agency,agent=excluded.agent,beds=excluded.beds,baths=excluded.baths,cars=excluded.cars,land=excluded.land,import_id=excluded.import_id,property_id=excluded.property_id,raw=excluded.raw`, id, provider, event.ProviderID, storedKind, address, addressKey(address), event.LotPlan, event.Suburb, event.Postcode, price, date, get("agency"), get("agent"), get("beds"), get("baths"), get("cars"), get("land"), r.ID, sql.NullString{String: prop, Valid: prop != ""}, string(rawJSON))
+			if e == nil && prop != "" && (!snapshot && (eventKind == "sale" || eventKind == "listing") || notifySnapshot) {
 				var eid string
-				e = tx.QueryRow(`SELECT id FROM market_events WHERE provider=? AND provider_id=? AND kind=?`, provider, event.ProviderID, eventKind).Scan(&eid)
+				e = tx.QueryRow(`SELECT id FROM market_events WHERE provider=? AND provider_id=? AND kind=?`, provider, event.ProviderID, storedKind).Scan(&eid)
 				if e == nil {
-					e = a.notifyMarket(tx, eid, prop, eventKind, address, get("agency"), date, r.Agents)
+					e = a.notifyMarket(tx, eid, prop, storedKind, address, get("agency"), date, r.Agents)
 				}
 			}
 		}
-		if e == nil && prop != "" && (eventKind == "sale" || eventKind == "ownership") {
-			_, e = tx.Exec(`INSERT INTO property_ownership(property_id,owner_names,last_sale_price,last_sale_date,source,import_id,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(property_id) DO UPDATE SET owner_names=CASE WHEN excluded.owner_names='' THEN property_ownership.owner_names ELSE excluded.owner_names END,last_sale_price=CASE WHEN excluded.last_sale_price IS NULL THEN property_ownership.last_sale_price ELSE excluded.last_sale_price END,last_sale_date=CASE WHEN excluded.last_sale_date='' THEN property_ownership.last_sale_date ELSE excluded.last_sale_date END,source=excluded.source,import_id=excluded.import_id,updated_at=excluded.updated_at`, prop, get("owners"), sql.NullInt64{Int64: price, Valid: price > 0}, date, provider, r.ID, now())
+		if e == nil && prop != "" && (eventKind == "sale" || eventKind == "ownership" || eventKind == "snapshot") {
+			_, e = tx.Exec(`INSERT INTO property_ownership(property_id,owner_names,last_sale_price,last_sale_date,source,import_id,updated_at,absentee_owner) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(property_id) DO UPDATE SET owner_names=CASE WHEN excluded.owner_names='' THEN property_ownership.owner_names ELSE excluded.owner_names END,last_sale_price=CASE WHEN excluded.last_sale_price IS NULL OR (property_ownership.last_sale_date > excluded.last_sale_date AND excluded.last_sale_date != '') THEN property_ownership.last_sale_price ELSE excluded.last_sale_price END,last_sale_date=CASE WHEN excluded.last_sale_date='' OR property_ownership.last_sale_date > excluded.last_sale_date THEN property_ownership.last_sale_date ELSE excluded.last_sale_date END,source=excluded.source,import_id=excluded.import_id,updated_at=excluded.updated_at,absentee_owner=CASE WHEN excluded.owner_names='' THEN property_ownership.absentee_owner ELSE excluded.absentee_owner END`, prop, get("owners"), sql.NullInt64{Int64: price, Valid: price > 0}, date, provider, r.ID, now(), absenteeMarket(getOwnerAddress(head, line), address))
 			if e == nil {
 				_, e = tx.Exec(`UPDATE properties SET updated_at=?,version=version+1 WHERE id=?`, now(), prop)
 			}
@@ -463,14 +508,14 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 		}
 		r.Success++
 	}
-	r.Skipped = r.Errors
+	r.Skipped = r.Errors + r.Ignored
 	if dry {
 		return r, nil
 	}
 	details, _ := json.Marshal(r.Details)
 	agents, _ := json.Marshal(r.Agents)
 	unmatchedJSON, _ := json.Marshal(r.UnmatchedAddresses)
-	_, err = tx.Exec(`UPDATE market_imports SET rows=?,success=?,skipped=?,errors=?,status='completed',error_details=?,agent_counts=?,unmatched_details=? WHERE id=?`, r.Rows, r.Success, r.Skipped, r.Errors, string(details), string(agents), string(unmatchedJSON), r.ID)
+	_, err = tx.Exec(`UPDATE market_imports SET rows=?,success=?,skipped=?,errors=?,ignored=?,ownership_updated=?,sales_recorded=?,sales_notified=?,status='completed',error_details=?,agent_counts=?,unmatched_details=? WHERE id=?`, r.Rows, r.Success, r.Skipped, r.Errors, r.Ignored, r.OwnershipUpdated, r.SalesRecorded, r.SalesNotified, string(details), string(agents), string(unmatchedJSON), r.ID)
 	if err == nil {
 		err = a.record(tx, p, "IMPORT", "market_imports", r.ID, map[string]any{"sha256": digest, "rows": r.Rows, "success": r.Success, "errors": r.Errors})
 	}
@@ -550,7 +595,7 @@ func (a *app) marketAdmin(w http.ResponseWriter, r *http.Request, p principal) {
 		return
 	}
 	if path == "imports" && r.Method == "GET" {
-		rows, err := a.db.Query(`SELECT id,source,provider,filename,sha256,rows,success,skipped,errors,imported_by,created_at,status,agent_counts,unmatched_details FROM market_imports ORDER BY created_at DESC LIMIT 100`)
+		rows, err := a.db.Query(`SELECT id,source,provider,filename,sha256,rows,success,skipped,errors,imported_by,created_at,status,agent_counts,unmatched_details,ignored,ownership_updated,sales_recorded,sales_notified FROM market_imports ORDER BY created_at DESC LIMIT 100`)
 		if err != nil {
 			problem(w, 500, err.Error())
 			return
@@ -559,13 +604,13 @@ func (a *app) marketAdmin(w http.ResponseWriter, r *http.Request, p principal) {
 		out := []any{}
 		for rows.Next() {
 			var id, source, provider, file, sha, by, at, status, agents, unmatchedRaw string
-			var total, ok, skip, errs int
-			if rows.Scan(&id, &source, &provider, &file, &sha, &total, &ok, &skip, &errs, &by, &at, &status, &agents, &unmatchedRaw) == nil {
+			var total, ok, skip, errs, ignored, ownershipUpdated, salesRecorded, salesNotified int
+			if rows.Scan(&id, &source, &provider, &file, &sha, &total, &ok, &skip, &errs, &by, &at, &status, &agents, &unmatchedRaw, &ignored, &ownershipUpdated, &salesRecorded, &salesNotified) == nil {
 				var unmatched []any
 				_ = json.Unmarshal([]byte(unmatchedRaw), &unmatched)
 				var counts any
 				_ = json.Unmarshal([]byte(agents), &counts)
-				out = append(out, map[string]any{"id": id, "source": source, "provider": provider, "filename": file, "sha256": sha, "rows": total, "success": ok, "skipped": skip, "errors": errs, "importedBy": by, "createdAt": at, "status": status, "unmatched": len(unmatched), "agentCounts": counts})
+				out = append(out, map[string]any{"id": id, "source": source, "provider": provider, "filename": file, "sha256": sha, "rows": total, "success": ok, "skipped": skip, "errors": errs, "importedBy": by, "createdAt": at, "status": status, "unmatched": len(unmatched), "agentCounts": counts, "ignored": ignored, "ownershipUpdated": ownershipUpdated, "salesRecorded": salesRecorded, "salesNotified": salesNotified})
 			}
 		}
 		respond(w, 200, out)
@@ -574,8 +619,8 @@ func (a *app) marketAdmin(w http.ResponseWriter, r *http.Request, p principal) {
 	if strings.HasPrefix(path, "imports/") && r.Method == "GET" {
 		id := strings.TrimPrefix(path, "imports/")
 		var raw, unmatchedRaw, agentRaw, status string
-		var total, success, skipped, errorsCount int
-		if a.db.QueryRow(`SELECT error_details,unmatched_details,agent_counts,rows,success,skipped,errors,status FROM market_imports WHERE id=?`, id).Scan(&raw, &unmatchedRaw, &agentRaw, &total, &success, &skipped, &errorsCount, &status) != nil {
+		var total, success, skipped, errorsCount, ignored, ownershipUpdated, salesRecorded, salesNotified int
+		if a.db.QueryRow(`SELECT error_details,unmatched_details,agent_counts,rows,success,skipped,errors,status,ignored,ownership_updated,sales_recorded,sales_notified FROM market_imports WHERE id=?`, id).Scan(&raw, &unmatchedRaw, &agentRaw, &total, &success, &skipped, &errorsCount, &status, &ignored, &ownershipUpdated, &salesRecorded, &salesNotified) != nil {
 			problem(w, 404, "not found")
 			return
 		}
@@ -588,7 +633,7 @@ func (a *app) marketAdmin(w http.ResponseWriter, r *http.Request, p principal) {
 		_ = json.Unmarshal([]byte(unmatchedRaw), &unmatched)
 		var agents any
 		_ = json.Unmarshal([]byte(agentRaw), &agents)
-		respond(w, 200, map[string]any{"id": id, "rows": total, "success": success, "skipped": skipped, "errors": errorsCount, "status": status, "agentCounts": agents, "errorDetails": details, "unmatched": unmatched})
+		respond(w, 200, map[string]any{"id": id, "rows": total, "success": success, "skipped": skipped, "errors": errorsCount, "status": status, "agentCounts": agents, "errorDetails": details, "unmatched": unmatched, "ignored": ignored, "ownershipUpdated": ownershipUpdated, "salesRecorded": salesRecorded, "salesNotified": salesNotified})
 		return
 	}
 	problem(w, 404, "not found")
