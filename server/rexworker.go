@@ -131,13 +131,21 @@ func (w *rexWorker) step(ctx context.Context) error {
 			if json.Unmarshal([]byte(raw), &c) != nil {
 				return finish("failed", "invalid contact", "", "")
 			}
-			data = map[string]any{"type": "person"}
+			if entityLink != "" {
+				if j.op == "POST" { // create already done (link stored)
+					return finish("sent", "", "", "")
+				}
+				// Contacts::update with related rows would append duplicate phones/emails in Rex; not mapped until the update shape is sandbox-verified.
+				return finish("skipped", "contact update not mapped yet", "", "")
+			}
+			// Shape verified in sandbox 2026-11-17 (.tmp/rex/extra run.sh / run2.sh).
+			data = map[string]any{"contact_type": "person"}
 			related := map[string]any{"contact_names": []any{map[string]any{"name_first": str(c, "first"), "name_last": str(c, "last")}}}
 			if s := str(c, "mobile"); s != "" {
-				related["contact_phones"] = []any{map[string]any{"phone_number": s, "phone_type": rexRef("mobile")}}
+				related["contact_phones"] = []any{map[string]any{"phone_number": s, "phone_type": "mobile", "phone_primary": true}}
 			}
 			if s := str(c, "email"); s != "" {
-				related["contact_emails"] = []any{map[string]any{"email_address": s}}
+				related["contact_emails"] = []any{map[string]any{"email_address": s, "email_desc": "home", "email_primary": true}}
 			}
 			data["related"] = related
 		}
@@ -230,7 +238,11 @@ func (w *rexWorker) step(ctx context.Context) error {
 		if errors.As(e, &rate) {
 			return w.retry(j, "Rex rate limited", rate.delay)
 		}
-		// A create may have succeeded despite a lost response. Never replay an ambiguous write.
+		// Rex answered with an error envelope: the write was rejected, not ambiguous.
+		if len(rexErr) > 0 && string(rexErr) != "null" {
+			return finish("failed", "Rex rejected: "+safeRexError(rexErr), "", "")
+		}
+		// No envelope (timeout, empty 5xx): a create may have succeeded despite a lost response. Never replay an ambiguous write.
 		if method == "create" {
 			return finish("failed", "Rex write outcome unknown; reconcile before retry", "", "")
 		}

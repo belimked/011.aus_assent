@@ -70,8 +70,8 @@ func TestRexWorkerReloginAndUnknownWrite(t *testing.T) {
 	workerQueue(t, a, "contacts", "c", `{}`)
 	if e = w.step(context.Background()); e != nil {
 		t.Fatal(e)
-	} // update, never create again
-	if writes != 3 || logins != 2 {
-		t.Fatalf("unexpected calls %d %d", writes, logins)
+	} // already linked: never create again, and contact update is not mapped yet
+	if writes != 2 || logins != 2 || workerStatus(t, a, 2) != "sent" {
+		t.Fatalf("unexpected calls %d %d %s", writes, logins, workerStatus(t, a, 2))
 	}
 }
