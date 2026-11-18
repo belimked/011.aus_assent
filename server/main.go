@@ -226,6 +226,18 @@ func (a *app) routes() http.Handler {
 				return
 			}
 			a.transcribe(w, r, p)
+		case r.Method == "POST" && r.URL.Path == "/api/v1/tts":
+			if !a.allowEndpointCall(p, "tts", 60) {
+				problem(w, 429, "rate limited")
+				return
+			}
+			a.synthesize(w, r, p)
+		case r.Method == "POST" && r.URL.Path == "/api/v1/ai/translate":
+			if !a.allowEndpointCall(p, "ai_translate", 30) {
+				problem(w, 429, "rate limited")
+				return
+			}
+			a.translateAI(w, r, p)
 		case r.Method == "POST" && r.URL.Path == "/api/v1/ai/extract":
 			if !a.allowCall(p) {
 				problem(w, 429, "rate limited")
