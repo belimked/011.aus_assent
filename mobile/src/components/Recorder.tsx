@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {Platform,Pressable,Text,View} from 'react-native';
 import {RecordingPresets,IOSOutputFormat,requestRecordingPermissionsAsync,setAudioModeAsync,useAudioRecorder,useAudioRecorderState} from 'expo-audio';
 import {File} from 'expo-file-system';
-import {Icon} from './ui';
+import {Icon} from './ui/Icon';
 import {colors,text} from '../theme';
 import {useT} from '../i18n';
 import {transcribe,voiceErrorText,VoiceError,type VoiceLang} from '../lib/voice';
