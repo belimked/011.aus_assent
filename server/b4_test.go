@@ -3,13 +3,27 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
 
 func TestAdminWebAndEndpoints(t *testing.T) {
 	a, tokens := setup(t)
-	for _, url := range []string{"/admin/", "/admin/app.js", "/admin/style.css"} {
+	index := request(a, "GET", "/admin/", "", nil).Body.String()
+	assets := regexp.MustCompile(`(?:src|href)="(/admin/assets/[^"]+)"`).FindAllStringSubmatch(index, -1)
+	if len(assets) == 0 {
+		t.Fatal("missing built assets")
+	}
+	for _, asset := range assets {
+		if w := request(a, "GET", asset[1], "", nil); w.Code != 200 {
+			t.Fatalf("embedded asset %s: %d", asset[1], w.Code)
+		}
+	}
+	if w := request(a, "GET", "/admin/parcels.json", "", nil); w.Code != 200 || !strings.Contains(w.Body.String(), "State of Queensland") {
+		t.Fatal("missing public cadastral asset")
+	}
+	for _, url := range []string{"/admin/"} {
 		w := request(a, "GET", url, "", nil)
 		if w.Code != 200 || !strings.Contains(w.Header().Get("Content-Security-Policy"), "script-src 'self'") || w.Header().Get("X-Frame-Options") != "DENY" {
 			t.Fatalf("%s: %d %v", url, w.Code, w.Header())
