@@ -19,6 +19,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	_ "time/tzdata" // Australia/Brisbane must load even without system zoneinfo
 
 	"golang.org/x/crypto/bcrypt"
 	_ "modernc.org/sqlite"
