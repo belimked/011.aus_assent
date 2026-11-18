@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import {Text,View,Linking,Image} from 'react-native';
+import {Text,View,Linking} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import type {SheetProps} from '../types';
 import {Button,Banner,Card,Chips,Field,SectionLabel} from '../../components/ui';
@@ -7,8 +7,12 @@ import {useStore,getState,update,openSheet,closeSheet,dismissSheet,showToast} fr
 import {audit,addTodo,byId,cname,REL_TYPES,shortAddr,mask,maskEmail,noteOn} from '../../domain';
 import {mergeContacts,applyPreference} from '../../domain/dk';
 import {isOnline,directAction} from '../../store/sync';
+import {preparePhoto,uploadPendingPhotos,aiImage} from '../../lib/photos';
+import {VoiceError,voiceLang} from '../../lib/voice';
+import {extract} from '../../domain/extract';
+import {mergeAI} from '../../domain/aiMerge';
 import {useTeam} from '../sheets';
-import {l2} from '../../i18n';
+import {l2,useT} from '../../i18n';
 import {TODAY} from '../../data/seed';
 import {colors,text} from '../../theme';
 const done=(msg:string)=>{dismissSheet();showToast(msg)};
@@ -16,7 +20,35 @@ const title={...text,fontSize:18,fontWeight:'700' as const};
 const muted={...text,fontSize:12,color:colors.muted};
 const tomorrow=()=>{const d=new Date(TODAY);d.setDate(d.getDate()+1);return d.toISOString().slice(0,10)};
 const openComm=async(uri:string,cid:string,kind:string,detail:string,src:string)=>{try{await Linking.openURL(uri)}catch{showToast(l2('Could not open the phone app. Try again.','无法打开手机应用，请重试。'));return}update(d=>{const c=byId(d.contacts,cid);if(c){noteOn(d,c,`${kind}: ${detail}`);audit(d,kind,`${cname(c)} · ${detail}`)}});closeSheet();showToast(l2('Logged to Rex','已记录到 Rex'));openSheet({kind:'followup',cid,src})};
-export function Photo({params}:SheetProps){const [uri,setUri]=useState('');async function pick(camera:boolean){const permission=camera?await ImagePicker.requestCameraPermissionsAsync():await ImagePicker.requestMediaLibraryPermissionsAsync();if(!permission.granted){showToast('Photo permission denied');return}const result=camera?await ImagePicker.launchCameraAsync({quality:.7}):await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],quality:.7});if(!result.canceled)setUri(result.assets[0].uri)}return <View style={{gap:10}}><Text style={title}>Property photo</Text>{uri?<Image source={{uri}} style={{height:190,borderRadius:10}}/>:<Banner>Choose a photo to attach to this mock property record.</Banner>}<Button onPress={()=>void pick(true)}>Camera</Button><Button onPress={()=>void pick(false)}>Photo library</Button>{!!uri&&<Button variant="primary" onPress={()=>{update(d=>{const p=byId(d.properties,params.propId);if(p){p.photos=[...(p.photos||[]),{uri,d:TODAY}];audit(d,'Photo',shortAddr(p))}});done('Photo saved on this device (mock)')}}>Save photo</Button>}</View>}
+export function Photo({params}:SheetProps){
+  const {t,lang,l2}=useT();const [mode,setMode]=useState<'house'|'card'|null>(null);const [reading,setReading]=useState(false);
+  const p=useStore(s=>s.properties.find(x=>x.id===params.propId));
+  async function pick(camera:boolean){
+    if(reading||!mode)return;
+    if(mode==='card'&&!isOnline()){showToast(l2('Reading a card needs a connection','读取名片需要联网'));return}
+    try{
+      const permission=camera?await ImagePicker.requestCameraPermissionsAsync():await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if(!permission.granted){showToast(l2('Photo permission denied','照片权限已拒绝'));return}
+      const result=camera?await ImagePicker.launchCameraAsync({quality:.7}):await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],quality:.7});
+      if(result.canceled||!p)return;
+      setReading(true);
+      const uri=await preparePhoto(result.assets[0].uri,mode==='house');
+      if(mode==='house'){
+        const id=`ph${Date.now().toString(36)}${Math.random().toString(36).slice(2,10)}`;
+        update(d=>{const item=byId(d.properties,p.id);if(item){item.photos=[...(item.photos||[]),{id,d:TODAY,uri,uploaded:false}];audit(d,'Photo',shortAddr(item))}});
+        closeSheet();showToast(t('photo_ok'));
+        if(isOnline())void uploadPendingPhotos();
+      }else{
+        const r=mergeAI(extract('','dk'),await aiImage(uri,'card',voiceLang(lang==='zh'?'zh-CN':'en-AU')));
+        openSheet({kind:'confirm',ctx:'dk',text:'[Business card] '+[`${r.first} ${r.last}`.trim(),r.mobile,r.email].filter(Boolean).join(' · '),r,propId:p.id});
+      }
+    }catch(e){showToast(e instanceof VoiceError&&e.kind==='unavailable'?l2('AI not available','AI 暂不可用'):l2('Could not read the photo. Try again.','无法读取照片，请重试。'))}
+    finally{setReading(false)}
+  }
+  return <View style={{gap:10}}><Text style={title}>{t('photo_title')} · {p?shortAddr(p):''}</Text>
+    {!mode?<><Button onPress={()=>setMode('house')}>{t('photo_house')}</Button><Button onPress={()=>setMode('card')}>{t('photo_card')}</Button></>:<><Button disabled={reading} onPress={()=>void pick(true)}>{l2('Camera','相机')}</Button><Button disabled={reading} onPress={()=>void pick(false)}>{l2('Library','相册')}</Button>{reading&&<Text style={muted}>{l2('Reading…','正在读取…')}</Text>}</>}
+  </View>
+}
 export function Call({params}:SheetProps){const s=useStore(s=>s);const c=byId(s.contacts,params.cid||'');const [why,setWhy]=useState('');if(!c)return <Banner>No linked contact to call.</Banner>;const blocked=c.flags.dnc||c.consent?.phone===0;const listed=c.dncr?.listed;return <View style={{gap:12}}><Text style={title}>Call · {cname(c)}</Text><Text style={[title,{textAlign:'center',fontSize:25}]}>{c.mobile}</Text><Text style={muted}>Number revealed for this call. DNCR checked {c.dncr?.d||TODAY}.</Text>{blocked&&<Banner>Do not contact / phone opted out. Calling is disabled.</Banner>}{listed&&<><Banner>Listed on the Do Not Call Register. Choose a lawful reason before calling.</Banner><Chips items={['Express consent','Existing business relationship','Other lawful exemption'].map(x=>[x,x])} value={why} onChange={setWhy}/></>}<Button variant="accent" disabled={blocked||(listed&&!why)} onPress={()=>{void openComm('tel:'+c.mobile.replace(/\D/g,''),c.id,'Call',`${TODAY} ${new Date().toTimeString().slice(0,5)} · number viewed and dialled · DNCR ${listed?'listed · reason: '+why:'clear '+(c.dncr?.d||'')}`,'call')}}>Call now</Button></View>}
 const templates=[['thanks','Thanks for speaking with me today. Please get in touch if you have any questions.'],['market','Here is the market update we discussed. Let me know if you would like to chat.'],['appraisal','Thanks for booking an appraisal. I look forward to seeing you.']];
 export function TextSheet({params}:SheetProps){const s=useStore(s=>s);const c=byId(s.contacts,params.cid);const [tpl,setTpl]=useState('thanks');const [lang,setLang]=useState('en');if(!c)return <Banner>No contact selected.</Banner>;const body=`${lang==='zh'?'您好':'Hi'} ${c.first}, ${templates.find(t=>t[0]===tpl)?.[1]} ${s.auth?.name||'Owen Chen'} · Reply STOP to opt out.`;return <View style={{gap:12}}><Text style={title}>Text · {cname(c)} · {mask(c.mobile)}</Text><Chips items={templates.map(t=>[t[0],t[0]])} value={tpl} onChange={setTpl}/><Chips items={[["en","EN"],["zh","中"]]} value={lang} onChange={setLang}/><Card><Text style={text}>{body}</Text></Card><Text style={muted}>{body.length} chars · STOP footer included · Opens your phone’s SMS app</Text><Button variant="primary" disabled={c.consent?.sms===0} onPress={()=>{void openComm('sms:'+c.mobile.replace(/\D/g,'')+'?body='+encodeURIComponent(body),c.id,'SMS',`${tpl} · "${body.slice(0,50)}…"`,'sms')}}>Send from phone</Button></View>}

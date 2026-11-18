@@ -1,5 +1,5 @@
 export type Contact = {id:string;first:string;last:string;mobile:string;email:string;owner:string;roles:string[];tags:string[];flags:{dnc?:boolean};notes:{d:string;a:string;t:string}[];[key:string]:any};
-export type Property = {id:string;no:string;street:string;suburb:string;ownerIds:string[];pfOwner:string;lastSale:string;flags:{dnc?:boolean};pending?:boolean;otherAgent?:boolean;market?:{lastSalePrice:number|null;lastSaleDate:string;source:string;updatedAt:string;owners?:string};[key:string]:any};
+export type Property = {id:string;no:string;street:string;suburb:string;ownerIds:string[];pfOwner:string;lastSale:string;flags:{dnc?:boolean};pending?:boolean;otherAgent?:boolean;photos?:{id:string;d:string;uri?:string;uploaded?:boolean}[];market?:{lastSalePrice:number|null;lastSaleDate:string;source:string;updatedAt:string;owners?:string};[key:string]:any};
 export type Todo = {id:string;d:string;time?:string;t:string;who:string;by?:string;kind:string;done?:boolean;doneAt?:string;cid?:string;propId?:string;assigneeId?:string;createdBy?:string;version?:number};
 export type Sale = {id:string;propertyId:string;cat:string;seller:string;buyer:string;price:number;gci:number;settle:string;when?:string;reminders:{type:string;d:string;time?:string}[]};
 export type Listing = {id:string;propertyId:string;agent:string;price:string;status:string;ofi:any[];[key:string]:any};

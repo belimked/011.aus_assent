@@ -239,6 +239,20 @@ func (a *app) routes() http.Handler {
 				return
 			}
 			a.translateAI(w, r, p)
+		case r.Method == "POST" && r.URL.Path == "/api/v1/photos":
+			if !a.allowEndpointCall(p, "photos", 60) {
+				problem(w, 429, "rate limited")
+				return
+			}
+			a.uploadPhoto(w, r, p)
+		case r.Method == "GET" && strings.HasPrefix(r.URL.Path, "/api/v1/photos/"):
+			a.servePhoto(w, r, p)
+		case r.Method == "POST" && r.URL.Path == "/api/v1/ai/image":
+			if !a.allowCall(p) {
+				problem(w, 429, "rate limited")
+				return
+			}
+			a.imageAI(w, r, p)
 		case r.Method == "POST" && r.URL.Path == "/api/v1/ai/extract":
 			if !a.allowCall(p) {
 				problem(w, 429, "rate limited")

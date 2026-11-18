@@ -6,6 +6,7 @@ import {getState,onLocalWrite,replaceState,showToast} from './index';
 import {diff,attendeeOps,enqueue,merge,mapRecord,field,type Op,type Pull} from './sync-logic';
 import type {Account,AppState} from '../data/types';
 import {l2} from '../i18n';
+import {uploadPendingPhotos} from '../lib/photos';
 export const apiUrl=process.env.EXPO_PUBLIC_API_URL || Constants.expoConfig?.extra?.apiUrl || 'https://axleo-api.saulxj.ggff.net/api/v1';
 const tokenKey='ax_token', syncKey='ax_sync';
 let token:string|null=null, cursor='', queue:Op[]=[], names:Record<string,string>={}, lastSync='';
@@ -37,6 +38,7 @@ export async function teamMembers():Promise<{id:string;name:string}[]>{return ap
 export async function directAction(path:string,data:Record<string,unknown>){await api(path,{method:'POST',body:JSON.stringify(data)});await syncNow();}
 export async function logout(){const old=token;token=null;clearTimeout(timer);cursor='';queue=[];lastSync='';names={};await tokenSet(null);await AsyncStorage.removeItem(syncKey);const s=getState();replaceState({...s,auth:null,contacts:[],properties:[],todos:[],captures:[],enquiries:[],leads:[],listings:[],ofi_attendees:[],sales:[],contracts:[],referrals:[],market:[],zones:[],myTags:[],audit:[],approvals:[],syncq:[],queue:0});if(old)void fetch(`${apiUrl}/auth/logout`,{method:'POST',headers:{Authorization:`Bearer ${old}`}}).catch(()=>{});}
 export async function syncNow(){if(!token||running)return;running=true;let errors=getState().syncq.filter(q=>q.status==='error');try{
+ try{await uploadPendingPhotos()}catch{/* Photo retries must not block record sync. */}
  const team=await api('/team') as {id:string;name:string}[];names=Object.fromEntries(team.map(u=>[u.id,u.name]));
  if(queue.length){const batch=[...queue];inFlight=new Set(batch.map(op=>op.opId));const result=await api('/sync/push',{method:'POST',body:JSON.stringify({ops:batch})}) as {results:{opId:string;status:string;record?:any}[]};
  for(const item of result.results){const op=batch.find(o=>o.opId===item.opId);if(!op)continue;const idx=queue.findIndex(o=>o.opId===item.opId);if(idx<0)continue;queue.splice(idx,1);
