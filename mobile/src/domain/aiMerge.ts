@@ -13,7 +13,7 @@ export function mergeAI(local:ReturnType<typeof extract>,result:AIResult){
   const chinese=/^[\u3400-\u9fff]+$/;
   if(f.firstName||f.lastName){put('firstName','first');put('lastName','last');}
   else if(f.contactName){const name=f.contactName.trim();if(chinese.test(name)){put('contactName','first',name);put('contactName','last','');r.last='';}else{const parts=name.split(/\s+/);put('contactName','first',parts[0]);if(parts.length>1)put('contactName','last',parts.slice(1).join(' '));}}
-  if(f.phone){const digits=f.phone.replace(/\D/g,'');put('phone','mobile',/^0[45]\d{8}$/.test(digits)?digits.replace(/(\d{4})(\d{3})(\d{3})/,'$1 $2 $3'):f.phone);}
+  if(f.phone){const digits=f.phone.replace(/\D/g,'');const ok=/^0[45]\d{8}$/.test(digits);put('phone','mobile',ok?digits.replace(/(\d{4})(\d{3})(\d{3})/,'$1 $2 $3'):f.phone);if(!ok&&!r.unsure.includes('mobile'))r.unsure.push('mobile');}
   put('email','email');put('address','address');put('notes','note');put('timeframe','timing');
   if(f.intent){const intent={sell:'Seller lead',appraisal:'Seller lead',buy:'Buyer lead',rent:'Rental lead',other:'Other'}[f.intent];if(intent){put('intent','intent',intent);if(f.intent==='sell'||f.intent==='appraisal'){r.ps=true;r.type='seller';if(!r.tags.includes('Seller lead'))r.tags.push('Seller lead');}else if(f.intent==='buy')r.type='buyer';else if(f.intent==='rent')r.type='tenant';}}
   if(r.mobile&&!r.tags.includes('Phone provided'))r.tags.push('Phone provided');
