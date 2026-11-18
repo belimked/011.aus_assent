@@ -14,8 +14,8 @@
 
 评判：先 B/C 类 MER 和姓名/电话/地址/价格/时间关键词，再 batch 总延迟、stream 首字和说完到终稿延迟，最后每 30 秒 AUD 与抽取字段准确率；抽样人工复核粤语异体字和含义，不以 mock 报告选型。MER 的内置繁简/数字规则只覆盖常见字和数字。
 
-## 生产接口草案（仅文档，不实现）
+## 生产接口
 
-- `POST /api/v1/stt/transcribe`：multipart 音频 + `langs`，服务端转发给可配置供应商；不留存音频，鉴权并限制大小/时长。
-- `POST /api/v1/stt/token`：为手机端实时识别/翻译签发短期凭据（Azure issueToken、Deepgram 临时 key、Speechmatics 临时 key），手机直连供应商，不经我们转发音频；服务端限频、限制权限与有效期。
-- `POST /api/v1/ai/extract`：文字或图片 → 固定 JSON 字段（contactName、phone、email、address、suburb、intent、priceMin、priceMax、timeframe、notes、language、confidence），人工确认后写 Rex。
+- 已实现 `POST /api/v1/stt/transcribe`：Bearer 鉴权；multipart `audio`（WAV/m4a/mp3/webm）、`lang`（en/zh/yue，默认 zh）；Azure Fast 转写，不留存音频，限制 10 MB / WAV 120 秒。
+- 已实现 `POST /api/v1/ai/extract`：Bearer 鉴权；JSON `text`（最多 4000 字符）、可选 `ctx`（dk/oh/enq/note）和 `lang`；Bedrock `au.` 模型强制 record_contact 工具，返回字段和置信度。仅抽取，人工确认后才写 Rex。
+- `POST /api/v1/stt/token`：实时识别/翻译短期凭据接口 **延期，尚未实现**。
