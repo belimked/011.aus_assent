@@ -15,6 +15,7 @@ const save=()=>AsyncStorage.setItem(syncKey,JSON.stringify({cursor,queue,lastSyn
 const tokenGet=()=>Platform.OS==='web'?Promise.resolve(localStorage.getItem(tokenKey)):SecureStore.getItemAsync(tokenKey);
 const tokenSet=(v:string|null)=>Platform.OS==='web'?Promise.resolve(v?localStorage.setItem(tokenKey,v):localStorage.removeItem(tokenKey)):v?SecureStore.setItemAsync(tokenKey,v):SecureStore.deleteItemAsync(tokenKey);
 export const isOnline=()=>!!token;
+export const authHeader=()=>token ? {Authorization:`Bearer ${token}`} : null;
 export const syncInfo=()=>({lastSync,pending:queue.length});
 const label=(op:Op,status='waiting',err='')=>({id:op.opId,d:new Date().toISOString(),what:`${op.kind} · ${op.id}`,status,tries:0,err});
 function reflect(errors:AppState['syncq']=[]){const s=getState();replaceState({...s,syncq:[...queue.map(op=>label(op)),...errors],queue:queue.length});}

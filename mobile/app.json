@@ -85,7 +85,13 @@
           }
         }
       ],
-      "expo-maps"
+      "expo-maps",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "AxleoCollect uses the microphone for voice capture."
+        }
+      ]
     ],
     "extra": {
       "apiUrl": "https://axleo-api.saulxj.ggff.net/api/v1"
