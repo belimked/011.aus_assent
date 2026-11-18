@@ -3,7 +3,7 @@ import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
   plugins: [vue()],
-  base: './',
+  base: '/admin/',
+  build: { outDir: '../server/web', emptyOutDir: true, chunkSizeWarningLimit: 3000 },
   server: { host: true, port: 5180 },
-  build: { chunkSizeWarningLimit: 3000 },
 })
