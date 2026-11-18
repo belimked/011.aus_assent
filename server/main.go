@@ -144,6 +144,7 @@ type app struct {
 	db       *sql.DB
 	mu       sync.Mutex
 	failures map[string][]time.Time
+	calls    map[string][]time.Time
 }
 type principal struct{ id, role, device, name, email string }
 
@@ -219,6 +220,18 @@ func (a *app) routes() http.Handler {
 			return
 		}
 		switch {
+		case r.Method == "POST" && r.URL.Path == "/api/v1/stt/transcribe":
+			if !a.allowCall(p) {
+				problem(w, 429, "rate limited")
+				return
+			}
+			a.transcribe(w, r, p)
+		case r.Method == "POST" && r.URL.Path == "/api/v1/ai/extract":
+			if !a.allowCall(p) {
+				problem(w, 429, "rate limited")
+				return
+			}
+			a.extractAI(w, r, p)
 		case r.Method == "POST" && r.URL.Path == "/api/v1/auth/logout":
 			raw, _ := hex.DecodeString(strings.Fields(r.Header.Get("Authorization"))[1])
 			h := sha256.Sum256(raw)
