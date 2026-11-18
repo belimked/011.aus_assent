@@ -1,6 +1,6 @@
 import {Platform} from 'react-native';
 import {File,Paths} from 'expo-file-system';
-import {createAudioPlayer} from 'expo-audio';
+import {createAudioPlayer,setAudioModeAsync} from 'expo-audio';
 import {apiUrl,authHeader} from '../store/sync';
 
 export type VoiceLang='en'|'zh'|'yue';
@@ -59,6 +59,9 @@ export async function speak(text:string,lang:VoiceLang):Promise<void>{
   const file=new File(Paths.cache,`tts-${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`);
   try{
     await file.write(new Uint8Array(bytes));
+    if(token!==playbackToken){file.delete();return}
+    // After recording, iOS stays in record mode (earpiece / quiet); switch to loud playback that ignores the silent switch.
+    await setAudioModeAsync({allowsRecording:false,playsInSilentMode:true});
     if(token!==playbackToken){file.delete();return}
     const player=createAudioPlayer({uri:file.uri});
     const subscription=player.addListener('playbackStatusUpdate',status=>{if(status.didJustFinish)cleanup()});

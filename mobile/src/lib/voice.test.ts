@@ -2,7 +2,7 @@ import {authHeader} from '../store/sync';
 import {speak,translate,voiceLang,VoiceError} from './voice';
 jest.mock('../store/sync',()=>({apiUrl:'https://example.test/api/v1',authHeader:jest.fn(()=>({Authorization:'Bearer test'}))}));
 jest.mock('expo-file-system',()=>({File:jest.fn(),Paths:{cache:{}}}));
-jest.mock('expo-audio',()=>({createAudioPlayer:jest.fn()}));
+jest.mock('expo-audio',()=>({createAudioPlayer:jest.fn(),setAudioModeAsync:jest.fn(async()=>undefined)}));
 const fetchMock=jest.fn();
 beforeEach(()=>{globalThis.fetch=fetchMock;fetchMock.mockReset();(authHeader as jest.Mock).mockReturnValue({Authorization:'Bearer test'});});
 test('sheet language codes map to API languages',()=>{
