@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"io"
+	"log"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -139,7 +140,7 @@ func (a *app) transcribe(w http.ResponseWriter, r *http.Request, p principal) {
 	if url == "" {
 		url = "https://" + env("AXLEO_AZURE_SPEECH_REGION", "australiaeast") + ".api.cognitive.microsoft.com"
 	}
-	url += "/speechtotext/transcriptions:transcribe?api-version=2024-11-15"
+	url += "/speechtotext/transcriptions:transcribe?api-version=2025-10-15" // phraseList needs >= 2025-10-15
 	for attempt := 0; attempt < 2; attempt++ {
 		definition := map[string]any{"locales": locales[lang]}
 		if attempt == 0 {
@@ -164,8 +165,12 @@ func (a *app) transcribe(w http.ResponseWriter, r *http.Request, p principal) {
 		req.Header.Set("Ocp-Apim-Subscription-Key", os.Getenv("AXLEO_AZURE_SPEECH_KEY"))
 		resp, e := speechHTTPClient.Do(req)
 		if e != nil {
+			log.Printf("stt upstream request failed: %v", e)
 			problem(w, 502, "stt upstream error")
 			return
+		}
+		if resp.StatusCode != 200 {
+			log.Printf("stt upstream status %d (attempt %d)", resp.StatusCode, attempt)
 		}
 		if resp.StatusCode == 400 && attempt == 0 {
 			resp.Body.Close()
