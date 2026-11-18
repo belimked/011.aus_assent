@@ -1,0 +1,5 @@
+ALTER TABLE property_ownership ADD COLUMN absentee_owner INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE market_imports ADD COLUMN ignored INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE market_imports ADD COLUMN ownership_updated INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE market_imports ADD COLUMN sales_recorded INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE market_imports ADD COLUMN sales_notified INTEGER NOT NULL DEFAULT 0;
