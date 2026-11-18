@@ -8,10 +8,10 @@ import {useT} from '../i18n';
 import {transcribe,voiceErrorText,VoiceError,type VoiceLang} from '../lib/voice';
 import {authHeader} from '../store/sync';
 
-const options={...RecordingPresets.HIGH_QUALITY,isMeteringEnabled:true,...(Platform.OS==='ios'?{extension:'.wav',sampleRate:16000,numberOfChannels:1,ios:{...RecordingPresets.HIGH_QUALITY.ios,outputFormat:IOSOutputFormat.LINEARPCM,sampleRate:16000,linearPCMBitDepth:16,linearPCMIsBigEndian:false,linearPCMIsFloat:false}}:{})};
+export const recordingOptions={...RecordingPresets.HIGH_QUALITY,isMeteringEnabled:true,...(Platform.OS==='ios'?{extension:'.wav',sampleRate:16000,numberOfChannels:1,ios:{...RecordingPresets.HIGH_QUALITY.ios,outputFormat:IOSOutputFormat.LINEARPCM,sampleRate:16000,linearPCMBitDepth:16,linearPCMIsBigEndian:false,linearPCMIsFloat:false}}:{})};
 type RecorderProps={lang:VoiceLang;onText:(text:string)=>void;onError?:(error:unknown)=>void;onBusy?:(busy:boolean)=>void;holdToTalk?:boolean;color?:string;wide?:boolean;disabled?:boolean};
 function RecorderControl({lang,onText,onError,onBusy,holdToTalk,color,wide,disabled}:RecorderProps){
-  const {l2}=useT();const recorder=useAudioRecorder(options);const status=useAudioRecorderState(recorder,250);
+  const {l2}=useT();const recorder=useAudioRecorder(recordingOptions);const status=useAudioRecorderState(recorder,250);
   const [phase,setPhase]=useState<'idle'|'recording'|'uploading'|'error'>('idle');const [error,setError]=useState('');
   const busy=useRef(false);const released=useRef(false);const starting=useRef(false);const mounted=useRef(true);const limit=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);
   useEffect(()=>()=>{mounted.current=false;clearTimeout(limit.current);if(busy.current)void recorder.stop().then(()=>{if(recorder.uri)try{new File(recorder.uri).delete()}catch{}}).catch(()=>{});},[recorder]);
