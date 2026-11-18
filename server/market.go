@@ -177,7 +177,7 @@ func (a *app) matchProperty(e MarketEvent) string { return matchProperty(a.db, e
 func matchProperty(q interface {
 	Query(string, ...any) (*sql.Rows, error)
 }, e MarketEvent) string {
-	rows, err := q.Query(`SELECT id,no,street,suburb,data FROM properties WHERE deleted_at IS NULL AND registered=1`)
+	rows, err := q.Query(`SELECT id,no,street,suburb,data FROM properties WHERE deleted_at IS NULL`)
 	if err != nil {
 		return ""
 	}
@@ -191,7 +191,7 @@ func matchProperty(q interface {
 		}
 		var p map[string]any
 		_ = json.Unmarshal([]byte(raw), &p)
-		if e.LotPlan != "" && lotKey(e.LotPlan) != "" && lotKey(e.LotPlan) == lotKey(str(p, "lot")) {
+		if lk := lotKey(e.LotPlan); lk != "" && (lk == lotKey(str(p, "lot")) || lk == lotKey(str(p, "lotplan"))) {
 			return id
 		}
 		if addressKey(no+" "+street) == addr && key(sub) == key(e.Suburb) && (e.Postcode == "" || seedPostcodes[key(sub)] == e.Postcode || str(p, "postcode") == e.Postcode) {
@@ -500,7 +500,7 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 		if e == nil && prop != "" && (eventKind == "sale" || eventKind == "ownership" || eventKind == "snapshot") {
 			_, e = tx.Exec(`INSERT INTO property_ownership(property_id,owner_names,last_sale_price,last_sale_date,source,import_id,updated_at,absentee_owner) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(property_id) DO UPDATE SET owner_names=CASE WHEN excluded.owner_names='' THEN property_ownership.owner_names ELSE excluded.owner_names END,last_sale_price=CASE WHEN excluded.last_sale_price IS NULL OR (property_ownership.last_sale_date > excluded.last_sale_date AND excluded.last_sale_date != '') THEN property_ownership.last_sale_price ELSE excluded.last_sale_price END,last_sale_date=CASE WHEN excluded.last_sale_date='' OR property_ownership.last_sale_date > excluded.last_sale_date THEN property_ownership.last_sale_date ELSE excluded.last_sale_date END,source=excluded.source,import_id=excluded.import_id,updated_at=excluded.updated_at,absentee_owner=CASE WHEN excluded.owner_names='' THEN property_ownership.absentee_owner ELSE excluded.absentee_owner END`, prop, get("owners"), sql.NullInt64{Int64: price, Valid: price > 0}, date, provider, r.ID, now(), absenteeMarket(getOwnerAddress(head, line), address))
 			if e == nil {
-				_, e = tx.Exec(`UPDATE properties SET updated_at=?,version=version+1 WHERE id=?`, now(), prop)
+				_, e = tx.Exec(`UPDATE properties SET updated_at=?,version=version+1,registered=1 WHERE id=?`, now(), prop)
 			}
 		}
 		if e != nil {

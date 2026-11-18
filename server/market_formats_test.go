@@ -121,3 +121,26 @@ func TestPricefinderSnapshot(t *testing.T) {
 		t.Fatal("address in raw")
 	}
 }
+func TestMarketMatchesUnregisteredParcelByLotplan(t *testing.T) {
+	a, _ := setup(t)
+	if err := seed(a.db); err != nil {
+		t.Fatal(err)
+	}
+	var admin string
+	_ = a.db.QueryRow(`SELECT id FROM users WHERE role='admin' LIMIT 1`).Scan(&admin)
+	// Parcel reference rows (DCDB) are unregistered and keep the lot in data.lotplan.
+	_, err := a.db.Exec(`INSERT INTO properties(id,no,street,suburb,data,created_at,updated_at,registered) VALUES('parcel1','77','Imaginary St','Sunnybank','{"lotplan":"9SP999999"}','now','now',0)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	csv := []byte("Street,Locality,Legal Description,Current Owners,Current Owners Address,Last Sale,Last Sale Date,PDS ID\n77 IMAGINARY ST,SUNNYBANK,L9 SP999999,Fictional Owner,N/A,$700000,01/02/2003,999\n")
+	report, err := a.importMarket(csv, "parcel.csv", "pricefinder", "auto", false, principal{id: admin, role: "admin"})
+	if err != nil || report.Unmatched != 0 || report.OwnershipUpdated != 1 {
+		t.Fatalf("report %+v %v", report, err)
+	}
+	var registered int
+	_ = a.db.QueryRow(`SELECT registered FROM properties WHERE id='parcel1'`).Scan(&registered)
+	if registered != 1 {
+		t.Fatal("matched parcel must become registered so it syncs")
+	}
+}
