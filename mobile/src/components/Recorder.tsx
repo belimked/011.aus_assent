@@ -5,7 +5,8 @@ import {File} from 'expo-file-system';
 import {Icon} from './ui';
 import {colors,text} from '../theme';
 import {useT} from '../i18n';
-import {transcribe,type VoiceLang} from '../lib/voice';
+import {transcribe,voiceErrorText,VoiceError,type VoiceLang} from '../lib/voice';
+import {authHeader} from '../store/sync';
 
 const options={...RecordingPresets.HIGH_QUALITY,isMeteringEnabled:true,...(Platform.OS==='ios'?{extension:'.wav',sampleRate:16000,numberOfChannels:1,ios:{...RecordingPresets.HIGH_QUALITY.ios,outputFormat:IOSOutputFormat.LINEARPCM,sampleRate:16000,linearPCMBitDepth:16,linearPCMIsBigEndian:false,linearPCMIsFloat:false}}:{})};
 type RecorderProps={lang:VoiceLang;onText:(text:string)=>void;onError?:(error:unknown)=>void;onBusy?:(busy:boolean)=>void;holdToTalk?:boolean;color?:string;wide?:boolean;disabled?:boolean};
@@ -14,11 +15,12 @@ function RecorderControl({lang,onText,onError,onBusy,holdToTalk,color,wide,disab
   const [phase,setPhase]=useState<'idle'|'recording'|'uploading'|'error'>('idle');const [error,setError]=useState('');
   const busy=useRef(false);const released=useRef(false);const starting=useRef(false);const mounted=useRef(true);const limit=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);
   useEffect(()=>()=>{mounted.current=false;clearTimeout(limit.current);if(busy.current)void recorder.stop().then(()=>{if(recorder.uri)try{new File(recorder.uri).delete()}catch{}}).catch(()=>{});},[recorder]);
-  const stop=async()=>{if(!busy.current)return;busy.current=false;clearTimeout(limit.current);setPhase('uploading');onBusy?.(true);try{await recorder.stop();const uri=recorder.uri;if(!uri)throw new Error('No recording');const result=await transcribe(uri,lang);if(mounted.current){onText(result.text);setPhase('idle');}}catch(e){if(mounted.current){onError?.(e);setError(String(e));setPhase('error');}}finally{onBusy?.(false);void setAudioModeAsync({allowsRecording:false}).catch(()=>{});}};
+  const stop=async()=>{if(!busy.current)return;busy.current=false;clearTimeout(limit.current);setPhase('uploading');onBusy?.(true);try{await recorder.stop();const uri=recorder.uri;if(!uri)throw new Error('No recording');const result=await transcribe(uri,lang);if(mounted.current){onText(result.text);setPhase('idle');}}catch(e){if(mounted.current){onError?.(e);setError(voiceErrorText(e,l2));setPhase('error');}}finally{onBusy?.(false);void setAudioModeAsync({allowsRecording:false}).catch(()=>{});}};
   const toggle=async()=>{if(busy.current){await stop();return}if(phase==='uploading')return;
+    if(!authHeader()){const e=new VoiceError('offline','not signed in');const message=voiceErrorText(e,l2);setError(message);onError?.(e);setPhase('error');starting.current=false;return}
     try{const permission=await requestRecordingPermissionsAsync();if(!permission.granted){const message=l2('Microphone access is off. Enable it in device settings to record, or type instead.','麦克风权限已关闭。请在设备设置中启用，或直接输入文字。');setError(message);onError?.(message);setPhase('error');return}
       await setAudioModeAsync({allowsRecording:true,playsInSilentMode:true});await recorder.prepareToRecordAsync();recorder.record();busy.current=true;setPhase('recording');limit.current=setTimeout(()=>void stop(),120000);if(released.current)void stop();
-    }catch(e){onError?.(e);setError(String(e));setPhase('error');}
+    }catch(e){onError?.(e);setError(l2('Could not start recording. Please try again, or type instead.','无法开始录音，请重试或直接输入文字。'));setPhase('error');}
     finally{starting.current=false}
   };
   const startHold=()=>{released.current=false;starting.current=true;void toggle()};

@@ -6,13 +6,13 @@ import NativeRecorder from '../../components/Recorder';
 import {TODAY} from '../../data/seed';
 import {byId,noteOn} from '../../domain';
 import {useT} from '../../i18n';
-import {speak,stopSpeaking,translate,voiceLang,VoiceError,type SheetLang} from '../../lib/voice';
+import {speak,stopSpeaking,translate,voiceLang,voiceErrorText,type SheetLang} from '../../lib/voice';
 import {closeSheet,showToast,update} from '../../store';
 import {Confetti} from './Confetti';
 const languages:[SheetLang,string][]=[['en-AU','EN'],['zh-CN','普通话'],['yue-HK','廣東話']];
 const honey='#FFB02E',azure='#2B95F5',orange='#FF6B2C';
 export function TranslateSheet(){const {t,l2}=useT();const insets=useSafeAreaInsets();const [warming,setWarming]=useState(false);const [visitorLang,setVisitorLang]=useState<SheetLang>('zh-CN');const [agentLang,setAgentLang]=useState<SheetLang>('en-AU');const confetti=true;const [agent,setAgent]=useState('');const [visitor,setVisitor]=useState('');const [agentSource,setAgentSource]=useState('');const [visitorSource,setVisitorSource]=useState('');const [agentOut,setAgentOut]=useState('');const [visitorOut,setVisitorOut]=useState('');const [busy,setBusy]=useState(false);const working=useRef(false);const alive=useRef(true);useEffect(()=>{alive.current=true;let timer:ReturnType<typeof setTimeout>;void AsyncStorage.getItem('ax_translate_seen').then(seen=>{if(!alive.current||seen)return;setWarming(true);void AsyncStorage.setItem('ax_translate_seen','1');timer=setTimeout(()=>{if(alive.current)setWarming(false)},1500)});return()=>{alive.current=false;clearTimeout(timer);stopSpeaking()}},[]);
- const errorToast=(error:unknown)=>{const kind=error instanceof VoiceError?error.kind:'network';showToast(kind==='offline'?l2('Sign in or reconnect to use translation.','请登录或连接网络后使用翻译。'):kind==='rateLimit'?l2('Too many requests. Please try again shortly.','请求过多，请稍后再试。'):kind==='upstream'||kind==='unavailable'?l2('Translation service is unavailable. Try again soon.','翻译服务暂不可用，请稍后重试。'):l2('Could not connect. Check your connection and try again.','连接失败，请检查网络后重试。'))};
+ const errorToast=(error:unknown)=>showToast(voiceErrorText(error,l2));
  const send=async(who:'visitor'|'agent',raw:string)=>{const text=raw.trim();if(!text||working.current)return;working.current=true;setBusy(true);stopSpeaking();const from=voiceLang(who==='visitor'?visitorLang:agentLang),to=voiceLang(who==='visitor'?agentLang:visitorLang);
   if(who==='visitor'){setVisitorSource(text);setAgentOut('')}else{setAgentSource(text);setVisitorOut('')}
   try{const result=await translate(text,from,to);if(!alive.current)return;if(who==='visitor')setAgentOut(result.text);else setVisitorOut(result.text);try{await speak(result.text,to)}catch(e){if(alive.current)errorToast(e)}}catch(e){if(alive.current)errorToast(e)}finally{working.current=false;if(alive.current)setBusy(false)}};

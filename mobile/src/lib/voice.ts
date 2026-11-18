@@ -69,3 +69,13 @@ export async function speak(text:string,lang:VoiceLang):Promise<void>{
     playback=cleanup;player.play();
   }catch(e){try{file.delete()}catch{};if(e instanceof VoiceError)throw e;throw new VoiceError('unavailable',String(e))}
 }
+type L2=(en:string,zh:string)=>string;
+/** Friendly bilingual text for voice/translation failures; never shows raw error names. */
+export function voiceErrorText(error:unknown,l2:L2){
+  const kind=error instanceof VoiceError?error.kind:'network';
+  if(kind==='offline')return l2('Voice needs your AxleoCollect account. Sign out and sign in with email and password (the demo sign-in works offline only).','语音功能需要 AxleoCollect 账号。请退出后用邮箱和密码登录（演示登录只能离线使用）。');
+  if(kind==='rateLimit')return l2('Too many requests. Please try again shortly.','请求过多，请稍后再试。');
+  if(kind==='timeout')return l2('The voice service took too long. Please try again.','语音服务响应超时，请重试。');
+  if(kind==='upstream'||kind==='unavailable')return l2('Voice service is unavailable. Try again soon, or type instead.','语音服务暂不可用，请稍后重试或直接输入文字。');
+  return l2('Could not connect. Check your connection and try again.','连接失败，请检查网络后重试。');
+}
