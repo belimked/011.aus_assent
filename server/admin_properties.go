@@ -142,11 +142,11 @@ func (a *app) adminParcelMap(w http.ResponseWriter, r *http.Request) {
 		problem(w, 400, "invalid bbox")
 		return
 	}
-	limit := pageLimit(r)
-	if limit > 100 {
-		limit = 100
+	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+	if err != nil || limit < 1 || limit > 5000 {
+		limit = 5000
 	}
-	rows, e := a.db.Query(`SELECT p.id,p.data,p.registered,o.property_id IS NOT NULL FROM properties p LEFT JOIN property_ownership o ON o.property_id=p.id WHERE p.deleted_at IS NULL AND CAST(json_extract(p.data,'$.lng') AS REAL) BETWEEN ? AND ? AND CAST(json_extract(p.data,'$.lat') AS REAL) BETWEEN ? AND ? ORDER BY p.id LIMIT ?`, b[0], b[2], b[1], b[3], limit)
+	rows, e := a.db.Query(`SELECT p.id,COALESCE(json_extract(p.data,'$.lotplan'),''),p.registered,o.property_id IS NOT NULL FROM properties p LEFT JOIN property_ownership o ON o.property_id=p.id WHERE p.deleted_at IS NULL AND CAST(COALESCE(json_extract(p.data,'$.lng'),json_extract(p.data,'$.ll[1]')) AS REAL) BETWEEN ? AND ? AND CAST(COALESCE(json_extract(p.data,'$.lat'),json_extract(p.data,'$.ll[0]')) AS REAL) BETWEEN ? AND ? ORDER BY p.id LIMIT ?`, b[0], b[2], b[1], b[3], limit)
 	if e != nil {
 		problem(w, 500, "database error")
 		return
@@ -154,28 +154,12 @@ func (a *app) adminParcelMap(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 	features := []any{}
 	for rows.Next() {
-		var id, raw string
+		var id, lotplan string
 		var registered, owned int
-		if rows.Scan(&id, &raw, &registered, &owned) != nil {
+		if rows.Scan(&id, &lotplan, &registered, &owned) != nil {
 			continue
 		}
-		var data map[string]any
-		_ = json.Unmarshal([]byte(raw), &data)
-		coords := []any{}
-		if pts, ok := data["geometry"].([]any); ok {
-			for _, v := range pts {
-				p, ok := v.(map[string]any)
-				if ok {
-					coords = append(coords, []any{p["lng"], p["lat"]})
-				}
-			}
-		}
-		geom := map[string]any{"type": "Point", "coordinates": []any{data["lng"], data["lat"]}}
-		if len(coords) >= 3 {
-			coords = append(coords, coords[0])
-			geom = map[string]any{"type": "Polygon", "coordinates": []any{coords}}
-		}
-		features = append(features, map[string]any{"type": "Feature", "geometry": geom, "properties": map[string]any{"id": id, "registered": registered != 0, "hasOwner": owned != 0}})
+		features = append(features, map[string]any{"type": "Feature", "geometry": nil, "properties": map[string]any{"id": id, "lotplan": lotplan, "registered": registered != 0, "hasOwner": owned != 0}})
 	}
 	respond(w, 200, map[string]any{"type": "FeatureCollection", "features": features})
 }

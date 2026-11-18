@@ -61,6 +61,10 @@ func TestAdminParcelQueriesAndZones(t *testing.T) {
 	if len(geo["features"].([]any)) != 1 {
 		t.Fatal(geo)
 	}
+	feature := geo["features"].([]any)[0].(map[string]any)
+	if feature["geometry"] != nil || feature["properties"].(map[string]any)["lotplan"] != "1RP123" {
+		t.Fatal("bbox should return status and lot/plan, not fabricated geometry", feature)
+	}
 	stats := request(a, "GET", "/api/v1/admin/parcel-stats", admin, nil)
 	if !strings.Contains(stats.Body.String(), `"total":1`) {
 		t.Fatal(stats.Body)
