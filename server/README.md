@@ -1,5 +1,9 @@
 # AxleoCollect API (B4)
 
+The Vue admin console is built in `../web/` (`NODE_ENV=development npm ci --include=dev && npm run build`) with Vite base `/admin/`. **Generated `server/web/` assets are committed**, so a clean checkout runs `go test ./...` and `go build` without Node. Rebuild and commit the generated files whenever changing `web/src/`; the old vanilla admin page has been replaced. The embedded server serves `/admin/` with hash-history routes. No licensed ownership bulk-export endpoint is provided.
+
+Admin-only parcel APIs: `GET /api/v1/admin/properties?q=&suburb=&registered=true|false&hasOwner=true|false&minYearsHeld=<years>&cursor=<id>&limit=1..100` returns at most 100 parcel records per page, including owner names, absentee flag and covering agents. `GET /api/v1/admin/properties?bbox=<west>,<south>,<east>,<north>&limit=1..100` returns bounded GeoJSON features without owner names; bbox must be at most one degree in each direction. `GET /api/v1/admin/parcel-stats` returns parcel, registration and ownership totals by suburb. `GET /api/v1/admin/zones` lists active zones; `POST /api/v1/admin/zones` accepts `{ownerId,name,pts:[[lat,lng],...]}` or `{ownerId,name,center:[lat,lng],radius:<metres>}` or `{ownerId,name,suburbs:[...]}`; `PATCH /api/v1/admin/zones/{id}` additionally requires `version`, and `DELETE /api/v1/admin/zones/{id}` soft-deletes. Writes use generic resource mutation, with sync triggers and audit records.
+
 Go 1.27, SQLite (pure Go), standard-library HTTP server. From `server/`:
 
 `axleo rex-probe --account <sandbox-id> [--write]` verifies the Rex sandbox; see `../docs/rex-sandbox-probe.md`.

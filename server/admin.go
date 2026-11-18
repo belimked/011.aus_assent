@@ -31,6 +31,18 @@ func createUser(db *sql.DB, email, name, role, pass string) error {
 }
 func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/admin/")
+	if path == "properties" {
+		a.adminProperties(w, r)
+		return
+	}
+	if path == "parcel-stats" && r.Method == "GET" {
+		a.adminParcelStats(w)
+		return
+	}
+	if path == "zones" || strings.HasPrefix(path, "zones/") {
+		a.adminZones(w, r, p, path)
+		return
+	}
 	if strings.HasPrefix(path, "market/") {
 		a.marketAdmin(w, r, p)
 		return

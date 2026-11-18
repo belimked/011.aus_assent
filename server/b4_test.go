@@ -9,7 +9,10 @@ import (
 
 func TestAdminWebAndEndpoints(t *testing.T) {
 	a, tokens := setup(t)
-	for _, url := range []string{"/admin/", "/admin/app.js", "/admin/style.css"} {
+	if !strings.Contains(request(a, "GET", "/admin/", "", nil).Body.String(), "/admin/assets/") {
+		t.Fatal("missing built assets")
+	}
+	for _, url := range []string{"/admin/"} {
 		w := request(a, "GET", url, "", nil)
 		if w.Code != 200 || !strings.Contains(w.Header().Get("Content-Security-Policy"), "script-src 'self'") || w.Header().Get("X-Frame-Options") != "DENY" {
 			t.Fatalf("%s: %d %v", url, w.Code, w.Header())
