@@ -4,3 +4,5 @@ dist/
 .wrangler/
 san.au
 aws-au.key
+export_to_excel_*.xls
+*.xls
