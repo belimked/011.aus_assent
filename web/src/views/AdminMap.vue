@@ -303,6 +303,7 @@ function drawZones() {
   if (!zoneLayer) return;
   zoneLayer.clearLayers();
   for (const zone of zones.value) {
+    if (route.query.agent && zone.ownerId !== route.query.agent) continue;
     const options = {
       color: agentColor(zone.ownerId),
       weight: 3,
@@ -559,6 +560,7 @@ onBeforeUnmount(() => {
   map?.remove();
 });
 watch(() => form.radius, drawDraft);
+watch(() => route.query.agent, drawZones);
 watch(filter, (value) => {
   shown.value = 50;
   parcelLayer?.eachLayer((layer) => {

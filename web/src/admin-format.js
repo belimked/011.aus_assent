@@ -14,6 +14,10 @@ export function fmtDate(value) {
         day: "numeric",
       });
 }
+export function fmtDateTime(value) {
+  if (!value || Number.isNaN(new Date(value).valueOf())) return "—";
+  return `${fmtDate(value)} ${new Date(value).toLocaleTimeString(dateLocale(), { hour: "2-digit", minute: "2-digit" })}`;
+}
 export function relTime(value) {
   if (!value) return t("从未");
   const date = new Date(value);

@@ -116,7 +116,11 @@
                 column.key === 'createdAt' ||
                 column.key === 'updated_at'
               "
-              >{{ fmtDate(row[column.key]) }}</span
+              >{{
+                ["at", "created_at", "createdAt"].includes(column.key)
+                  ? fmtDateTime(row[column.key])
+                  : fmtDate(row[column.key])
+              }}</span
             >
             <span v-else-if="column.key === 'summary'">{{
               row.summary || row.recordId || row.primaryId || "—"
@@ -181,7 +185,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { Upload } from "@element-plus/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { api } from "../api";
-import { approvalKind, fmtDate } from "../admin-format";
+import { approvalKind, fmtDate, fmtDateTime } from "../admin-format";
 import { t } from "../i18n";
 import StatusPill from "../components/StatusPill.vue";
 
