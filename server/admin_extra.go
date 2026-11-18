@@ -24,7 +24,7 @@ func (a *app) overview(w http.ResponseWriter) {
 	_ = a.db.QueryRow(`SELECT count(*) FROM approvals WHERE status='pending' AND deleted_at IS NULL`).Scan(&pending)
 	_ = a.db.QueryRow(`SELECT count(*) FROM audit_log WHERE at>=?`, time.Now().UTC().Add(-24*time.Hour).Format(layout)).Scan(&writes)
 	_ = a.db.QueryRow(`SELECT count(*) FROM schema_migrations`).Scan(&schema)
-	rex := map[string]int64{"waiting_auth": 0, "pending": 0, "sent": 0, "failed": 0}
+	rex := map[string]int64{"waiting_auth": 0, "pending": 0, "sent": 0, "failed": 0, "skipped": 0}
 	rows, err := a.db.Query(`SELECT status,count(*) FROM rex_outbox GROUP BY status`)
 	if err != nil {
 		problem(w, 500, "database error")
