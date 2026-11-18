@@ -24,13 +24,26 @@ async function requestResponse(path:string,body:BodyInit,timeout:number,contentT
   finally{clearTimeout(timer);}
 }
 async function request(path:string,body:BodyInit,timeout:number,contentType?:string){return (await requestResponse(path,body,timeout,contentType)).json()}
+export function multipartBody(file:Uint8Array,filename:string,type:string,fields:Record<string,string>){
+  const boundary=`----AxleoBoundary${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;const enc=new TextEncoder();
+  let head='';for(const [k,v] of Object.entries(fields))head+=`--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`;
+  head+=`--${boundary}\r\nContent-Disposition: form-data; name="audio"; filename="${filename}"\r\nContent-Type: ${type}\r\n\r\n`;
+  const a=enc.encode(head),b=enc.encode(`\r\n--${boundary}--\r\n`);const body=new Uint8Array(a.length+file.length+b.length);
+  body.set(a,0);body.set(file,a.length);body.set(b,a.length+file.length);
+  return {body,contentType:`multipart/form-data; boundary=${boundary}`};
+}
 export async function transcribe(uri:string,lang:VoiceLang):Promise<{text:string;lang:string;durationMs:number;latencyMs:number}>{
   try{
-    const data=new FormData();const ext=Platform.OS==='ios'?'wav':uri.split('?')[0].split('.').pop()||'m4a';
-    // RN requires a file descriptor; fetch must set the multipart boundary itself.
-    data.append('audio',{uri,name:`recording.${ext}`,type:ext==='wav'?'audio/wav':ext==='webm'?'audio/webm':'audio/mp4'} as unknown as Blob);
-    data.append('lang',lang);
-    return await request('/stt/transcribe',data,30000);
+    const ext=Platform.OS==='ios'?'wav':uri.split('?')[0].split('.').pop()||'m4a';
+    const type=ext==='wav'?'audio/wav':ext==='webm'?'audio/webm':'audio/mp4';
+    if(Platform.OS==='web'){
+      const data=new FormData();data.append('audio',await (await fetch(uri)).blob(),`recording.${ext}`);data.append('lang',lang);
+      return await request('/stt/transcribe',data,30000);
+    }
+    // expo/fetch rejects RN-style {uri,name,type} FormData parts ("Unsupported FormDataPart implementation"),
+    // so build the multipart body from the file bytes ourselves.
+    const {body,contentType}=multipartBody(await new File(uri).bytes(),`recording.${ext}`,type,{lang});
+    return await request('/stt/transcribe',body as unknown as BodyInit,30000,contentType);
   }finally{if(Platform.OS!=='web')try{new File(uri).delete()}catch{}}
 }
 export async function aiExtract(text:string,ctx:VoiceCtx,lang?:VoiceLang):Promise<AIResult>{
