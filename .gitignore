@@ -3,3 +3,4 @@ node_modules/
 dist/
 .wrangler/
 san.au
+aws-au.key
