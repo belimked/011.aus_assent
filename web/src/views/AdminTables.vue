@@ -1,2 +1,479 @@
-<template><div class="page"><h1>{{ t(titles[page]) }}</h1><div v-if="page==='team'" class="card card-b row"><el-input v-model="form.email" :placeholder="t('邮箱')"/><el-input v-model="form.name" :placeholder="t('姓名')"/><el-select v-model="form.role" style="width:150px"><el-option value="agent" label="agent"/><el-option value="admin" label="admin"/></el-select><el-input v-model="form.password" type="password" :placeholder="t('密码')"/><el-button @click="create">{{ t('创建账户') }}</el-button></div><div v-if="page==='market'" class="card card-b row"><input type="file" accept=".csv,.xls,.xlsx" @change="file=$event.target.files[0]"/><el-select v-model="kind" style="width:150px"><el-option v-for="k in ['auto','sale','listing','ownership']" :key="k" :value="k" :label="k"/></el-select><el-checkbox v-model="dry">{{ t('试运行') }}</el-checkbox><el-button @click="upload">{{ t('导入文件') }}</el-button></div><div class="row" style="margin:16px 0" v-if="page==='review'||page==='rex'||page==='data'"><el-select v-model="filter" @change="load(true)" style="width:220px"><el-option v-for="f in options" :key="f" :value="f" :label="f||t('全部')"/></el-select></div><div v-if="page==='audit'" class="row" style="margin:16px 0"><el-input v-model="audit.user" :placeholder="t('用户 ID')"/><el-input v-model="audit.entity" :placeholder="t('实体')"/><el-input v-model="audit.action" :placeholder="t('动作')"/><input v-model="audit.from" type="datetime-local"/><input v-model="audit.to" type="datetime-local"/><el-button @click="load(true)">{{ t('筛选') }}</el-button></div><el-table :data="items" class="card" style="margin-top:14px"><template v-for="col in columns[page]" :key="col[0]"><el-table-column :prop="col[0]" :label="t(col[1])" min-width="110"><template #default="{row}"><template v-if="col[0]==='actions'"><template v-if="page==='team'"><el-button size="small" @click="change(row,{role:row.role==='admin'?'agent':'admin'})">{{ t('切换角色') }}</el-button><el-button size="small" @click="change(row,{disabled:!row.disabled})">{{ t(row.disabled?'启用':'禁用') }}</el-button><el-button size="small" @click="reset(row)">{{ t('重置密码') }}</el-button><el-button size="small" @click="revoke(row)">{{ t('撤销会话') }}</el-button><router-link :to="'/map?agent='+row.id">{{ t('区域') }} ({{ zones.filter(z=>z.ownerId===row.id).length }})</router-link></template><template v-if="page==='review'&&row.status==='pending'"><el-button size="small" @click="decide(row,'approve')">{{ t('批准') }}</el-button><el-button size="small" @click="decide(row,'reject')">{{ t('拒绝') }}</el-button></template><el-button v-if="page==='rex'&&row.status==='failed'" size="small" @click="retry(row)">{{ t('重试') }}</el-button><el-button v-if="page==='market'" size="small" @click="detail(row)">{{ t('详情') }}</el-button></template><el-button v-else-if="['payload','diff','agentCounts'].includes(col[0])||col[0]==='record'" link @click="detail(row)">{{ t('查看') }}</el-button><span v-else>{{ col[0]==='summary'?row.summary||row.recordId||row.primaryId:row[col[0]] }}</span></template></el-table-column></template></el-table><el-button v-if="['review','audit','rex','data'].includes(page)" :disabled="items.length<50" style="margin-top:15px" @click="next">{{ t('下一页') }}</el-button><el-drawer v-model="drawer" :title="t('详情')" size="550px"><pre style="white-space:pre-wrap;overflow-wrap:anywhere">{{ JSON.stringify(detailData,null,2) }}</pre></el-drawer></div></template>
-<script setup>import {ref,reactive,computed,watch,onMounted} from 'vue';import {api} from '../api';import {t} from '../i18n';import {ElMessage,ElMessageBox} from 'element-plus';const props=defineProps({page:String});const titles={team:'团队与权限',review:'审核队列',audit:'审计日志',rex:'Rex 队列',market:'市场数据',data:'数据浏览'};const columns={team:[['name','姓名'],['email','邮箱'],['role','角色'],['disabled','已禁用'],['lastLogin','最近登录'],['device','设备'],['actions','操作']],review:[['requesterName','申请人'],['kind','类型'],['summary','记录'],['status','状态'],['note','备注'],['actions','操作']],audit:[['at','时间'],['user_id','用户 ID'],['entity','实体'],['action','动作'],['device','设备'],['diff','差异']],rex:[['created_at','时间'],['entity','实体'],['op','操作'],['status','状态'],['tries','次数'],['payload','内容'],['actions','操作']],market:[['createdAt','日期'],['filename','文件'],['rows','行数'],['success','成功'],['errors','错误'],['unmatched','未匹配'],['agentCounts','经纪人'],['actions','操作']],data:[['id','ID'],['updated_at','更新'],['record','记录']]};const kinds=['contacts','properties','todos','captures','enquiries','leads','listings','ofi_attendees','sales','contracts','referrals','market_items','zones','tags'];const options=computed(()=>({review:['pending','approved','rejected'],rex:['','waiting_auth','pending','sent','failed','skipped'],data:kinds})[props.page]||[]);const filter=ref(''),items=ref([]),cursor=ref(''),zones=ref([]),drawer=ref(false),detailData=ref(null),file=ref(null),kind=ref('auto'),dry=ref(false),audit=reactive({user:'',entity:'',action:'',from:'',to:''}),form=reactive({email:'',name:'',role:'agent',password:''});async function load(reset=false){if(reset)cursor.value='';if(props.page==='team')zones.value=await api('admin/zones');const path={team:'admin/users',review:'admin/approvals',audit:'admin/audit',rex:'admin/rex-outbox',market:'admin/market/imports',data:'admin/data'}[props.page];if(!path)return;const q=new URLSearchParams();if(props.page==='data')q.set('kind',filter.value||'contacts');if(['rex','review'].includes(props.page)&&filter.value)q.set('status',filter.value);if(props.page==='audit')for(const [k,v] of Object.entries(audit))if(v)q.set(k,k==='from'||k==='to'?new Date(v).toISOString():v);if(cursor.value)q.set(props.page==='data'?'before':props.page==='review'?'before':'before',cursor.value);try{items.value=await api(path+'?'+q)}catch(e){ElMessage.error(e.message)}}function next(){cursor.value=items.value.at(-1).id;load()}async function change(row,patch){try{await api('admin/users',{method:'PATCH',body:JSON.stringify({id:row.id,version:row.version,...patch})});load()}catch(e){ElMessage.error(e.message)}}async function create(){try{await api('admin/users',{method:'POST',body:JSON.stringify(form)});load()}catch(e){ElMessage.error(e.message)}}async function reset(row){try{const {value}=await ElMessageBox.prompt(t('新密码（至少 8 位）'));await change(row,{password:value})}catch{}}async function revoke(row){try{await api('admin/users/'+encodeURIComponent(row.id)+'/revoke',{method:'POST'});ElMessage.success(t('已撤销'))}catch(e){ElMessage.error(e.message)}}async function decide(row,decision){try{const {value}=await ElMessageBox.prompt(t('审核备注'),'',{inputValue:''});await api('approvals/'+encodeURIComponent(row.id)+'/decide',{method:'POST',body:JSON.stringify({decision,note:value})});load(true)}catch(e){if(e instanceof Error)ElMessage.error(e.message)}}async function retry(row){try{await api('admin/rex-outbox/'+row.id+'/retry',{method:'POST'});load()}catch(e){ElMessage.error(e.message)}}async function detail(row){try{detailData.value=props.page==='market'?await api('admin/market/imports/'+encodeURIComponent(row.id)):row;drawer.value=true}catch(e){ElMessage.error(e.message)}}async function upload(){if(!file.value)return;const fd=new FormData();fd.set('file',file.value);fd.set('kind',kind.value);fd.set('dryRun',String(dry.value));try{detailData.value=await api('admin/market/imports',{method:'POST',body:fd});drawer.value=true;load()}catch(e){ElMessage.error(e.message)}}watch(()=>props.page,()=>{filter.value=props.page==='review'?'pending':props.page==='data'?'contacts':'';load(true)});onMounted(()=>{filter.value=props.page==='review'?'pending':props.page==='data'?'contacts':'';load(true)})</script>
+<template>
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h1>{{ t(titles[page]) }}</h1>
+        <div class="sub">{{ t(descriptions[page]) }}</div>
+      </div>
+    </div>
+
+    <div v-if="page === 'market'" class="card bar">
+      <label class="field"
+        >{{ t("市场文件")
+        }}<input
+          type="file"
+          accept=".csv,.xls,.xlsx"
+          @change="file = $event.target.files[0]"
+      /></label>
+      <label class="field"
+        >{{ t("导入类型") }}
+        <el-select v-model="kind" style="width: 160px">
+          <el-option
+            v-for="option in importKinds"
+            :key="option.key"
+            :value="option.key"
+            :label="t(option.label)"
+          />
+        </el-select>
+      </label>
+      <el-checkbox v-model="dry">{{ t("试运行") }}</el-checkbox>
+      <el-button :icon="Upload" type="primary" @click="upload">{{
+        t("导入文件")
+      }}</el-button>
+    </div>
+
+    <div v-if="['review', 'rex', 'data'].includes(page)" class="card bar">
+      <label class="field"
+        >{{ t(page === "data" ? "数据类型" : "状态") }}
+        <el-select v-model="filter" style="width: 200px" @change="load(true)">
+          <el-option
+            v-for="option in options"
+            :key="option.key"
+            :value="option.key"
+            :label="t(option.label)"
+          />
+        </el-select>
+      </label>
+    </div>
+    <div v-if="page === 'audit'" class="card bar">
+      <label class="field"
+        >{{ t("用户 ID") }}<el-input v-model="audit.user"
+      /></label>
+      <label class="field"
+        >{{ t("实体") }}<el-input v-model="audit.entity"
+      /></label>
+      <label class="field"
+        >{{ t("动作") }}<el-input v-model="audit.action"
+      /></label>
+      <label class="field"
+        >{{ t("开始") }}<input v-model="audit.from" type="datetime-local"
+      /></label>
+      <label class="field"
+        >{{ t("结束") }}<input v-model="audit.to" type="datetime-local"
+      /></label>
+      <el-button @click="load(true)">{{ t("筛选") }}</el-button>
+    </div>
+
+    <div class="card">
+      <el-table
+        :data="items"
+        height="calc(100vh - 290px)"
+        row-class-name="record-row"
+      >
+        <el-table-column
+          v-for="column in columns[page]"
+          :key="column.key"
+          :label="t(column.label)"
+          :min-width="column.width || 115"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            <template v-if="column.key === 'actions'">
+              <template v-if="page === 'review' && row.status === 'pending'">
+                <el-button size="small" @click="decide(row, 'approve')">{{
+                  t("批准")
+                }}</el-button>
+                <el-button
+                  size="small"
+                  type="danger"
+                  plain
+                  @click="decide(row, 'reject')"
+                  >{{ t("拒绝") }}</el-button
+                >
+              </template>
+              <el-button
+                v-if="page === 'rex' && row.status === 'failed'"
+                size="small"
+                @click="retry(row)"
+                >{{ t("重试") }}</el-button
+              >
+              <el-button v-if="page === 'market'" link @click="detail(row)">{{
+                t("详情")
+              }}</el-button>
+            </template>
+            <StatusPill
+              v-else-if="column.key === 'status'"
+              :status="row.status"
+              short
+            />
+            <span v-else-if="column.key === 'kind'">{{
+              approvalKind(row.kind)
+            }}</span>
+            <span
+              v-else-if="
+                column.key === 'at' ||
+                column.key === 'created_at' ||
+                column.key === 'createdAt' ||
+                column.key === 'updated_at'
+              "
+              >{{ fmtDate(row[column.key]) }}</span
+            >
+            <span v-else-if="column.key === 'summary'">{{
+              row.summary || row.recordId || row.primaryId || "—"
+            }}</span>
+            <el-button
+              v-else-if="
+                ['payload', 'diff', 'agentCounts', 'record'].includes(
+                  column.key,
+                )
+              "
+              link
+              @click="detail(row)"
+              >{{ t("查看") }}</el-button
+            >
+            <span v-else>{{ row[column.key] ?? "—" }}</span>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+    <div v-if="page !== 'market'" class="pager">
+      <span class="small muted">{{
+        t("本页 {n} 条", { n: items.length })
+      }}</span>
+      <el-button :disabled="items.length < 50" @click="next">{{
+        t("下一页")
+      }}</el-button>
+    </div>
+
+    <el-drawer v-model="drawer" :title="t('详情')" size="550px">
+      <template v-if="page === 'market' && detailData">
+        <div class="report">
+          <div v-for="field in reportFields" :key="field.key">
+            <span class="small muted">{{ t(field.label) }}</span>
+            <b>{{ detailData[field.key] ?? 0 }}</b>
+          </div>
+        </div>
+        <h3>{{ t("经纪人通知") }}</h3>
+        <div v-for="(count, id) in detailData.agentCounts || {}" :key="id">
+          {{ id }} · {{ count }}
+        </div>
+        <h3>{{ t("错误明细") }}</h3>
+        <p v-for="(error, index) in detailData.errorDetails || []" :key="index">
+          {{ error }}
+        </p>
+        <h3>{{ t("未匹配地址") }}</h3>
+        <el-table
+          :data="detailData.unmatched || detailData.unmatchedAddresses || []"
+        >
+          <el-table-column prop="address" :label="t('地址')" />
+          <el-table-column prop="suburb" :label="t('区域')" />
+          <el-table-column prop="postcode" :label="t('邮编')" />
+          <el-table-column prop="kind" :label="t('类型')" />
+        </el-table>
+      </template>
+      <pre v-else class="json">{{ JSON.stringify(detailData, null, 2) }}</pre>
+    </el-drawer>
+  </div>
+</template>
+
+<script setup>
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import { Upload } from "@element-plus/icons-vue";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { api } from "../api";
+import { approvalKind, fmtDate } from "../admin-format";
+import { t } from "../i18n";
+import StatusPill from "../components/StatusPill.vue";
+
+const props = defineProps({ page: String });
+const titles = {
+  review: "审核队列",
+  audit: "审计日志",
+  rex: "Rex 队列",
+  market: "市场数据",
+  data: "数据浏览",
+};
+const descriptions = {
+  review: "重新分配与合并申请",
+  audit: "按用户、实体、动作和时间筛选",
+  rex: "Rex 投递状态与重试",
+  market: "市场文件导入与历史",
+  data: "只读业务数据",
+};
+const columns = {
+  review: [
+    { key: "requesterName", label: "申请人" },
+    { key: "kind", label: "类型" },
+    { key: "summary", label: "记录", width: 180 },
+    { key: "status", label: "状态" },
+    { key: "note", label: "备注" },
+    { key: "actions", label: "操作", width: 165 },
+  ],
+  audit: [
+    { key: "at", label: "时间" },
+    { key: "user_id", label: "用户 ID" },
+    { key: "entity", label: "实体" },
+    { key: "action", label: "动作" },
+    { key: "device", label: "设备" },
+    { key: "diff", label: "差异" },
+  ],
+  rex: [
+    { key: "created_at", label: "时间" },
+    { key: "entity", label: "实体" },
+    { key: "op", label: "操作" },
+    { key: "status", label: "状态" },
+    { key: "tries", label: "次数" },
+    { key: "payload", label: "内容" },
+    { key: "actions", label: "操作" },
+  ],
+  market: [
+    { key: "createdAt", label: "日期" },
+    { key: "filename", label: "文件", width: 180 },
+    { key: "rows", label: "行数" },
+    { key: "success", label: "成功" },
+    { key: "errors", label: "错误" },
+    { key: "unmatched", label: "未匹配" },
+    { key: "agentCounts", label: "经纪人" },
+    { key: "actions", label: "操作" },
+  ],
+  data: [
+    { key: "id", label: "ID", width: 220 },
+    { key: "updated_at", label: "更新" },
+    { key: "record", label: "记录" },
+  ],
+};
+const kinds = [
+  "contacts",
+  "properties",
+  "todos",
+  "captures",
+  "enquiries",
+  "leads",
+  "listings",
+  "ofi_attendees",
+  "sales",
+  "contracts",
+  "referrals",
+  "market_items",
+  "zones",
+  "tags",
+];
+const kindLabels = {
+  contacts: "联系人",
+  properties: "房产",
+  todos: "待办",
+  captures: "采集记录",
+  enquiries: "咨询",
+  leads: "线索",
+  listings: "房源",
+  ofi_attendees: "开放参观登记",
+  sales: "成交",
+  contracts: "合同",
+  referrals: "转介",
+  market_items: "市场记录",
+  zones: "区域",
+  tags: "标签",
+};
+const options = computed(
+  () =>
+    ({
+      review: ["pending", "approved", "rejected"].map((key) => ({
+        key,
+        label: { pending: "待审核", approved: "已批准", rejected: "已拒绝" }[
+          key
+        ],
+      })),
+      rex: ["all", "waiting_auth", "pending", "sent", "failed", "skipped"].map(
+        (key) => ({
+          key,
+          label: {
+            all: "全部",
+            waiting_auth: "等待授权",
+            pending: "待投递",
+            sent: "已发送",
+            failed: "失败",
+            skipped: "已跳过",
+          }[key],
+        }),
+      ),
+      data: kinds.map((key) => ({ key, label: kindLabels[key] })),
+    })[props.page] || [],
+);
+const importKinds = [
+  { key: "auto", label: "自动识别" },
+  { key: "sale", label: "成交" },
+  { key: "listing", label: "房源" },
+  { key: "ownership", label: "产权" },
+];
+const reportFields = [
+  { key: "rows", label: "行数" },
+  { key: "success", label: "成功" },
+  { key: "skipped", label: "已跳过" },
+  { key: "errors", label: "错误" },
+  { key: "ignored", label: "页脚忽略" },
+  { key: "ownershipUpdated", label: "产权更新" },
+  { key: "salesRecorded", label: "成交记录" },
+  { key: "salesNotified", label: "成交通知" },
+];
+const filter = ref("");
+const items = ref([]);
+const cursor = ref("");
+const drawer = ref(false);
+const detailData = ref(null);
+const file = ref(null);
+const kind = ref("auto");
+const dry = ref(false);
+const audit = reactive({ user: "", entity: "", action: "", from: "", to: "" });
+
+async function load(reset = false) {
+  if (reset) cursor.value = "";
+  const path = {
+    review: "admin/approvals",
+    audit: "admin/audit",
+    rex: "admin/rex-outbox",
+    market: "admin/market/imports",
+    data: "admin/data",
+  }[props.page];
+  if (!path) return;
+  const params = new URLSearchParams();
+  if (props.page === "data") params.set("kind", filter.value || "contacts");
+  if (
+    ["review", "rex"].includes(props.page) &&
+    filter.value &&
+    filter.value !== "all"
+  ) {
+    params.set("status", filter.value);
+  }
+  if (props.page === "audit") {
+    for (const [key, value] of Object.entries(audit)) {
+      if (value)
+        params.set(
+          key,
+          ["from", "to"].includes(key) ? new Date(value).toISOString() : value,
+        );
+    }
+  }
+  if (cursor.value) params.set("before", cursor.value);
+  try {
+    items.value = await api(`${path}?${params}`);
+  } catch (error) {
+    ElMessage.error(error.message);
+  }
+}
+function next() {
+  cursor.value = items.value.at(-1).id;
+  load();
+}
+async function decide(row, decision) {
+  try {
+    const { value } = await ElMessageBox.prompt(t("审核备注"), "", {
+      inputValue: "",
+    });
+    await api(`approvals/${encodeURIComponent(row.id)}/decide`, {
+      method: "POST",
+      body: JSON.stringify({ decision, note: value }),
+    });
+    load(true);
+  } catch (error) {
+    if (error instanceof Error) ElMessage.error(error.message);
+  }
+}
+async function retry(row) {
+  try {
+    await api(`admin/rex-outbox/${row.id}/retry`, { method: "POST" });
+    load();
+  } catch (error) {
+    ElMessage.error(error.message);
+  }
+}
+async function detail(row) {
+  try {
+    detailData.value =
+      props.page === "market"
+        ? await api(`admin/market/imports/${encodeURIComponent(row.id)}`)
+        : row;
+    drawer.value = true;
+  } catch (error) {
+    ElMessage.error(error.message);
+  }
+}
+async function upload() {
+  if (!file.value) return ElMessage.warning(t("请选择市场文件"));
+  const body = new FormData();
+  body.set("file", file.value);
+  body.set("kind", kind.value);
+  body.set("dryRun", String(dry.value));
+  try {
+    detailData.value = await api("admin/market/imports", {
+      method: "POST",
+      body,
+    });
+    drawer.value = true;
+    load(true);
+  } catch (error) {
+    ElMessage.error(error.message);
+  }
+}
+function reset() {
+  filter.value =
+    props.page === "review"
+      ? "pending"
+      : props.page === "data"
+        ? "contacts"
+        : "all";
+  load(true);
+}
+watch(() => props.page, reset);
+onMounted(reset);
+</script>
+
+<style scoped>
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 14px;
+  padding: 14px;
+}
+.field {
+  display: grid;
+  gap: 5px;
+  min-width: 145px;
+  font-size: 12px;
+  color: var(--mut);
+}
+.field input[type="datetime-local"],
+.field input[type="file"] {
+  padding: 7px;
+  font: inherit;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.pager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+}
+.report {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.report > div {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.report b {
+  display: block;
+  margin-top: 5px;
+  font-size: 20px;
+}
+.json {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+</style>
