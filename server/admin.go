@@ -35,6 +35,48 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 		a.marketAdmin(w, r, p)
 		return
 	}
+	if strings.HasPrefix(path, "rex-outbox/") && strings.HasSuffix(path, "/retry") && r.Method == "POST" {
+		id, err := strconvAtoi(strings.TrimSuffix(strings.TrimPrefix(path, "rex-outbox/"), "/retry"))
+		if err != nil || id <= 0 {
+			problem(w, 400, "invalid id")
+			return
+		}
+		// An uncertain create cannot be replayed until an operator records its Rex id.
+		var entity, localID, reason string
+		if err := a.db.QueryRow(`SELECT entity,entity_id,COALESCE(last_error,'') FROM rex_outbox WHERE id=? AND status IN ('failed','skipped')`, id).Scan(&entity, &localID, &reason); err != nil {
+			problem(w, 404, "row not retryable")
+			return
+		}
+		if strings.Contains(reason, "reconcile before retry") {
+			if entity == "contacts" {
+				var raw string
+				_ = a.db.QueryRow(`SELECT payload FROM rex_outbox WHERE id=?`, id).Scan(&raw)
+				var m map[string]any
+				_ = json.Unmarshal([]byte(raw), &m)
+				if str(m, "contactId") != "" && str(m, "t") != "" {
+					entity, localID = "contact_notes", str(m, "id")
+				}
+			}
+			var linked int
+			_ = a.db.QueryRow(`SELECT count(*) FROM rex_links WHERE entity=? AND local_id=?`, entity, localID).Scan(&linked)
+			if linked == 0 {
+				problem(w, 409, "reconcile Rex record and link id before retry")
+				return
+			}
+		}
+		res, err := a.db.Exec(`UPDATE rex_outbox SET status='pending',tries=0,last_error=NULL,next_attempt_at=NULL WHERE id=? AND status IN ('failed','skipped')`, id)
+		if err != nil {
+			problem(w, 500, "database error")
+			return
+		}
+		n, _ := res.RowsAffected()
+		if n == 0 {
+			problem(w, 404, "row not retryable")
+			return
+		}
+		respond(w, 200, map[string]any{"id": id, "status": "pending"})
+		return
+	}
 	if path == "overview" && r.Method == "GET" {
 		a.overview(w)
 		return
@@ -522,6 +564,9 @@ func main() {
 		fmt.Println(string(out))
 	case "serve":
 		a := &app{db: db, failures: map[string][]time.Time{}}
+		if worker := newRexWorker(db); worker != nil {
+			go worker.run(context.Background())
+		}
 		fatal(http.ListenAndServe(env("AXLEO_ADDR", "127.0.0.1:8082"), a.routes()))
 	default:
 		fatal(fmt.Errorf("unknown command"))

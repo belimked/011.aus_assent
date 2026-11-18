@@ -14,6 +14,10 @@ import (
 	"unicode"
 )
 
+type rexRateError struct{ delay time.Duration }
+
+func (e rexRateError) Error() string { return "Rex rate limited" }
+
 type rexEnvelope struct {
 	Result json.RawMessage `json:"result"`
 	Error  json.RawMessage `json:"error"`
@@ -123,6 +127,13 @@ func (c *rexClient) callPath(ctx context.Context, service, method string, body a
 			case <-t.C:
 			}
 			continue
+		}
+		if resp.StatusCode == 429 {
+			delay := time.Second
+			if n, e := strconv.Atoi(resp.Header.Get("Retry-After")); e == nil && n > 0 {
+				delay = time.Duration(n) * time.Second
+			}
+			return raw, e, rexRateError{delay}
 		}
 		if json.Unmarshal(raw, &e) != nil {
 			return raw, e, fmt.Errorf("Rex HTTP %d: invalid envelope", resp.StatusCode)
