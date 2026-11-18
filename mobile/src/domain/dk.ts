@@ -1,11 +1,33 @@
-import type {AppState, Contact} from '../data/types';
+import type {AppState, Contact, Property} from '../data/types';
 import {TODAY} from '../data/seed';
 import {addTodo, audit, byId, linkOwner, matchContacts, normMobile, noteOn} from './index';
 
 export const isLongHold=(durationMs:number)=>durationMs>=260;
 export const matchesAddress=(address:string,query:string)=>address.toLowerCase().includes(query.trim().toLowerCase());
 export const houseNumberOrder=(a:{no:string},b:{no:string})=>parseInt(a.no,10)-parseInt(b.no,10);
-export type DKFields = {first:string;last:string;mobile:string;email:string;relation:string;note:string;reason:string;tags:string[];followup?:string;linked?:string};
+export type DKFields = {first:string;last:string;mobile:string;email:string;relation:string;note:string;reason:string;tags:string[];followup?:string;linked?:string;consent?:Record<string,number>};
+export function applyTags(s:AppState,c:Contact,p:Property|undefined,tags:string[]){
+  c.tags=[...new Set(tags)];c.flags.dnc=c.tags.includes('Do not contact');
+  if(p)p.flags.dnc=c.flags.dnc;
+  if(c.flags.dnc)c.consent={...c.consent,email:0,sms:0,phone:0,letter:0};
+  if(c.tags.includes('No junk mail'))c.consent={...c.consent,junk:0};
+  const reason=c.tags.find(t=>['Downsizing','Upsizing','Moving for school','Relocating','Investor'].includes(t));if(reason)c.reason=reason;
+  if(p&&c.tags.some(t=>['Not at home','Left card','Friendly','Not interested'].includes(t))){p.visits=[...(p.visits||[]),{d:TODAY,o:c.tags.includes('Not at home')?'not_home':c.tags.includes('Left card')?'left_card':c.tags.includes('Not interested')?'not_int':'spoke'}];}
+  c.updated={by:s.auth?.name||'Owen Chen',d:TODAY};audit(s,'Tags',`${c.first} ${c.last}`.trim()+' · '+c.tags.join(', '));
+}
+export function applyPreference(s:AppState,c:Contact,k:string,val:number,reason=''){
+  c.consent={...c.consent,[k]:val};c.optedOut=c.consent.sms===0;
+  if(k==='junk')c.tags=val?c.tags.filter(t=>t!=='No junk mail'):[...new Set([...c.tags,'No junk mail'])];
+  const label=({sms:'Text',phone:'Call',email:'Email',letter:'Letter',junk:'Junk mail'} as Record<string,string>)[k]||k;
+  c.prefLog={d:TODAY,by:s.auth?.name||'Owen Chen',t:`${label}: ${val?'opted in':'opted out'}${reason?' · “'+reason+'”':''}`};
+  noteOn(s,c,`Preferences · ${label} ${val?'opted in':'opted out'}${reason?' · '+reason:''}`);audit(s,'Preferences',`${c.first} ${c.last}`.trim()+` · ${label}=${val}`);
+}
+export function filePropertyNote(s:AppState,propId:string,txt:string){
+  const p=byId(s.properties,propId);if(!p)throw new Error('Property not found');
+  let c=byId(s.contacts,p.ownerIds[0]);
+  if(!c){c={id:'c'+Date.now(),first:p.pfOwner||'Owner',last:'',mobile:'',email:'',owner:s.auth?.name||'Owen Chen',roles:['owner'],tags:[],flags:{},notes:[],rels:[]};s.contacts.push(c);linkOwner(s,c,p);}
+  noteOn(s,c,txt);p.visits=[...(p.visits||[]),{d:TODAY,o:'spoke'}];audit(s,'Note',`${p.no} ${p.street}`);return c;
+}
 export function commitDK(s:AppState, propId:string, r:DKFields, pick?:string) {
   const p=byId(s.properties,propId);
   const matches=matchContacts(s,r);
@@ -21,13 +43,16 @@ export function commitDK(s:AppState, propId:string, r:DKFields, pick?:string) {
     if(r.email)c.email=r.email;
   }
   if(r.relation&&!c.roles.includes(r.relation))c.roles.push(r.relation);
-  c.tags=[...new Set([...c.tags,...r.tags])];
+  applyTags(s,c,p,[...c.tags,...r.tags]);
   if(r.reason)c.reason=r.reason;
-  if(c.tags.includes('Do not contact')){c.flags.dnc=true;c.consent={email:0,sms:0,phone:0,letter:0};}
-  if(c.tags.includes('No junk mail'))c.consent={...c.consent,junk:0};
+  if(r.consent)c.consent={...c.consent,...r.consent};
+  if(c.flags.dnc)c.consent={...c.consent,email:0,sms:0,phone:0,letter:0};
+  c.optedOut=c.consent?.sms===0;
+  if(r.consent)c.consentRec={d:TODAY,how:'At the door'};
   if(r.linked){c.rels=c.rels||[];c.rels.push({type:'Partner of',name:r.linked});}
   if(r.note)noteOn(s,c,r.note);
-  if(p&&r.relation==='owner')linkOwner(s,c,p);
+  if(p&&['owner','landlord'].includes(r.relation))linkOwner(s,c,p);
+  if(p)p.visits=[...(p.visits||[]),{d:TODAY,o:'spoke'}];
   if(r.followup)addTodo(s,{t:`Follow up with ${c.first} ${c.last}`.trim(),d:r.followup,cid:c.id,propId:p?.id});
   if(/market update/i.test(r.note))addTodo(s,{t:`Send market update to ${c.first} ${c.last}`.trim(),d:TODAY,cid:c.id,propId:p?.id});
   audit(s,'DK',`${c.first} ${c.last} · ${p?.street||'new contact'}`);

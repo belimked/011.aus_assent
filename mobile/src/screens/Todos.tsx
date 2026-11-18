@@ -4,9 +4,10 @@ import {Screen} from '../components/Screen';
 import {useRouter} from 'expo-router';
 import {Button,Card,Chip,Icon,SectionLabel,Seg} from '../components/ui';
 import {colors,text} from '../theme';
-import {useStore,update,openSheet,showToast} from '../store';
+import {useStore,update,openSheet,showToast,getState} from '../store';
 import {useT} from '../i18n';
-import {myTodoSets,todoLink,shortAddr,cname,audit} from '../domain';
+import {myTodoSets,todoLink,shortAddr,cname} from '../domain';
+import {setTodosDone,revertTodos} from '../domain/todo';
 import {TODAY} from '../data/seed';
 import type {Todo} from '../data/types';
 
@@ -52,7 +53,7 @@ export function TodoRow({todo,selected,onSelect}:{todo:Todo;selected?:boolean;on
   // Refs are only read by PanResponder's event callbacks, never by the factory itself.
   // eslint-disable-next-line react-hooks/refs
   const pan=useMemo(()=>makeRowPan({x,width,enabled:!onSelect,opened,base,draggedAt,close,settle}),[onSelect,close,settle,width,x]);
-  const toggleDone=()=>{update(s=>{const item=s.todos.find(t=>t.id===todo.id);if(item){item.done=!item.done;audit(s,'To-do',item.t);}});close();};
+  const toggleDone=()=>{const before=getState();const done=!todo.done;update(s=>{setTodosDone(s,[todo.id],done);});close();showToast(done?l2('Done · moved to Completed','已完成 · 移到 Completed'):l2('Reopened','已重新打开'),()=>update(revertTodos(before,[todo.id])));};
   const onRowPress=()=>{
     if(onSelect){onSelect();return;}
     if(Date.now()-draggedAt.current<350)return;
@@ -88,7 +89,7 @@ export function Todos(){
   const [ids,setIds]=useState<string[]>([]);
   const list=sets[tab as keyof typeof sets];
   const group=(label:string,items:Todo[])=><React.Fragment key={label}>{items.length>0&&<><SectionLabel>{label}</SectionLabel><Card style={{padding:0,overflow:'hidden'}}>{items.map(item=><TodoRow key={item.id} todo={item} selected={ids.includes(item.id)} onSelect={select?()=>setIds(old=>old.includes(item.id)?old.filter(id=>id!==item.id):[...old,item.id]):undefined}/>)}</Card></>}</React.Fragment>;
-  return <Screen title="To-dos" back dock={select&&<View style={{flexDirection:'row',gap:10,padding:12,backgroundColor:colors.bg}}><Button style={{flex:1}} disabled={!ids.length} onPress={()=>openSheet({kind:'tdre',ids})}>{l2('Reassign','转交')}</Button><Button variant="primary" style={{flex:1}} disabled={!ids.length} onPress={()=>{update(s=>{s.todos.filter(item=>ids.includes(item.id)).forEach(item=>{item.done=true;audit(s,'To-do',item.t);});});setIds([]);setSelect(false);showToast(l2('Completed','已完成'));}}>{l2('Complete','完成')}{ids.length?' '+ids.length:''}</Button></View>}>
+  return <Screen title="To-dos" back dock={select&&<View style={{flexDirection:'row',gap:10,padding:12,backgroundColor:colors.bg}}><Button style={{flex:1}} disabled={!ids.length} onPress={()=>openSheet({kind:'tdre',ids})}>{l2('Reassign','转交')}</Button><Button variant="primary" style={{flex:1}} disabled={!ids.length} onPress={()=>{const before=getState();const picked=[...ids];let n=0;update(s=>{n=setTodosDone(s,picked,true);});setIds([]);setSelect(false);showToast(l2(`${n} done · moved to Completed`,`已完成 ${n} 条 · 移到 Completed`),()=>update(revertTodos(before,picked)));}}>{l2('Complete','完成')}{ids.length?' '+ids.length:''}</Button></View>}>
     <Seg items={[["mine",`Mine · ${sets.mine.length}`],["by",`Assigned by me · ${sets.by.length}`],["done",'Completed']]} value={tab} onChange={v=>{setTab(v);setSelect(false);setIds([]);}}/>
     {tab!=='done'&&list.length>0&&<View style={{flexDirection:'row',alignItems:'center',gap:12}}><Text style={[text,{color:colors.muted,fontSize:12,flex:1}]}>{select?`${ids.length} ${l2('selected','已选')}`:l2('Swipe left on a to-do: Reassign or Done.','向左滑动待办：转交或完成。')}</Text>{select&&<Pressable onPress={()=>setIds(ids.length===list.length?[]:list.map(item=>item.id))}><Text style={[text,{fontSize:12,color:colors.link,fontWeight:'700'}]}>{ids.length===list.length?l2('Clear all','全不选'):l2('Select all','全选')}</Text></Pressable>}<Pressable onPress={()=>{setSelect(!select);setIds([]);}}><Text style={[text,{fontSize:12,color:colors.link,fontWeight:'700'}]}>{select?l2('Cancel','取消'):l2('Select','多选')}</Text></Pressable></View>}
     {tab==='done'?group('COMPLETED',list):<>{group('OVERDUE',list.filter(item=>item.d<TODAY))}{group('TODAY',list.filter(item=>item.d===TODAY))}{group('UPCOMING',list.filter(item=>item.d>TODAY))}</>}

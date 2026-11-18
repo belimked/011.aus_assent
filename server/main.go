@@ -357,7 +357,7 @@ func writeScope(kind string, p principal) (string, []any) {
 }
 func b3Kind(k string) bool {
 	switch k {
-	case "captures", "enquiries", "leads", "listings", "ofi_attendees", "sales", "contracts", "referrals", "market_items", "zones", "tags":
+	case "captures", "enquiries", "leads", "listings", "ofi_attendees", "sales", "contracts", "referrals", "market_items", "zones", "tags", "activity":
 		return true
 	}
 	return false
@@ -617,6 +617,10 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 		}
 		if p.role != "admin" {
 			owner = p.id
+			// Agents hand a contact to a teammate directly (prototype: no approval step).
+			if method == "PATCH" && a.teammate(p, str(m, "ownerId")) {
+				owner = str(m, "ownerId")
+			}
 		}
 		m["ownerId"] = owner
 		if str(m, "owner") == "" {
@@ -631,6 +635,9 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 			if p.role == "admin" && str(m, "createdBy") != "" {
 				creator = str(m, "createdBy")
 			}
+			if p.role != "admin" && a.teammate(p, str(m, "assigneeId")) {
+				assignee = str(m, "assigneeId")
+			}
 		} else {
 			_ = a.db.QueryRow(`SELECT assignee_id,created_by FROM todos WHERE id=?`, id).Scan(&assignee, &creator)
 			if p.role == "admin" {
@@ -640,6 +647,10 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 				if str(m, "createdBy") != "" {
 					creator = str(m, "createdBy")
 				}
+			} else if method == "PATCH" && str(m, "assigneeId") != assignee && a.teammate(p, str(m, "assigneeId")) {
+				// Reassigning keeps it under the agent's "Assigned by me" (prototype sets by=ME()).
+				assignee = str(m, "assigneeId")
+				creator = p.id
 			}
 		}
 		m["assigneeId"] = assignee
@@ -834,6 +845,10 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 		return
 	}
 	item, err := a.get(kind, id, p, false)
+	if err != nil && method == "PATCH" {
+		// Handed to a teammate: no longer in this agent's scope, so echo it unscoped once.
+		item, err = a.get(kind, id, principal{id: p.id, role: "admin"}, false)
+	}
 	if err != nil {
 		problem(w, 500, "database error")
 		return
@@ -859,6 +874,14 @@ func stringsFrom(v any) []string {
 	return out
 }
 func jsonField(m map[string]any, k string) string { b, _ := json.Marshal(m[k]); return string(b) }
+func (a *app) teammate(p principal, id string) bool {
+	if id == "" {
+		return false
+	}
+	var n int
+	_ = a.db.QueryRow(`SELECT count(*) FROM users WHERE id=? AND team_id=(SELECT team_id FROM users WHERE id=?) AND disabled=0 AND deleted_at IS NULL`, id, p.id).Scan(&n)
+	return n == 1
+}
 func (a *app) ownerID(kind, id string) string {
 	var v string
 	_ = a.db.QueryRow(`SELECT owner_id FROM contacts WHERE id=?`, id).Scan(&v)

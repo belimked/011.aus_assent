@@ -93,8 +93,8 @@ func (a *app) approvalRoute(w http.ResponseWriter, r *http.Request, p principal)
 		respond(w, 200, request)
 		return
 	}
-	// Admin direct actions reuse the same transactional execution path.
-	if p.role == "admin" && r.Method == "POST" && (strings.HasSuffix(path, "/merge") || strings.HasSuffix(path, "/reassign")) {
+	// Direct actions (prototype: no approval step). validRequest limits agents to their own records and teammates.
+	if r.Method == "POST" && (strings.HasSuffix(path, "/merge") || strings.HasSuffix(path, "/reassign")) {
 		m, err := body(r)
 		if err != nil {
 			problem(w, 400, "invalid JSON")
@@ -237,6 +237,14 @@ func (a *app) executeApproval(tx *sql.Tx, p principal, m map[string]any) error {
 	for k, v := range bData {
 		if _, ok := aData[k]; !ok || aData[k] == "" || aData[k] == nil {
 			aData[k] = v
+		}
+	}
+	// Field choices from the compare screen: {"fields":{"mobile":"b"}} keeps B's value.
+	if choices, ok := m["fields"].(map[string]any); ok {
+		for _, k := range []string{"first", "last", "mobile", "email", "reason"} {
+			if choices[k] == "b" && bData[k] != nil && bData[k] != "" {
+				aData[k] = bData[k]
+			}
 		}
 	}
 	for _, k := range []string{"notes", "tags", "roles", "rels"} {

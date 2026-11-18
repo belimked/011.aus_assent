@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { seed } from '../data/seed';
 import type { AppState } from '../data/types';
+import { l2 } from '../i18n';
 let state = seed();
 let ready = false;
 const listeners = new Set<() => void>();
@@ -24,9 +25,13 @@ export const openSheet = (s: Sheet) => { sheet = {...s, prev: sheet ?? undefined
 export const closeSheet = () => { sheet = sheet?.prev ?? null; notifySheet(); };
 export const dismissSheet = () => { sheet = null; notifySheet(); };
 export const markSheetDirty = () => { if(sheet) sheet.dirty = true; };
-export const dismissSheetBackdrop = () => { if(sheet?.dirty){showToast('Unsaved changes. Tap Cancel to discard.');return} dismissSheet(); };
+export const dismissSheetBackdrop = () => { if(sheet?.dirty){showToast(l2('Unsaved changes. Tap Cancel to discard.','有未保存的更改。点击取消以放弃。'));return} dismissSheet(); };
 export const useSheet = () => useSyncExternalStore(fn => {sheetListeners.add(fn); return () => {sheetListeners.delete(fn)}}, () => sheet, () => null);
 let toast: {text:string;undo?:()=>void}|null = null;
 const toastListeners = new Set<() => void>();
-export const showToast = (text:string, undo?:()=>void) => {toast={text,undo};toastListeners.forEach(fn=>fn());setTimeout(()=>{toast=null;toastListeners.forEach(fn=>fn())},undo?6000:2500)};
+let toastSeq = 0;
+const notifyToast = () => toastListeners.forEach(fn=>fn());
+// Each toast owns its timer: an older toast's timeout must not clear a newer one.
+export const showToast = (text:string, undo?:()=>void) => {const seq=++toastSeq;toast={text,undo};notifyToast();setTimeout(()=>{if(seq!==toastSeq)return;toast=null;notifyToast()},undo?6000:2500)};
+export const hideToast = () => {toastSeq++;toast=null;notifyToast();};
 export const useToast = () => useSyncExternalStore(fn=>{toastListeners.add(fn);return()=>{toastListeners.delete(fn)}},()=>toast,()=>null);

@@ -37,8 +37,8 @@ export function commitOH(state:AppState, listingId:string, r:Registration):Conta
   const p=byId(state.properties,l.propertyId);if(!p) throw new Error('Property not found');
   const o=l.ofi.find(x=>x.d===TODAY);if(!o) throw new Error('No open home today');
   const matches=buyerMatches(state,r.mobile,r.email);
-  // Only a unique match is safe to update. A shared email must not merge two people.
-  let c=matches.status==='unique'?matches.list[0].c:undefined;
+  // The prototype falls back to the first match when several contacts match.
+  let c=matches.list[0]?.c;
   if(!c){c={id:id('c'),first:r.first,last:r.last,mobile:r.mobile,email:r.email,owner:state.auth?.name||'Owen Chen',roles:['buyer'],tags:[],flags:{},notes:[],history:[]};state.contacts.push(c);}
   else {c.first=r.first||c.first;c.last=r.last||c.last;c.mobile=r.mobile||c.mobile;c.email=r.email||c.email;}
   if(!c.roles.includes('buyer')) c.roles.push('buyer');
@@ -58,7 +58,8 @@ export function commitOH(state:AppState, listingId:string, r:Registration):Conta
   audit(state,'OFI',`${propAddr(p)} · ${cname(c)}`);
   return c;
 }
-export function matchingListings(state:AppState){const me=state.auth?.name||'Owen Chen';return state.listings.filter(x=>x.status==='listed').sort((a,b)=>Number(b.agent===me)-Number(a.agent===me));}
+export function saveAttendeeProfile(contact:Contact,fields:Record<string,unknown>){Object.assign(contact,fields)}
+export function matchingListings(state:AppState){const me=state.auth?.name||'Owen Chen';return state.listings.filter(x=>x.status==='listed').sort((a,b)=>(a.agent===me?0:1)-(b.agent===me?0:1));}
 export function saveBuyerProfile(state:AppState,contactId:string,fields:Record<string,unknown>,note=''){
   const c=byId(state.contacts,contactId);if(!c) throw new Error('Contact not found');
   c.buyerProfile={...(c.buyerProfile||{}),...fields};if(!c.roles.includes('buyer')) c.roles.push('buyer');

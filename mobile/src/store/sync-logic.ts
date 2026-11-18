@@ -1,13 +1,15 @@
 import type {AppState} from '../data/types';
-export const kinds=['contacts','properties','todos','captures','enquiries','leads','listings','ofi_attendees','sales','contracts','referrals','market_items','zones','tags'] as const;
+export const kinds=['contacts','properties','todos','captures','enquiries','leads','listings','ofi_attendees','sales','contracts','referrals','market_items','zones','tags','activity'] as const;
 export type Kind=typeof kinds[number];
-export const field=(kind:Kind):keyof AppState=>kind==='market_items'?'market':kind==='tags'?'myTags':kind;
+export const field=(kind:Kind):keyof AppState=>kind==='market_items'?'market':kind==='tags'?'myTags':kind==='activity'?'audit':kind;
+// Legacy activity entries without ids stay local-only.
+const rows=(kind:Kind,list:RecordData[])=>kind==='activity'?list.filter(x=>x.id):list;
 export type RecordData={id:string;version?:number;[key:string]:any};
 export type Op={opId:string;kind:Kind;op:'upsert'|'delete';id:string;baseVersion?:number;data?:RecordData};
 export type Pull={cursor:string;full:boolean;deleted:Record<string,string[]>;[key:string]:any};
 export function diff(before:AppState,after:AppState,makeId:()=>string):Op[]{
  const ops:Op[]=[];
- for(const kind of kinds){const key=field(kind);const old=new Map((before[key] as RecordData[]).map(x=>[x.id,x]));const next=new Map((after[key] as RecordData[]).map(x=>[x.id,x]));
+ for(const kind of kinds){const key=field(kind);const old=new Map(rows(kind,before[key] as RecordData[]).map(x=>[x.id,x]));const next=new Map(rows(kind,after[key] as RecordData[]).map(x=>[x.id,x]));
  for(const [id,item] of next){const previous=old.get(id);const clean=(v:RecordData)=>kind==='listings'?{...v,ofi:(v.ofi||[]).map((event:any)=>({...event,attendees:[]}))}:v;const data=clean(item);if(!previous || JSON.stringify(clean(previous))!==JSON.stringify(data))ops.push({opId:makeId(),kind,op:'upsert',id,baseVersion:previous?.version,data});}
  for(const [id,item] of old)if(!next.has(id))ops.push({opId:makeId(),kind,op:'delete',id,baseVersion:item.version});
  }return ops;
@@ -27,7 +29,7 @@ export function mapRecord(record:RecordData,kind:Kind,names:Record<string,string
  return r;
 }
 export function merge(state:AppState,pull:Pull,names:Record<string,string>,pending:Op[]):AppState{
- const next={...state};for(const kind of kinds){const key=field(kind);const blocked=new Set(pending.filter(x=>x.kind===kind).map(x=>x.id));const records=(pull[kind]||[]).map((r:RecordData)=>mapRecord(r,kind,names,state.auth?.name||''));const existing=pull.full?[]:state[key] as RecordData[];const mapped=new Map<string,RecordData>(existing.map(x=>[x.id,x]));for(const id of pull.deleted?.[kind]||[])if(!blocked.has(id))mapped.delete(id);for(const r of records)if(!blocked.has(r.id))mapped.set(r.id,r);(next as any)[key]=[...mapped.values()];}
+ const next={...state};for(const kind of kinds){const key=field(kind);const blocked=new Set(pending.filter(x=>x.kind===kind).map(x=>x.id));const records=(pull[kind]||[]).map((r:RecordData)=>mapRecord(r,kind,names,state.auth?.name||''));const existing=pull.full?[]:state[key] as RecordData[];const mapped=new Map<string,RecordData>(existing.map(x=>[x.id,x]));for(const id of pull.deleted?.[kind]||[])if(!blocked.has(id))mapped.delete(id);for(const r of records)if(!blocked.has(r.id))mapped.set(r.id,r);(next as any)[key]=kind==='activity'?[...mapped.values()].sort((a,b)=>String(b.d).localeCompare(String(a.d))):[...mapped.values()];}
  next.approvals=pull.full?pull.approvals||[]:[...new Map([...state.approvals,...(pull.approvals||[])].map(x=>[x.id,x])).values()].filter(x=>!pull.deleted?.approvals?.includes(x.id));
  // Attendee PII is kept separately; only attach records visible to this agent.
  const attendees=next.ofi_attendees;next.listings=next.listings.map(listing=>({...listing,ofi:(listing.ofi||[]).map((event:any,i:number)=>({...event,attendees:attendees.filter(a=>a.listingId===listing.id&&a.eventIndex===i)}))}));

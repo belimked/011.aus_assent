@@ -3,12 +3,12 @@ import {Stack,useRouter,useSegments} from 'expo-router';
 import {StatusBar} from 'expo-status-bar';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {useFonts} from 'expo-font';
-import {hydrate,useReady,useStore,useToast} from '../store';
+import {hydrate,useReady,useStore} from '../store';
+import {Toast} from '../components/Toast';
 import {hydrateLanguage} from '../i18n';
 import {restoreSync} from '../store/sync';
 import {SheetHost} from '../sheets/SheetHost';
 import {ShakeListener} from '../components/ShakeListener';
-import {Platform,Pressable,Text,View} from 'react-native';
-import {colors,text} from '../theme';
-function Gate(){const router=useRouter();const segments=useSegments();const auth=useStore(s=>s.auth);const ready=useReady();const toast=useToast();useEffect(()=>{void hydrate().then(restoreSync);void hydrateLanguage()},[]);useEffect(()=>{if(!ready)return;if(!auth&&segments[0]!=='login')router.replace('/login');else if(auth&&segments[0]==='login')router.replace('/(tabs)')},[ready,auth,segments,router]);return <><StatusBar style="dark"/><Stack screenOptions={{headerShown:false}}/><SheetHost/><ShakeListener/>{toast&&<View style={{position:'absolute',left:20,right:20,bottom:90,backgroundColor:colors.fg,borderRadius:10,padding:14,flexDirection:'row',justifyContent:'space-between'}}><Text style={[text,{color:'white',flex:1}]}>{toast.text}</Text>{toast.undo&&<Pressable onPress={toast.undo}><Text style={{color:colors.brand}}>Undo</Text></Pressable>}</View>}</>}
+import {Platform} from 'react-native';
+function Gate(){const router=useRouter();const segments=useSegments();const auth=useStore(s=>s.auth);const ready=useReady();useEffect(()=>{void hydrate().then(restoreSync);void hydrateLanguage()},[]);useEffect(()=>{if(!ready)return;if(!auth&&segments[0]!=='login')router.replace('/login');else if(auth&&segments[0]==='login')router.replace('/(tabs)')},[ready,auth,segments,router]);return <><StatusBar style="dark"/><Stack screenOptions={{headerShown:false}}/><SheetHost/><ShakeListener/><Toast/></>}
 export default function RootLayout(){useFonts(Platform.OS==='web'?{Montserrat:require('../../assets/fonts/Montserrat-Variable.ttf')}:{});return <SafeAreaProvider><Gate/></SafeAreaProvider>}

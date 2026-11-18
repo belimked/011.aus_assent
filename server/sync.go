@@ -129,7 +129,7 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 	respond(w, 200, out)
 }
 
-var syncKinds = []string{"contacts", "properties", "todos", "captures", "enquiries", "leads", "listings", "ofi_attendees", "sales", "contracts", "referrals", "market_items", "zones", "tags", "approvals"}
+var syncKinds = []string{"contacts", "properties", "todos", "captures", "enquiries", "leads", "listings", "ofi_attendees", "sales", "contracts", "referrals", "market_items", "zones", "tags", "activity", "approvals"}
 
 type syncOp struct {
 	OpID        string         `json:"opId"`
