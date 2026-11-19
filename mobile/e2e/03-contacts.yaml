@@ -1,0 +1,73 @@
+# Contacts: add an owner to 2 Gager St, opt out of SMS, tag Hot.
+appId: com.placesunnybank.agentcollect
+name: 03 contacts
+---
+- runFlow: common/reset.yaml
+- tapOn: DK
+- tapOn: Change
+- tapOn:
+    id: change-search
+- inputText: 2 Gager
+- tapOn:
+    id: change-p1
+- tapOn:
+    id: dk-address
+- extendedWaitUntil:
+    visible: 2 Gager St, Sunnybank
+    timeout: 10000
+- assertVisible: No contact yet
+- scrollUntilVisible:
+    element: '\+ Add contact'
+    direction: DOWN
+- tapOn: '\+ Add contact'
+- tapOn:
+    id: quickadd-mobile
+- inputText: '0499000123'
+- tapOn:
+    id: quickadd-first
+- inputText: E2E
+- tapOn:
+    id: quickadd-last
+- inputText: Contact
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: quickadd-role-owner
+    direction: DOWN
+- tapOn:
+    id: quickadd-role-owner
+- scrollUntilVisible:
+    element:
+      id: quickadd-save
+    direction: DOWN
+- tapOn:
+    id: quickadd-save
+- extendedWaitUntil:
+    visible: Saved
+    timeout: 10000
+- scrollUntilVisible:
+    element: Owner linked
+    direction: UP
+- scrollUntilVisible:
+    element: Edit communication preferences
+    direction: DOWN
+- tapOn: Edit communication preferences
+- tapOn:
+    id: pref-sms
+- assertVisible: OPTED OUT
+- tapOn: Save
+- extendedWaitUntil:
+    visible: Saved
+    timeout: 10000
+- scrollUntilVisible:
+    element: 'OPTED OUT: SMS'
+    direction: DOWN
+- scrollUntilVisible:
+    element: Tags
+    direction: DOWN
+- tapOn: Tags
+- tapOn: Hot
+- tapOn: Save tags
+- scrollUntilVisible:
+    element: Hot
+    direction: UP

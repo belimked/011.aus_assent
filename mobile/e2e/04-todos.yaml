@@ -1,0 +1,44 @@
+# To-dos: create, complete (Done), undo, reassign to John.
+appId: com.placesunnybank.agentcollect
+name: 04 to-dos
+---
+- runFlow: common/reset.yaml
+- tapOn:
+    id: home-todos
+- tapOn: '\+ To-do'
+- tapOn:
+    id: todo-title
+- inputText: E2E follow-up task
+- hideKeyboard
+- scrollUntilVisible:
+    element: Save to-do
+    direction: DOWN
+- tapOn: Save to-do
+- extendedWaitUntil:
+    visible: To-do saved
+    timeout: 10000
+- scrollUntilVisible:
+    element: 'E2E follow-up task.*'
+    direction: DOWN
+# Done (multi-select → Complete), then Undo from the toast.
+- tapOn: Select
+- tapOn: 'E2E follow-up task.*'
+- tapOn: Complete 1
+- assertVisible: 1 done · moved to Completed
+- tapOn: Undo
+- scrollUntilVisible:
+    element: 'E2E follow-up task.*'
+    direction: DOWN
+# Reassign to John.
+- tapOn: Select
+- tapOn: 'E2E follow-up task.*'
+- tapOn: Reassign
+- extendedWaitUntil:
+    visible: John
+    timeout: 15000
+- tapOn: John
+- extendedWaitUntil:
+    visible: To-do sent to John
+    timeout: 10000
+- tapOn: 'Assigned by me.*'
+- assertVisible: 'E2E follow-up task.*'

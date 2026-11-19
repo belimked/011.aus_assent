@@ -1,0 +1,28 @@
+# Translate ("Talk to me"), opened from its button on Me; switch the visitor to Cantonese.
+appId: com.placesunnybank.agentcollect
+name: 06 translate
+---
+- runFlow: common/reset.yaml
+- tapOn:
+    id: open-me
+- scrollUntilVisible:
+    element:
+      id: translate-open
+    direction: DOWN
+- tapOn:
+    id: translate-open
+- extendedWaitUntil:
+    visible:
+      id: translate-close
+    timeout: 10000
+- assertVisible: 'Talk to me'
+# Default visitor language is Mandarin; pick Cantonese and the visitor greeting changes.
+- assertVisible: '你好！这位经纪人.*'
+- tapOn:
+    id: translate-visitor-yue-HK
+- assertVisible: '你好！呢位經紀.*'
+- takeScreenshot: 06-translate
+- tapOn:
+    id: translate-close
+- assertNotVisible:
+    id: translate-close

@@ -1,0 +1,57 @@
+# Door knock: pick 12 Gager St, type the knock, approve ("Saved"), then add a note on the record.
+appId: com.placesunnybank.agentcollect
+name: 02 door knock
+---
+- runFlow: common/reset.yaml
+- tapOn: DK
+- tapOn: Change
+- tapOn:
+    id: change-search
+- inputText: 12 Gager
+- tapOn:
+    id: change-p6
+- tapOn:
+    id: dk-capture
+- extendedWaitUntil:
+    visible:
+      id: dk-description
+    timeout: 10000
+- assertVisible: 'Say it or type it.*'
+- tapOn:
+    id: dk-description
+- inputText: Spoke to Mary Chen at the door. Mobile 0412 555 019. Kids moved out.
+- hideKeyboard
+- tapOn:
+    id: dk-record
+# AI extraction is not configured on the CI server: the offline parser is used.
+- extendedWaitUntil:
+    visible: Check before saving
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: dk-approve
+    direction: DOWN
+- tapOn:
+    id: dk-approve
+- extendedWaitUntil:
+    visible: Saved
+    timeout: 10000
+- tapOn: Dismiss
+- tapOn:
+    id: dk-address
+- extendedWaitUntil:
+    visible: 12 Gager St, Sunnybank
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: property-note
+    direction: DOWN
+- tapOn:
+    id: property-note
+- inputText: E2E door knock note
+- tapOn:
+    id: property-note-save
+- extendedWaitUntil:
+    visible: Saved
+    timeout: 10000
+- assertVisible: E2E door knock note

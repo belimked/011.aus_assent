@@ -1,0 +1,29 @@
+# Fresh install state + signed in as Mary against the seeded CI server.
+# clearState does not wipe the iOS keychain (expo-secure-store token), so clear it too.
+appId: com.placesunnybank.agentcollect
+---
+- clearKeychain
+- launchApp:
+    clearState: true
+    permissions:
+      all: allow
+- extendedWaitUntil:
+    visible:
+      id: login-email
+    timeout: 60000
+- tapOn:
+    id: login-email
+- inputText: mary@axleo.local
+- tapOn:
+    id: login-password
+- inputText: ${E2E_PASSWORD}
+- tapOn:
+    id: login-submit
+- extendedWaitUntil:
+    visible: MY ACTIVITY
+    timeout: 30000
+# First pull finished: the to-dos link shows the seeded count.
+- extendedWaitUntil:
+    visible:
+      id: home-todos
+    timeout: 30000

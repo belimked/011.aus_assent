@@ -1,0 +1,41 @@
+# OFI check-in: register a new visitor at today's open home.
+appId: com.placesunnybank.agentcollect
+name: 07 OFI check-in
+---
+- runFlow: common/reset.yaml
+- tapOn: OFI
+# Outside the live window the first tap only unlocks check-in; tap again in that case.
+- tapOn: Start check-in
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      notVisible:
+        id: ofi-mobile
+    commands:
+      - tapOn: Start check-in
+- extendedWaitUntil:
+    visible:
+      id: ofi-mobile
+    timeout: 15000
+- tapOn:
+    id: ofi-mobile
+- inputText: '0499111222'
+- tapOn:
+    id: ofi-first
+- inputText: E2E
+- tapOn:
+    id: ofi-last
+- inputText: Visitor
+- tapOn:
+    id: ofi-email
+- inputText: e2e.visitor@example.test
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: ofi-register
+    direction: DOWN
+- tapOn:
+    id: ofi-register
+- extendedWaitUntil:
+    visible: Saved · E2E Visitor
+    timeout: 10000
