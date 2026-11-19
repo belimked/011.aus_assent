@@ -21,10 +21,10 @@ const props = defineProps({ label: String, value: Number, unit: String, d: Numbe
 const shown = ref(0)
 watch(() => props.value, (v, o) => {
   const from = o ?? 0, t0 = performance.now()
-  const step = t => { const k = Math.min(1, (t - t0) / 600); shown.value = Math.round(from + (v - from) * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step) }
+  const step = t => { const k = Math.min(1, (t - t0) / 600); shown.value = props.unit === '%' ? Math.round((from + (v - from) * (1 - Math.pow(1 - k, 3))) * 10) / 10 : Math.round(from + (v - from) * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step) }
   requestAnimationFrame(step)
 }, { immediate: true })
-const pts = computed(() => { const a = props.spark, mx = Math.max(1, ...a); return a.map((v, i) => `${(i / (a.length - 1)) * 100},${26 - (v / mx) * 22}`).join(' ') })
+const pts = computed(() => { const a = props.spark, mx = Math.max(1, ...a); return a.map((v, i) => `${(i / Math.max(1, a.length - 1)) * 100},${26 - (v / mx) * 22}`).join(' ') })
 </script>
 <style scoped>
 .kpi { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 10px; position: relative; overflow: hidden; transition: .15s; }

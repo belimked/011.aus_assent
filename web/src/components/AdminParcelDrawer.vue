@@ -43,13 +43,13 @@
               <span>{{ t("已登记") }}</span
               ><StatusPill :status="parcel.registered ? 'yes' : 'no'" />
             </div>
-            <div>
+            <div v-if="identity?.role === 'admin'">
               <span>{{ t("异地业主") }}</span
               ><StatusPill :status="parcel.absenteeOwner ? 'yes' : 'no'" />
             </div>
           </div>
         </section>
-        <section class="tp">
+        <section v-if="identity?.role === 'admin'" class="tp">
           <div class="row">
             <el-icon color="#b8860b"><InfoFilled /></el-icon>
             <h4>{{ t("第三方业主信息") }}</h4>
@@ -101,6 +101,7 @@
 import { Close } from "@element-plus/icons-vue";
 import { fmtDate, money, parcelStatus } from "../admin-format";
 import { t } from "../i18n";
+import { identity } from "../api";
 import Avatar from "./Avatar.vue";
 import StatusPill from "./StatusPill.vue";
 

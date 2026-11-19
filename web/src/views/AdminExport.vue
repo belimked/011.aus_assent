@@ -7,13 +7,13 @@
       </el-steps>
       <div v-if="step === 0" class="fields">
         <label>{{ t('区域') }}
-          <el-select v-model="form.suburb" filterable style="width: 240px">
+          <el-select v-model="form.suburb" :empty-values="[null, undefined]" filterable style="width: 240px">
             <el-option value="" :label="t('全部')" />
             <el-option v-for="name in suburbs" :key="name" :value="name" :label="name" />
           </el-select>
         </label>
         <label>{{ t('状态') }}
-          <el-select v-model="form.status" style="width: 240px">
+          <el-select v-model="form.status" :empty-values="[null, undefined]" style="width: 240px">
             <el-option value="" :label="t('全部')" />
             <el-option value="registered" :label="t('已登记')" />
             <el-option value="unregistered" :label="t('未登记')" />

@@ -63,7 +63,7 @@
         <div class="zone-section">
           <div class="row">
             <h3 class="grow">{{ t("经纪人区域") }}</h3>
-            <el-button size="small" :icon="Plus" @click="startCreate">{{
+            <el-button v-if="identity?.role === 'admin'" size="small" :icon="Plus" @click="startCreate">{{
               t("创建区域")
             }}</el-button>
           </div>
@@ -77,10 +77,11 @@
                 :style="{ background: agentColor(group.id) }"
               />
               <span class="grow">{{ zone.name }}</span>
-              <el-button link size="small" @click="editZone(zone)">{{
+              <el-button v-if="identity?.role === 'admin'" link size="small" @click="editZone(zone)">{{
                 t("编辑")
               }}</el-button>
               <el-button
+                v-if="identity?.role === 'admin'"
                 link
                 size="small"
                 type="danger"
@@ -205,7 +206,7 @@ import { useRoute } from "vue-router";
 import { Search, Plus, Close } from "@element-plus/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import L from "leaflet";
-import { api } from "../api";
+import { api, identity } from "../api";
 import { parcelStatus } from "../admin-format";
 import { t } from "../i18n";
 import AdminParcelDrawer from "../components/AdminParcelDrawer.vue";
@@ -551,6 +552,7 @@ onMounted(async () => {
     });
     await refreshZones();
     refreshParcels();
+    if (route.query.parcel) openParcel(route.query.parcel);
   } catch (error) {
     ElMessage.error(error.message);
   }
@@ -561,6 +563,7 @@ onBeforeUnmount(() => {
 });
 watch(() => form.radius, drawDraft);
 watch(() => route.query.agent, drawZones);
+watch(() => route.query.parcel, id => { if (id) openParcel(id); });
 watch(filter, (value) => {
   shown.value = 50;
   parcelLayer?.eachLayer((layer) => {

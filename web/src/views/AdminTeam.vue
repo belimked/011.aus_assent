@@ -35,8 +35,10 @@
     </div>
     <div class="tm">
       <div class="ul">
+        <template v-for="group in teams" :key="group.id">
+          <div class="group-name">{{ group.name }}</div>
         <button
-          v-for="user in users"
+          v-for="user in users.filter(item => item.teamId === group.id)"
           :key="user.id"
           class="uc card"
           :class="{ on: selected?.id === user.id, off: user.disabled }"
@@ -60,6 +62,7 @@
             ><span>{{ t("区域") }}</span>
           </div>
         </button>
+        </template>
       </div>
       <div v-if="selected" class="card ud">
         <div class="uh">
@@ -105,6 +108,11 @@
             <b class="serif">{{ zoneCount(selected.id) }}</b>
           </div>
         </div>
+        <div class="row section-heading">
+          <h3 class="grow">{{ t('能力雷达') }}</h3>
+        </div>
+        <v-chart v-if="agentStats" class="radar" :option="radarOption" autoresize />
+        <el-empty v-else :description="t('暂无活动')" :image-size="70" />
         <div class="row section-heading">
           <h3 class="grow">{{ t("经纪人区域") }}</h3>
           <router-link :to="`/map?agent=${selected.id}`">{{
@@ -160,11 +168,22 @@ import { relTime, roleLabel } from "../admin-format";
 import { t } from "../i18n";
 import Avatar from "../components/Avatar.vue";
 import StatusPill from "../components/StatusPill.vue";
+import VChart from '../components/chart';
 
 const route = useRoute();
 const users = ref([]);
 const zones = ref([]);
 const teams = ref([]);
+const stats = ref([]);
+const agentStats = computed(() => stats.value.find(row => row.id === selectedId.value));
+const radarFields = [['visits', '上门拜访'], ['contacts', '新联系人'],
+  ['appraisals', '预约估价'], ['linked', '新关联业主'], ['done', '已完成待办']];
+const radarOption = computed(() => ({
+  radar: { indicator: radarFields.map(([key, label]) => ({ name: t(label), max: 100 })) },
+  series: [{ type: 'radar', data: [{ name: selected.value?.name || '',
+    value: radarFields.map(([key]) => Math.round(100 * (agentStats.value?.[key] || 0) /
+      Math.max(1, ...stats.value.map(row => row[key] || 0)))) }] }],
+}));
 const selectedId = ref("");
 const createOpen = ref(false);
 const form = reactive({ email: "", name: "", role: "agent", password: "" });
@@ -186,6 +205,10 @@ async function load() {
     ]);
     selectedId.value =
       route.query.agent || selectedId.value || users.value[0]?.id;
+    if (selected.value) {
+      const data = await api(`admin/metrics?period=30&team=${encodeURIComponent(selected.value.teamId || '')}`);
+      stats.value = data.performance || [];
+    }
   } catch (error) {
     ElMessage.error(error.message);
   }
@@ -254,6 +277,13 @@ async function command(action) {
     }
   }
 }
+watch(() => selected.value?.teamId, async (teamId) => {
+  if (!teamId) return;
+  try {
+    const data = await api(`admin/metrics?period=30&team=${encodeURIComponent(teamId)}`);
+    stats.value = data.performance || [];
+  } catch (error) { ElMessage.error(error.message); }
+});
 watch(
   () => route.query.agent,
   (value) => {
@@ -264,6 +294,8 @@ onMounted(load);
 </script>
 
 <style scoped>
+.radar { height: 260px; }
+.group-name { font-weight: 700; margin: 14px 0 8px; font-size: 15px; }
 .team-manage { padding: 18px; margin-bottom: 16px; }
 .team-manage .row { margin: 12px 0; gap: 12px; }
 .team-manage label { display: flex; align-items: center; gap: 8px; }

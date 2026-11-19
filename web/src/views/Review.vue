@@ -174,13 +174,13 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Right } from '@element-plus/icons-vue';
-import { api } from '../api';
+import { api, identity } from '../api';
 import { fmtDate, relTime, money } from '../admin-format';
 import { t } from '../i18n';
 import StatusPill from '../components/StatusPill.vue';
 import ReviewParcelMap from '../components/ReviewParcelMap.vue';
 
-const tab = ref('address');
+const tab = ref(identity.value?.role === 'leader' ? 'ai' : 'address');
 const address = ref([]);
 const captures = ref([]);
 const approvals = ref([]);
@@ -199,7 +199,9 @@ const basisNames = {
   'address-exact': '街道门牌一致',
   street: '同一街道',
 };
-const tabs = computed(() => [
+const tabs = computed(() => identity.value?.role === 'leader' ? [
+  { id: 'ai', label: 'AI 采集', count: captures.value.length },
+] : [
   { id: 'address', label: '地址匹配', count: address.value.length },
   { id: 'ai', label: 'AI 采集', count: captures.value.length },
   { id: 'approvals', label: '审批', count: approvals.value.filter(item => item.status === 'pending').length },
@@ -225,6 +227,10 @@ const difference = computed(() => {
 
 async function load() {
   try {
+    if (identity.value?.role === 'leader') {
+      captures.value = await api('admin/captures');
+      return;
+    }
     [address.value, captures.value, approvals.value] = await Promise.all([
       api('admin/market-review'),
       api('admin/captures'),

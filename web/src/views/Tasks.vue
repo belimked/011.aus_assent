@@ -74,7 +74,11 @@
               </template>
             </el-dropdown>
             <span class="sp" />
-            <el-checkbox :model-value="!!task.done" @change="toggle(task)">
+            <el-select :model-value="task.assigneeId" size="small" style="width: 115px"
+              :aria-label="t('经纪人')" @change="id => patch(task, { assigneeId: id })">
+              <el-option v-for="member in agents" :key="member.id" :value="member.id" :label="member.name" />
+            </el-select>
+            <el-checkbox v-if="identity?.role === 'admin'" :model-value="!!task.done" @change="toggle(task)">
               {{ t(task.done ? '撤销完成' : '完成') }}
             </el-checkbox>
           </div>
@@ -157,7 +161,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Clock, Location } from '@element-plus/icons-vue';
-import { api } from '../api';
+import { api, identity } from '../api';
 import { locale, t } from '../i18n';
 import Avatar from '../components/Avatar.vue';
 
@@ -215,7 +219,7 @@ async function load() {
   try {
     const [tasks, users] = await Promise.all([api('admin/todos'), api('admin/users')]);
     todos.value = tasks;
-    agents.value = users.filter(agent => agent.role === 'agent' && !agent.disabled);
+    agents.value = users.filter(agent => ['agent', 'leader'].includes(agent.role) && !agent.disabled);
     adminIds.value = new Set(users.filter(user => user.role === 'admin').map(user => user.id));
   } catch (error) {
     ElMessage.error(error.message);
