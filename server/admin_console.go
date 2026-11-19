@@ -282,6 +282,9 @@ func (a *app) metrics(w http.ResponseWriter, r *http.Request, p principal) {
 		trend = append(trend, point{Day: from.Format("2006-01-02"), Visits: n, Actions: map[string]int{}})
 	}
 	q := `SELECT a.id,COALESCE(json_extract(a.data,'$.t'),''),COALESCE(a.created_at,''),COALESCE(u.name,'') FROM activity a LEFT JOIN users u ON u.id=a.owner_id WHERE a.deleted_at IS NULL`
+	if p.role == "leader" {
+		q += ` AND json_extract(a.data,'$.a') IN ('DK','To-do done','To-do reassigned','OFI')`
+	}
 	args := []any{}
 	if team != "" {
 		q += ` AND u.team_id=?`

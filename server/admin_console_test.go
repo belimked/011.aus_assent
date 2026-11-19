@@ -52,8 +52,11 @@ func TestConsolePermissionsAndExport(t *testing.T) {
 	if _, e := a.db.Exec(`INSERT INTO activity(id,owner_id,team_id,data,created_at,updated_at) VALUES('other-visit',?,'other','{"a":"DK"}',?,?)`, john, now(), now()); e != nil {
 		t.Fatal(e)
 	}
+	if _, e := a.db.Exec(`INSERT INTO activity(id,owner_id,team_id,data,created_at,updated_at) VALUES('licensed',?,'default','{"a":"Market monitor","t":"Licensed owner $1m"}',?,?)`, mary, now(), now()); e != nil {
+		t.Fatal(e)
+	}
 	w = request(a, "GET", "/api/v1/admin/metrics?period=7", leader, nil)
-	if w.Code != 200 || obj(t, w)["kpis"].(map[string]any)["visits"].(map[string]any)["value"].(float64) != 0 {
+	if w.Code != 200 || strings.Contains(w.Body.String(), "Licensed owner") || obj(t, w)["kpis"].(map[string]any)["visits"].(map[string]any)["value"].(float64) != 0 {
 		t.Fatalf("team metrics: %s", w.Body)
 	}
 	if _, e := a.db.Exec(`INSERT INTO todos(id,assignee_id,created_by,team_id,data,created_at,updated_at) VALUES('other-task',?,?,'other','{"t":"secret"}',?,?)`, john, john, now(), now()); e != nil {
