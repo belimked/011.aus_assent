@@ -276,6 +276,14 @@ func (a *app) routes() http.Handler {
 			a.approvalRoute(w, r, p)
 		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/"):
 			if p.role != "admin" {
+				path := strings.TrimPrefix(r.URL.Path, "/api/v1/admin/")
+				if path == "todos" || strings.HasPrefix(path, "todos/") ||
+					path == "captures" || path == "listings" || path == "contacts" ||
+					path == "ofi_attendees" || strings.HasPrefix(path, "ofi_attendees/") ||
+					path == "market-review" || strings.HasPrefix(path, "market-review/") {
+					problem(w, 403, "admin only")
+					return
+				}
 				problem(w, 404, "not found")
 				return
 			}
@@ -286,7 +294,11 @@ func (a *app) routes() http.Handler {
 	})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/admin" || strings.HasPrefix(r.URL.Path, "/admin/") {
-			w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+			w.Header().Set("Content-Security-Policy",
+				"default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; "+
+					"img-src 'self' blob: data: https://*.tile.openstreetmap.org; "+
+					"connect-src 'self'; font-src 'self'; base-uri 'none'; "+
+					"form-action 'self'; frame-ancestors 'none'")
 			w.Header().Set("X-Frame-Options", "DENY")
 			w.Header().Set("X-Content-Type-Options", "nosniff")
 		}

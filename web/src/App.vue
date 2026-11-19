@@ -111,13 +111,13 @@ const navGroups = [
   {
     title: "工作",
     items: routes.filter((item) =>
-      ["/dashboard", "/map", "/properties"].includes(item.path),
+      ["/dashboard", "/map", "/properties", "/review", "/tasks", "/ofi"].includes(item.path),
     ),
   },
   {
     title: "管理",
     items: routes.filter(
-      (item) => !["/dashboard", "/map", "/properties"].includes(item.path),
+      (item) => !["/dashboard", "/map", "/properties", "/review", "/tasks", "/ofi"].includes(item.path),
     ),
   },
 ];
