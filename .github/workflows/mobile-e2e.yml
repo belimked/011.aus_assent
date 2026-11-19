@@ -230,12 +230,30 @@ jobs:
           name: mobile-e2e-ios-${{ inputs.ios }}-${{ github.run_attempt }}
           if-no-files-found: warn
           retention-days: 14
-          path: ${{ env.E2E }}
+          path: |
+            ${{ env.E2E }}
+            !${{ env.E2E }}/**/*.mp4
+
+      - name: Upload E2E video
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-e2e-video-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: ${{ env.E2E }}/**/*.mp4
 
       - name: Test report
         if: always()
         run: |
           [ -f "$E2E/junit.xml" ] || exit 0
+          # Print each failure reason in the job log too, so a run can be triaged without downloads.
+          perl -0ne 'while(/<testcase[^>]*name="([^"]*)"[^>]*>\s*<failure[^>]*?(?:message="([^"]*)")?[^>]*>([^<]*)/g){print "FAIL $1: ".($2||$3)."\n"}' "$E2E/junit.xml" || true
+          for f in "$E2E"/debug/*/commands.json; do
+            [ -f "$f" ] || continue
+            jq -r --arg flow "$(basename "$(dirname "$f")")" '[.[] | select(.metadata.status == "FAILED")][0]
+              | select(. != null) | "STEP \($flow): \(.command | keys[0]) \(.command | tostring | .[0:200]) -> \(.metadata.error.message // "" | .[0:300])"' "$f" 2>/dev/null || true
+          done
           {
             echo "### Maestro iOS ${IOS} (app cache hit: ${{ steps.app.outputs.hit }})"
             grep -o '<testcase [^>]*name="[^"]*"' "$E2E/junit.xml" | sed 's/.*name="/- /;s/"$//'
