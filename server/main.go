@@ -196,9 +196,7 @@ func (a *app) auth(r *http.Request) (principal, bool) {
 	if err != nil || !t.After(time.Now()) {
 		return p, false
 	}
-	if time.Until(t) < 15*24*time.Hour {
-		_, _ = a.db.Exec(`UPDATE sessions SET expires_at=? WHERE token_hash=?`, time.Now().UTC().Add(30*24*time.Hour).Format(layout), hex.EncodeToString(hash[:]))
-	}
+	// Session expiry is fixed at login; never extend beyond the configured lifetime.
 	return p, true
 }
 func (a *app) routes() http.Handler {
@@ -275,7 +273,7 @@ func (a *app) routes() http.Handler {
 		case strings.HasPrefix(r.URL.Path, "/api/v1/approvals") || strings.HasSuffix(r.URL.Path, "/merge") || strings.HasSuffix(r.URL.Path, "/reassign"):
 			a.approvalRoute(w, r, p)
 		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/"):
-			if p.role != "admin" {
+			if p.role != "admin" && p.role != "leader" {
 				path := strings.TrimPrefix(r.URL.Path, "/api/v1/admin/")
 				if path == "todos" || strings.HasPrefix(path, "todos/") ||
 					path == "captures" || path == "listings" || path == "contacts" ||
@@ -287,7 +285,14 @@ func (a *app) routes() http.Handler {
 				problem(w, 404, "not found")
 				return
 			}
-			a.admin(w, r, p)
+			path := strings.TrimPrefix(r.URL.Path, "/api/v1/admin/")
+			if p.role == "leader" && path != "metrics" && path != "teams" && path != "todos" && path != "captures" && path != "ofi_attendees" && path != "listings" && path != "parcel-stats" && path != "properties" && path != "users" && path != "zones" {
+				problem(w, 403, "admin only")
+				return
+			}
+			if !a.console(w, r, p, path) {
+				a.admin(w, r, p)
+			}
 		default:
 			a.resource(w, r, p)
 		}
@@ -354,7 +359,11 @@ func (a *app) login(w http.ResponseWriter, r *http.Request) {
 	token := random()
 	raw, _ := hex.DecodeString(token)
 	sum := sha256.Sum256(raw)
-	_, err = a.db.Exec(`INSERT INTO sessions VALUES (?,?,?,?,?)`, hex.EncodeToString(sum[:]), id, str(m, "device"), time.Now().UTC().Add(30*24*time.Hour).Format(layout), now())
+	var hours int
+	if e := a.db.QueryRow(`SELECT value FROM settings WHERE key='session_hours'`).Scan(&hours); e != nil || hours < 1 {
+		hours = 720
+	}
+	_, err = a.db.Exec(`INSERT INTO sessions VALUES (?,?,?,?,?)`, hex.EncodeToString(sum[:]), id, str(m, "device"), time.Now().UTC().Add(time.Duration(hours)*time.Hour).Format(layout), now())
 	if err != nil {
 		problem(w, 500, "database error")
 		return

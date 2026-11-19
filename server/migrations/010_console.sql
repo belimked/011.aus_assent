@@ -1,0 +1,10 @@
+PRAGMA defer_foreign_keys=ON;
+CREATE TABLE users_new (id TEXT PRIMARY KEY, team_id TEXT NOT NULL DEFAULT 'default', email TEXT NOT NULL UNIQUE COLLATE NOCASE, name TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('agent','leader','admin')), password_hash TEXT NOT NULL, disabled INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1, deleted_at TEXT, rex_user_id TEXT);
+INSERT INTO users_new SELECT id,team_id,email,name,role,password_hash,disabled,created_at,updated_at,version,deleted_at,rex_user_id FROM users;
+DROP TABLE users;
+ALTER TABLE users_new RENAME TO users;
+CREATE TABLE teams (id TEXT PRIMARY KEY, name TEXT NOT NULL);
+INSERT INTO teams VALUES ('default','默认团队');
+CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+INSERT INTO settings VALUES ('session_hours','720');
+CREATE INDEX activity_date ON activity(created_at,owner_id);

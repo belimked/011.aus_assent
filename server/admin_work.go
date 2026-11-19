@@ -15,8 +15,16 @@ import (
 func (a *app) adminWork(w http.ResponseWriter, r *http.Request, p principal, path string) {
 	parts := strings.Split(path, "/")
 	kind := parts[0]
+	if p.role == "leader" && kind == "market-review" {
+		problem(w, 403, "admin only")
+		return
+	}
 	if kind == "market-review" {
 		a.marketReview(w, r, p, parts)
+		return
+	}
+	if p.role == "leader" && (kind == "contacts" || kind == "listings") {
+		problem(w, 403, "admin only")
 		return
 	}
 	if kind != "todos" && kind != "captures" && kind != "ofi_attendees" && kind != "listings" && kind != "contacts" {
@@ -26,6 +34,10 @@ func (a *app) adminWork(w http.ResponseWriter, r *http.Request, p principal, pat
 	if r.Method == "GET" && len(parts) == 1 {
 		q := `SELECT id FROM ` + kind + ` WHERE deleted_at IS NULL`
 		args := []any{}
+		if p.role == "leader" {
+			q += ` AND team_id=(SELECT team_id FROM users WHERE id=?)`
+			args = append(args, p.id)
+		}
 		if kind == "captures" {
 			q += ` AND COALESCE(json_extract(data,'$.status'),'pending') NOT IN ('approved','rejected')`
 		}
@@ -72,7 +84,11 @@ func (a *app) adminWork(w http.ResponseWriter, r *http.Request, p principal, pat
 		rows.Close()
 		out := []any{}
 		for _, id := range ids {
-			item, e := a.get(kind, id, p, false)
+			viewer := p
+			if p.role == "leader" {
+				viewer.role = "admin"
+			}
+			item, e := a.get(kind, id, viewer, false)
 			if e != nil {
 				continue
 			}
@@ -118,8 +134,12 @@ func (a *app) adminWork(w http.ResponseWriter, r *http.Request, p principal, pat
 			return
 		}
 		if kind == "todos" && r.Method == "POST" {
+			if p.role == "leader" && !a.teammate(p, str(m, "assigneeId")) {
+				problem(w, 403, "outside team")
+				return
+			}
 			var n int
-			_ = a.db.QueryRow(`SELECT count(*) FROM users WHERE id=? AND role='agent' AND disabled=0 AND deleted_at IS NULL`, str(m, "assigneeId")).Scan(&n)
+			_ = a.db.QueryRow(`SELECT count(*) FROM users WHERE id=? AND role IN ('agent','leader') AND disabled=0 AND deleted_at IS NULL`, str(m, "assigneeId")).Scan(&n)
 			if n != 1 || str(m, "t") == "" || str(m, "d") == "" {
 				problem(w, 400, "assignee, content and date required")
 				return
@@ -137,6 +157,10 @@ func (a *app) adminWork(w http.ResponseWriter, r *http.Request, p principal, pat
 			}
 		}
 		id := ""
+		if p.role == "leader" && (kind != "todos" || r.Method != "POST") {
+			problem(w, 403, "admin only")
+			return
+		}
 		if len(parts) == 2 {
 			id = parts[1]
 		}
