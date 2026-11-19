@@ -47,7 +47,8 @@ jobs:
       EXPO_PUBLIC_API_URL: http://127.0.0.1:8092/api/v1
       AXLEO_ADDR: 127.0.0.1:8082
       AXLEO_SEED_PASSWORD: ci-only-maestro-e2e-2026
-      E2E: ${{ github.workspace }}/.e2e-out
+      # Not a dot-folder: upload-artifact skips hidden paths.
+      E2E: ${{ github.workspace }}/e2e-out
     steps:
       - uses: actions/checkout@v4
 
