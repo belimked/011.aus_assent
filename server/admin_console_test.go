@@ -77,8 +77,15 @@ func TestConsolePermissionsAndExport(t *testing.T) {
 		t.Fatalf("CSV: %d %s", w.Code, w.Body)
 	}
 	var n int
+	if _, e := a.db.Exec(`UPDATE properties SET flags='{"dnc":true}' WHERE id='test'`); e != nil {
+		t.Fatal(e)
+	}
+	w = request(a, "POST", "/api/v1/admin/export", admin, map[string]any{"fields": []string{"address"}, "reason": "DNC check", "acknowledge": true, "excludeDNC": true})
+	if w.Code != 200 || strings.Contains(w.Body.String(), "1 Example") {
+		t.Fatalf("DNC export: %s", w.Body)
+	}
 	_ = a.db.QueryRow(`SELECT count(*) FROM audit_log WHERE action='export'`).Scan(&n)
-	if n != 1 {
+	if n != 2 {
 		t.Fatalf("export audit count %d", n)
 	}
 	w = request(a, "POST", "/api/v1/admin/export", admin, map[string]any{"fields": []string{"ownerNames"}, "reason": "bad", "acknowledge": true})

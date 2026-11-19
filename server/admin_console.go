@@ -276,7 +276,7 @@ func (a *app) metrics(w http.ResponseWriter, r *http.Request, p principal) {
 	respond(w, 200, map[string]any{"kpis": kpis, "trend": trend, "events": events})
 }
 
-var exportFields = map[string]string{"address": "trim(COALESCE(p.no,'')||' '||COALESCE(p.street,''))", "suburb": "p.suburb", "lotPlan": "COALESCE(json_extract(p.data,'$.lotplan'),'')", "contactName": "CASE WHEN COALESCE(json_extract(c.flags,'$.optedOut'),0)=0 AND (json_extract(c.consent,'$.phone')=1 OR json_extract(c.consent,'$.email')=1) THEN trim(COALESCE(c.first,'')||' '||COALESCE(c.last,'')) ELSE '' END", "mobile": "CASE WHEN json_extract(c.consent,'$.phone')=1 AND COALESCE(json_extract(c.flags,'$.optedOut'),0)=0 THEN COALESCE(c.mobile,'') ELSE '' END", "email": "CASE WHEN json_extract(c.consent,'$.email')=1 AND COALESCE(json_extract(c.flags,'$.optedOut'),0)=0 THEN COALESCE(c.email,'') ELSE '' END", "tags": "COALESCE(c.tags,'')", "notesCount": "(SELECT count(*) FROM contact_notes n WHERE n.contact_id=c.id)"}
+var exportFields = map[string]string{"address": "trim(COALESCE(p.no,'')||' '||COALESCE(p.street,''))", "suburb": "p.suburb", "lotPlan": "COALESCE(json_extract(p.data,'$.lotplan'),'')", "contactName": "CASE WHEN COALESCE(json_extract(c.flags,'$.dnc'),0)=0 AND (json_extract(c.consent,'$.phone')=1 OR json_extract(c.consent,'$.email')=1) THEN trim(COALESCE(c.first,'')||' '||COALESCE(c.last,'')) ELSE '' END", "mobile": "CASE WHEN json_extract(c.consent,'$.phone')=1 AND COALESCE(json_extract(c.flags,'$.dnc'),0)=0 THEN COALESCE(c.mobile,'') ELSE '' END", "email": "CASE WHEN json_extract(c.consent,'$.email')=1 AND COALESCE(json_extract(c.flags,'$.dnc'),0)=0 THEN COALESCE(c.email,'') ELSE '' END", "tags": "COALESCE(c.tags,'')", "notesCount": "(SELECT count(*) FROM contact_notes n WHERE n.contact_id=c.id)"}
 
 func (a *app) exportCSV(w http.ResponseWriter, r *http.Request, p principal) {
 	var m struct {
@@ -321,7 +321,7 @@ func (a *app) exportCSV(w http.ResponseWriter, r *http.Request, p principal) {
 		return
 	}
 	if m.ExcludeDNC {
-		q += ` AND COALESCE(json_extract(c.flags,'$.doNotContact'),0)=0 AND COALESCE(json_extract(p.data,'$.doNotKnock'),0)=0`
+		q += ` AND COALESCE(json_extract(c.flags,'$.dnc'),0)=0 AND COALESCE(json_extract(p.flags,'$.dnc'),0)=0 AND COALESCE(json_extract(p.data,'$.doNotKnock'),0)=0`
 	}
 	q += ` ORDER BY p.id LIMIT 20001`
 	rows, e := a.db.Query(q, args...)
