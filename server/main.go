@@ -123,19 +123,51 @@ func migrate(db *sql.DB, path string) error {
 		if err != nil {
 			return err
 		}
+		// SQLite cannot drop a referenced users table while FK enforcement is on.
+		// Keep the existing WAL backup and single DB connection; rebuild in a
+		// transaction, check every reference before committing, then restore FKs.
+		if name == "010_console.sql" {
+			if _, err = db.Exec(`PRAGMA foreign_keys=OFF`); err != nil {
+				return err
+			}
+		}
 		tx, err := db.Begin()
 		if err != nil {
+			if name == "010_console.sql" {
+				_, _ = db.Exec(`PRAGMA foreign_keys=ON`)
+			}
 			return err
 		}
 		if _, err = tx.Exec(string(b)); err == nil {
 			_, err = tx.Exec(`INSERT INTO schema_migrations VALUES (?,?)`, name, now())
 		}
+		if err == nil && name == "010_console.sql" {
+			var check *sql.Rows
+			check, err = tx.Query(`PRAGMA foreign_key_check`)
+			if err == nil {
+				if check.Next() {
+					err = fmt.Errorf("migration 010: broken foreign key")
+				}
+				check.Close()
+			}
+		}
 		if err != nil {
 			tx.Rollback()
+			if name == "010_console.sql" {
+				_, _ = db.Exec(`PRAGMA foreign_keys=ON`)
+			}
 			return err
 		}
 		if err = tx.Commit(); err != nil {
+			if name == "010_console.sql" {
+				_, _ = db.Exec(`PRAGMA foreign_keys=ON`)
+			}
 			return err
+		}
+		if name == "010_console.sql" {
+			if _, err = db.Exec(`PRAGMA foreign_keys=ON`); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -196,9 +228,7 @@ func (a *app) auth(r *http.Request) (principal, bool) {
 	if err != nil || !t.After(time.Now()) {
 		return p, false
 	}
-	if time.Until(t) < 15*24*time.Hour {
-		_, _ = a.db.Exec(`UPDATE sessions SET expires_at=? WHERE token_hash=?`, time.Now().UTC().Add(30*24*time.Hour).Format(layout), hex.EncodeToString(hash[:]))
-	}
+	// Session expiry is fixed at login; never extend beyond the configured lifetime.
 	return p, true
 }
 func (a *app) routes() http.Handler {
@@ -275,7 +305,7 @@ func (a *app) routes() http.Handler {
 		case strings.HasPrefix(r.URL.Path, "/api/v1/approvals") || strings.HasSuffix(r.URL.Path, "/merge") || strings.HasSuffix(r.URL.Path, "/reassign"):
 			a.approvalRoute(w, r, p)
 		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/"):
-			if p.role != "admin" {
+			if p.role != "admin" && p.role != "leader" {
 				path := strings.TrimPrefix(r.URL.Path, "/api/v1/admin/")
 				if path == "todos" || strings.HasPrefix(path, "todos/") ||
 					path == "captures" || path == "listings" || path == "contacts" ||
@@ -287,7 +317,14 @@ func (a *app) routes() http.Handler {
 				problem(w, 404, "not found")
 				return
 			}
-			a.admin(w, r, p)
+			path := strings.TrimPrefix(r.URL.Path, "/api/v1/admin/")
+			if p.role == "leader" && path != "metrics" && path != "teams" && path != "todos" && !strings.HasPrefix(path, "todos/") && path != "captures" && path != "ofi_attendees" && path != "listings" && path != "parcel-stats" && path != "properties" && path != "users" && path != "zones" && path != "contacts" {
+				problem(w, 403, "admin only")
+				return
+			}
+			if !a.console(w, r, p, path) {
+				a.admin(w, r, p)
+			}
 		default:
 			a.resource(w, r, p)
 		}
@@ -354,7 +391,11 @@ func (a *app) login(w http.ResponseWriter, r *http.Request) {
 	token := random()
 	raw, _ := hex.DecodeString(token)
 	sum := sha256.Sum256(raw)
-	_, err = a.db.Exec(`INSERT INTO sessions VALUES (?,?,?,?,?)`, hex.EncodeToString(sum[:]), id, str(m, "device"), time.Now().UTC().Add(30*24*time.Hour).Format(layout), now())
+	var hours int
+	if e := a.db.QueryRow(`SELECT value FROM settings WHERE key='session_hours'`).Scan(&hours); e != nil || hours < 1 {
+		hours = 720
+	}
+	_, err = a.db.Exec(`INSERT INTO sessions VALUES (?,?,?,?,?)`, hex.EncodeToString(sum[:]), id, str(m, "device"), time.Now().UTC().Add(time.Duration(hours)*time.Hour).Format(layout), now())
 	if err != nil {
 		problem(w, 500, "database error")
 		return
@@ -780,7 +821,7 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 		case "contacts":
 			_, err = tx.Exec(`INSERT INTO contacts(id,owner_id,first,last,mobile,email,data,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)`, id, owner, str(m, "first"), str(m, "last"), str(m, "mobile"), str(m, "email"), string(b), stamp, stamp)
 		case "todos":
-			_, err = tx.Exec(`INSERT INTO todos(id,assignee_id,created_by,due,time,text,kind,data,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`, id, assignee, creator, str(m, "d"), str(m, "time"), str(m, "t"), str(m, "kind"), string(b), stamp, stamp)
+			_, err = tx.Exec(`INSERT INTO todos(id,assignee_id,created_by,team_id,due,time,text,kind,data,created_at,updated_at) VALUES(?,?,?,(SELECT team_id FROM users WHERE id=?),?,?,?,?,?,?,?)`, id, assignee, creator, assignee, str(m, "d"), str(m, "time"), str(m, "t"), str(m, "kind"), string(b), stamp, stamp)
 		case "properties":
 			_, err = tx.Exec(`INSERT INTO properties(id,no,street,suburb,geometry,pf_owner,last_sale,data,created_at,updated_at,registered) VALUES(?,?,?,?,?,?,?,?,?,?,1)`, id, str(m, "no"), str(m, "street"), str(m, "suburb"), jsonField(m, "geometry"), str(m, "pfOwner"), str(m, "lastSale"), string(b), stamp, stamp)
 		case "leads", "referrals", "ofi_attendees":
@@ -800,8 +841,8 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 			args = append(args, str(m, "first"), str(m, "last"), str(m, "mobile"), str(m, "email"), owner)
 		}
 		if kind == "todos" {
-			q += `,due=?,time=?,text=?,kind=?,assignee_id=?,created_by=?`
-			args = append(args, str(m, "d"), str(m, "time"), str(m, "t"), str(m, "kind"), assignee, creator)
+			q += `,due=?,time=?,text=?,kind=?,assignee_id=?,created_by=?,team_id=(SELECT team_id FROM users WHERE id=?)`
+			args = append(args, str(m, "d"), str(m, "time"), str(m, "t"), str(m, "kind"), assignee, creator, assignee)
 		}
 		if b3Kind(kind) {
 			q += `,owner_id=?`

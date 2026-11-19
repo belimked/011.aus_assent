@@ -18,7 +18,7 @@
           <template v-for="group in navGroups" :key="group.title">
             <div v-if="!collapsed" class="ng">{{ t(group.title) }}</div>
             <router-link
-              v-for="item in group.items"
+              v-for="item in group.items.filter(item => identity?.role === 'admin' || !restricted.includes(item.path))"
               :key="item.path"
               :to="item.path"
               class="ni"
@@ -107,6 +107,7 @@ const collapsed = ref(false);
 const epLocale = computed(
   () => ({ "zh-CN": zhCn, "zh-HK": zhHk, en })[locale.value],
 );
+const restricted = ['/audit', '/rex', '/market', '/data', '/export', '/settings'];
 const navGroups = [
   {
     title: "工作",

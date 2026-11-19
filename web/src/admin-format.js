@@ -39,7 +39,7 @@ export function money(value) {
     maximumFractionDigits: 0,
   }).format(value);
 }
-export const roleLabel = (role) => t(role === "admin" ? "管理员" : "经纪人");
+export const roleLabel = (role) => t(role === "admin" ? "管理员" : role === "leader" ? "团队负责人" : "经纪人");
 export const approvalKind = (kind) =>
   t({ reassign: "重新分配", merge: "合并记录" }[kind] || kind);
 export const parcelStatus = (parcel) =>

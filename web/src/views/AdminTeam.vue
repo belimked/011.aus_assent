@@ -6,14 +6,39 @@
         <div class="sub">{{ t("账户角色、访问与区域分配") }}</div>
       </div>
       <div class="sp" />
-      <el-button type="primary" :icon="Plus" @click="createOpen = true">{{
+      <el-button v-if="identity?.role === 'admin'" type="primary" :icon="Plus" @click="createOpen = true">{{
         t("创建账户")
       }}</el-button>
     </div>
+    <div v-if="identity?.role === 'admin'" class="card team-manage">
+      <h3>{{ t('团队') }}</h3>
+      <div v-for="group in teams" :key="group.id" class="row">
+        <b class="grow">{{ group.name }}</b>
+        <span class="small muted">{{ users.filter(user => user.teamId === group.id).length }} {{ t('人') }}</span>
+        <el-button link @click="renameTeam(group)">{{ t('重命名') }}</el-button>
+      </div>
+      <el-button @click="createTeam">{{ t('创建团队') }}</el-button>
+      <div v-if="selected" class="row">
+        <label>{{ t('角色') }}
+          <el-select :model-value="selected.role" @change="value => patch({ role: value })" style="width: 140px">
+            <el-option value="agent" :label="t('经纪人')" />
+            <el-option value="leader" :label="t('团队负责人')" />
+            <el-option value="admin" :label="t('管理员')" />
+          </el-select>
+        </label>
+        <label>{{ t('团队') }}
+          <el-select :model-value="selected.teamId" @change="value => patch({ teamId: value })" style="width: 160px">
+            <el-option v-for="group in teams" :key="group.id" :value="group.id" :label="group.name" />
+          </el-select>
+        </label>
+      </div>
+    </div>
     <div class="tm">
       <div class="ul">
+        <template v-for="group in teams" :key="group.id">
+          <div class="group-name">{{ group.name }}</div>
         <button
-          v-for="user in users"
+          v-for="user in users.filter(item => item.teamId === group.id)"
           :key="user.id"
           class="uc card"
           :class="{ on: selected?.id === user.id, off: user.disabled }"
@@ -37,6 +62,7 @@
             ><span>{{ t("区域") }}</span>
           </div>
         </button>
+        </template>
       </div>
       <div v-if="selected" class="card ud">
         <div class="uh">
@@ -48,7 +74,7 @@
             </div>
           </div>
           <StatusPill :status="selected.disabled ? 'disabled' : 'active'" />
-          <el-dropdown @command="command">
+          <el-dropdown v-if="identity?.role === 'admin'" @command="command">
             <el-button :icon="MoreFilled" circle :aria-label="t('账户操作')" />
             <template #dropdown>
               <el-dropdown-menu>
@@ -83,6 +109,11 @@
           </div>
         </div>
         <div class="row section-heading">
+          <h3 class="grow">{{ t('能力雷达') }}</h3>
+        </div>
+        <v-chart v-if="agentStats" class="radar" :option="radarOption" autoresize />
+        <el-empty v-else :description="t('暂无活动')" :image-size="70" />
+        <div class="row section-heading">
           <h3 class="grow">{{ t("经纪人区域") }}</h3>
           <router-link :to="`/map?agent=${selected.id}`">{{
             t("地图查看 →")
@@ -113,6 +144,7 @@
           <el-select v-model="form.role" style="width: 100%">
             <el-option value="agent" :label="t('经纪人')" />
             <el-option value="admin" :label="t('管理员')" />
+            <el-option value="leader" :label="t('团队负责人')" />
           </el-select>
         </el-form-item>
         <el-form-item :label="t('密码')"
@@ -131,15 +163,27 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { MoreFilled, Plus } from "@element-plus/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { api } from "../api";
+import { api, identity } from "../api";
 import { relTime, roleLabel } from "../admin-format";
 import { t } from "../i18n";
 import Avatar from "../components/Avatar.vue";
 import StatusPill from "../components/StatusPill.vue";
+import VChart from '../components/chart';
 
 const route = useRoute();
 const users = ref([]);
 const zones = ref([]);
+const teams = ref([]);
+const stats = ref([]);
+const agentStats = computed(() => stats.value.find(row => row.id === selectedId.value));
+const radarFields = [['visits', '上门拜访'], ['contacts', '新联系人'],
+  ['appraisals', '预约估价'], ['linked', '新关联业主'], ['done', '已完成待办']];
+const radarOption = computed(() => ({
+  radar: { indicator: radarFields.map(([key, label]) => ({ name: t(label), max: 100 })) },
+  series: [{ type: 'radar', data: [{ name: selected.value?.name || '',
+    value: radarFields.map(([key]) => Math.round(100 * (agentStats.value?.[key] || 0) /
+      Math.max(1, ...stats.value.map(row => row[key] || 0)))) }] }],
+}));
 const selectedId = ref("");
 const createOpen = ref(false);
 const form = reactive({ email: "", name: "", role: "agent", password: "" });
@@ -154,15 +198,34 @@ const zoneCount = (id) =>
 
 async function load() {
   try {
-    [users.value, zones.value] = await Promise.all([
+    [users.value, zones.value, teams.value] = await Promise.all([
       api("admin/users"),
       api("admin/zones"),
+      api("admin/teams"),
     ]);
     selectedId.value =
       route.query.agent || selectedId.value || users.value[0]?.id;
+    if (selected.value) {
+      const data = await api(`admin/metrics?period=30&team=${encodeURIComponent(selected.value.teamId || '')}`);
+      stats.value = data.performance || [];
+    }
   } catch (error) {
     ElMessage.error(error.message);
   }
+}
+async function createTeam() {
+  try {
+    const { value } = await ElMessageBox.prompt(t('团队名称'));
+    await api('admin/teams', { method: 'POST', body: JSON.stringify({ name: value }) });
+    await load();
+  } catch { /* Cancelled. */ }
+}
+async function renameTeam(group) {
+  try {
+    const { value } = await ElMessageBox.prompt(t('团队名称'), '', { inputValue: group.name });
+    await api('admin/teams', { method: 'PATCH', body: JSON.stringify({ id: group.id, name: value }) });
+    await load();
+  } catch { /* Cancelled. */ }
 }
 async function create() {
   try {
@@ -214,6 +277,13 @@ async function command(action) {
     }
   }
 }
+watch(() => selected.value?.teamId, async (teamId) => {
+  if (!teamId) return;
+  try {
+    const data = await api(`admin/metrics?period=30&team=${encodeURIComponent(teamId)}`);
+    stats.value = data.performance || [];
+  } catch (error) { ElMessage.error(error.message); }
+});
 watch(
   () => route.query.agent,
   (value) => {
@@ -224,6 +294,11 @@ onMounted(load);
 </script>
 
 <style scoped>
+.radar { height: 260px; }
+.group-name { font-weight: 700; margin: 14px 0 8px; font-size: 15px; }
+.team-manage { padding: 18px; margin-bottom: 16px; }
+.team-manage .row { margin: 12px 0; gap: 12px; }
+.team-manage label { display: flex; align-items: center; gap: 8px; }
 .tm {
   display: grid;
   grid-template-columns: 340px 1fr;

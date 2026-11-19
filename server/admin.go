@@ -31,7 +31,7 @@ func createUser(db *sql.DB, email, name, role, pass string) error {
 }
 func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/admin/")
-	if path == "market-review" || strings.HasPrefix(path, "market-review/") ||
+	if (p.role == "admin" && (path == "market-review" || strings.HasPrefix(path, "market-review/"))) ||
 		path == "todos" || strings.HasPrefix(path, "todos/") || path == "captures" ||
 		path == "ofi_attendees" || strings.HasPrefix(path, "ofi_attendees/") ||
 		path == "listings" || path == "contacts" {
@@ -39,11 +39,11 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 		return
 	}
 	if path == "properties" {
-		a.adminProperties(w, r)
+		a.adminProperties(w, r, p)
 		return
 	}
 	if path == "parcel-stats" && r.Method == "GET" {
-		a.adminParcelStats(w)
+		a.adminParcelStats(w, p)
 		return
 	}
 	if path == "zones" || strings.HasPrefix(path, "zones/") {
@@ -173,9 +173,30 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 		return
 	}
 	if path == "users" {
+		if p.role == "leader" {
+			if r.Method != "GET" {
+				problem(w, 403, "admin only")
+				return
+			}
+			rows, e := a.db.Query(`SELECT id,name,role,team_id FROM users WHERE team_id=(SELECT team_id FROM users WHERE id=?) AND disabled=0 AND deleted_at IS NULL`, p.id)
+			if e != nil {
+				problem(w, 500, "database error")
+				return
+			}
+			defer rows.Close()
+			out := []any{}
+			for rows.Next() {
+				var id, name, role, team string
+				if rows.Scan(&id, &name, &role, &team) == nil {
+					out = append(out, map[string]any{"id": id, "name": name, "role": role, "teamId": team})
+				}
+			}
+			respond(w, 200, out)
+			return
+		}
 		switch r.Method {
 		case "GET":
-			rows, err := a.db.Query(`SELECT u.id,u.email,u.name,u.role,u.disabled,u.version, (SELECT max(created_at) FROM sessions WHERE user_id=u.id), (SELECT device FROM sessions WHERE user_id=u.id ORDER BY created_at DESC LIMIT 1) FROM users u WHERE u.deleted_at IS NULL ORDER BY u.email`)
+			rows, err := a.db.Query(`SELECT u.id,u.email,u.name,u.role,u.team_id,u.disabled,u.version, (SELECT max(created_at) FROM sessions WHERE user_id=u.id), (SELECT device FROM sessions WHERE user_id=u.id ORDER BY created_at DESC LIMIT 1) FROM users u WHERE u.deleted_at IS NULL ORDER BY u.email`)
 			if err != nil {
 				problem(w, 500, "database error")
 				return
@@ -183,11 +204,11 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 			defer rows.Close()
 			out := []any{}
 			for rows.Next() {
-				var id, email, name, role string
+				var id, email, name, role, teamID string
 				var disabled, ver int
 				var last, device sql.NullString
-				if rows.Scan(&id, &email, &name, &role, &disabled, &ver, &last, &device) == nil {
-					out = append(out, map[string]any{"id": id, "email": email, "name": name, "role": role, "disabled": disabled != 0, "version": ver, "lastLogin": last.String, "device": device.String})
+				if rows.Scan(&id, &email, &name, &role, &teamID, &disabled, &ver, &last, &device) == nil {
+					out = append(out, map[string]any{"id": id, "email": email, "name": name, "role": role, "disabled": disabled != 0, "version": ver, "lastLogin": last.String, "device": device.String, "teamId": teamID})
 				}
 			}
 			respond(w, 200, out)
@@ -203,7 +224,7 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 				problem(w, 400, "email and name required")
 				return
 			}
-			if role != "agent" && role != "admin" {
+			if role != "agent" && role != "admin" && role != "leader" {
 				problem(w, 400, "invalid role")
 				return
 			}
@@ -235,9 +256,9 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 				return
 			}
 			id := str(m, "id")
-			var role, name string
+			var role, name, teamID string
 			var disabled, ver int
-			err = a.db.QueryRow(`SELECT role,name,disabled,version FROM users WHERE id=? AND deleted_at IS NULL`, id).Scan(&role, &name, &disabled, &ver)
+			err = a.db.QueryRow(`SELECT role,name,team_id,disabled,version FROM users WHERE id=? AND deleted_at IS NULL`, id).Scan(&role, &name, &teamID, &disabled, &ver)
 			if err != nil {
 				problem(w, 404, "not found")
 				return
@@ -247,9 +268,18 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 				return
 			}
 			previousRole := role
+			if v, ok := m["teamId"].(string); ok {
+				var n int
+				_ = a.db.QueryRow(`SELECT count(*) FROM teams WHERE id=?`, v).Scan(&n)
+				if n == 0 {
+					problem(w, 400, "invalid team")
+					return
+				}
+				teamID = v
+			}
 			if v, ok := m["role"]; ok {
 				role, _ = v.(string)
-				if role != "admin" && role != "agent" {
+				if role != "admin" && role != "agent" && role != "leader" {
 					problem(w, 400, "invalid role")
 					return
 				}
@@ -273,7 +303,7 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 			}
 			tx, _ := a.db.Begin()
 			defer tx.Rollback()
-			_, err = tx.Exec(`UPDATE users SET role=?,name=?,disabled=?,password_hash=CASE WHEN ?='' THEN password_hash ELSE ? END,version=version+1,updated_at=? WHERE id=? AND version=?`, role, name, disabled, hash, hash, now(), id, ver)
+			_, err = tx.Exec(`UPDATE users SET role=?,name=?,team_id=?,disabled=?,password_hash=CASE WHEN ?='' THEN password_hash ELSE ? END,version=version+1,updated_at=? WHERE id=? AND version=?`, role, name, teamID, disabled, hash, hash, now(), id, ver)
 			if err == nil && (hash != "" || disabled != 0 || role != previousRole) {
 				_, err = tx.Exec(`DELETE FROM sessions WHERE user_id=?`, id)
 			}

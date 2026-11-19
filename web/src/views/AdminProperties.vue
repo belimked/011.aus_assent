@@ -49,7 +49,7 @@
           <el-option :label="t('未登记')" value="false" />
         </el-select>
       </label>
-      <label class="filter-label">
+      <label v-if="identity?.role === 'admin'" class="filter-label">
         {{ t("产权信息") }}
         <el-select
           v-model="filters.hasOwner"
@@ -61,7 +61,7 @@
           <el-option :label="t('无产权信息')" value="false" />
         </el-select>
       </label>
-      <label class="filter-label">
+      <label v-if="identity?.role === 'admin'" class="filter-label">
         {{ t("持有年限") }}
         <el-select
           v-model="filters.minYearsHeld"
@@ -105,25 +105,26 @@
           /></template>
         </el-table-column>
         <el-table-column
+          v-if="identity?.role === 'admin'"
           prop="ownerNames"
           :label="t('第三方业主')"
           min-width="150"
           show-overflow-tooltip
         />
-        <el-table-column :label="t('最近成交')" width="140">
+        <el-table-column v-if="identity?.role === 'admin'" :label="t('最近成交')" width="140">
           <template #default="{ row }">{{
             fmtDate(row.lastSaleDate)
           }}</template>
         </el-table-column>
-        <el-table-column :label="t('上次成交价')" width="125" align="right">
+        <el-table-column v-if="identity?.role === 'admin'" :label="t('上次成交价')" width="125" align="right">
           <template #default="{ row }">{{ money(row.lastSalePrice) }}</template>
         </el-table-column>
-        <el-table-column :label="t('持有')" width="105">
+        <el-table-column v-if="identity?.role === 'admin'" :label="t('持有')" width="105">
           <template #default="{ row }">{{
             row.yearsHeld == null ? "—" : t("{n} 年", { n: row.yearsHeld })
           }}</template>
         </el-table-column>
-        <el-table-column :label="t('异地业主')" width="100">
+        <el-table-column v-if="identity?.role === 'admin'" :label="t('异地业主')" width="100">
           <template #default="{ row }"
             ><StatusPill :status="row.absenteeOwner ? 'yes' : 'no'" short
           /></template>
@@ -149,7 +150,7 @@
         <div class="pb">
           <div class="serif address">{{ parcel.address }}</div>
           <div class="small muted">{{ parcel.suburb }} QLD</div>
-          <div class="foot small">
+          <div v-if="identity?.role === 'admin'" class="foot small">
             {{ parcel.ownerNames || t("尚无产权信息") }} ·
             {{ fmtDate(parcel.lastSaleDate) }}
           </div>
@@ -178,7 +179,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { Search } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
-import { api } from "../api";
+import { api, identity } from "../api";
 import { fmtDate, money, parcelStatus } from "../admin-format";
 import { t } from "../i18n";
 import AdminParcelDrawer from "../components/AdminParcelDrawer.vue";

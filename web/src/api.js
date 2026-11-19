@@ -34,7 +34,7 @@ export async function restore() {
   if (!token.value) return false;
   try {
     const user = await api("me");
-    if (user.role !== "admin") {
+    if (user.role !== "admin" && user.role !== "leader") {
       await logout();
       return false;
     }

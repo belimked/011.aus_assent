@@ -103,7 +103,7 @@
                 </div>
               </div>
               <el-tag v-if="attendee.follow" type="success">{{ t('已跟进') }}</el-tag>
-              <el-button v-else size="small" @click="follow(attendee)">{{ t('跟进') }}</el-button>
+              <el-button v-else-if="identity?.role === 'admin'" size="small" @click="follow(attendee)">{{ t('跟进') }}</el-button>
             </div>
             <el-empty v-if="!visitors.length" :description="t('暂无访客')" :image-size="60" />
           </div>
@@ -116,7 +116,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { ElMessage } from 'element-plus';
-import { api, token } from '../api';
+import { api, token, identity } from '../api';
 import { fmtDate } from '../admin-format';
 import { t } from '../i18n';
 import Avatar from '../components/Avatar.vue';
