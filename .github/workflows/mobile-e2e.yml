@@ -67,7 +67,7 @@ jobs:
           LOCK=$(shasum -a 256 mobile/package-lock.json | cut -c1-12)
           XCODE=$(xcodebuild -version | tr -s ' \n' '-' | sed 's/-$//')
           URL=$(printf '%s' "$EXPO_PUBLIC_API_URL" | shasum -a 256 | cut -c1-8)
-          KEY="e2e-sim-app-v1-${XCODE}-${SRC}-${LOCK}-${URL}"
+          KEY="e2e-sim-app-v2-${XCODE}-${SRC}-${LOCK}-${URL}"
           echo "key=$KEY" >> "$GITHUB_OUTPUT"
           echo "App cache key: $KEY"
 
@@ -102,14 +102,19 @@ jobs:
         working-directory: mobile
         run: npm ci && npx expo prebuild -p ios --clean
 
-      - name: Build unsigned simulator app
+      - name: Build simulator app
         if: ${{ steps.app.outputs.hit != 'true' }}
         working-directory: mobile
         run: |
           WORKSPACE=$(ls -d ios/*.xcworkspace | head -1); SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          # Sign to Run Locally (ad-hoc "-"), like `expo run:ios`: Xcode then embeds the simulator
+          # entitlements the keychain needs. With CODE_SIGNING_ALLOWED=NO, expo-secure-store fails
+          # with -34018 and login cannot store its token. Re-signing afterwards breaks app launch.
           xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 \
-            -derivedDataPath "$RUNNER_TEMP/dd" CODE_SIGNING_ALLOWED=NO -quiet build
+            -derivedDataPath "$RUNNER_TEMP/dd" CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= \
+            -quiet build
           rm -rf "$RUNNER_TEMP/sim-app" && mkdir -p "$RUNNER_TEMP/sim-app"
           cp -R "$RUNNER_TEMP/dd/Build/Products/Release-iphonesimulator/$SCHEME.app" "$RUNNER_TEMP/sim-app/"
 
@@ -173,18 +178,7 @@ jobs:
           UDID=$(xcrun simctl create e2e "$DT" "$RT")
           xcrun simctl boot "$UDID" && xcrun simctl bootstatus "$UDID" -b
           APP=$(ls -d "$RUNNER_TEMP"/sim-app/*.app | head -1)
-          # The app is built with CODE_SIGNING_ALLOWED=NO, which leaves it without keychain
-          # entitlements: expo-secure-store then fails with -34018 and login cannot store its token.
-          # Ad-hoc sign it for the simulator with a keychain group (does not affect the cached build).
-          ENT="$RUNNER_TEMP/e2e.entitlements"
-          printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
-            '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
-            '<plist version="1.0"><dict>' \
-            "<key>application-identifier</key><string>E2ETEAM000.$BUNDLE_ID</string>" \
-            "<key>keychain-access-groups</key><array><string>E2ETEAM000.$BUNDLE_ID</string></array>" \
-            '</dict></plist>' > "$ENT"
-          codesign --force --sign - --entitlements "$ENT" --timestamp=none "$APP"
-          codesign -d --entitlements - "$APP" 2>/dev/null | head -20
+          codesign -d --entitlements - "$APP" 2>/dev/null | head -20 || true
           xcrun simctl install "$UDID" "$APP"
           echo "UDID=$UDID" >> "$GITHUB_ENV"
 
