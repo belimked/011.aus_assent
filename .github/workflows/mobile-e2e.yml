@@ -39,6 +39,8 @@ jobs:
       DEVICE: iPhone 13
       BUNDLE_ID: com.placesunnybank.agentcollect
       MAESTRO_VERSION: 2.12.1
+      # The XCTest driver can be slow to start on a freshly booted simulator.
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: '240000'
       # Go server (fresh DB) listens here; runScript admin calls go straight to it.
       API: http://127.0.0.1:8082/api/v1
       # The app talks to a CI-only pass-through proxy so the offline flow can cut the network.
