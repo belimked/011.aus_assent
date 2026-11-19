@@ -89,9 +89,17 @@ func (a *app) adminWork(w http.ResponseWriter, r *http.Request, p principal, pat
 				item["contactMobile"] = mobile
 			}
 			if kind == "listings" {
-				var no, street, suburb string
-				_ = a.db.QueryRow(`SELECT no,street,suburb FROM properties WHERE id=?`, str(item, "propertyId")).Scan(&no, &street, &suburb)
+				var no, street, suburb, raw string
+				_ = a.db.QueryRow(`SELECT no,street,suburb,data FROM properties WHERE id=?`, str(item, "propertyId")).Scan(&no, &street, &suburb, &raw)
 				item["propertyAddress"] = strings.Trim(strings.TrimSpace(no+" "+street)+", "+suburb, ", ")
+				item["propertySuburb"] = suburb
+				var property map[string]any
+				if json.Unmarshal([]byte(raw), &property) == nil {
+					item["propertyPhotos"] = property["photos"]
+					item["propertyBeds"] = property["beds"]
+					item["propertyBaths"] = property["baths"]
+					item["propertyCars"] = property["cars"]
+				}
 			}
 			if kind == "captures" {
 				var agent string
@@ -163,17 +171,23 @@ func reviewLotMatch(event, parcel string) bool {
 
 func (a *app) marketReview(w http.ResponseWriter, r *http.Request, p principal, parts []string) {
 	if r.Method == "GET" && len(parts) == 1 {
-		rows, err := a.db.Query(`SELECT id,provider,kind,address,COALESCE(lot_plan,''),COALESCE(suburb,''),price,COALESCE(event_date,''),COALESCE(raw,'') FROM market_events WHERE property_id IS NULL AND review_status='pending' ORDER BY event_date DESC LIMIT 200`)
+		rows, err := a.db.Query(`SELECT id,provider,kind,address,COALESCE(lot_plan,''),
+			COALESCE(suburb,''),price,COALESCE(event_date,'')
+			FROM market_events WHERE property_id IS NULL AND review_status='pending'
+			ORDER BY event_date DESC LIMIT 200`)
 		if err != nil {
 			problem(w, 500, "database error")
 			return
 		}
 		out := []any{}
 		for rows.Next() {
-			var id, provider, kind, address, lot, sub, date, raw string
+			var id, provider, kind, address, lot, sub, date string
 			var price sql.NullInt64
-			if rows.Scan(&id, &provider, &kind, &address, &lot, &sub, &price, &date, &raw) == nil {
-				out = append(out, map[string]any{"id": id, "provider": provider, "kind": kind, "address": address, "lotPlan": lot, "suburb": sub, "price": price.Int64, "date": date})
+			if rows.Scan(&id, &provider, &kind, &address, &lot, &sub, &price, &date) == nil {
+				out = append(out, map[string]any{
+					"id": id, "provider": provider, "kind": kind, "address": address,
+					"lotPlan": lot, "suburb": sub, "price": price.Int64, "date": date,
+				})
 			}
 		}
 		rows.Close()
@@ -182,7 +196,11 @@ func (a *app) marketReview(w http.ResponseWriter, r *http.Request, p principal, 
 	}
 	if r.Method == "GET" && len(parts) == 3 && parts[2] == "candidates" {
 		var address, lot, sub string
-		if a.db.QueryRow(`SELECT address,COALESCE(lot_plan,''),COALESCE(suburb,'') FROM market_events WHERE id=? AND property_id IS NULL AND review_status='pending'`, parts[1]).Scan(&address, &lot, &sub) != nil {
+		err := a.db.QueryRow(`SELECT address,COALESCE(lot_plan,''),COALESCE(suburb,'')
+			FROM market_events WHERE id=? AND property_id IS NULL AND review_status='pending'`,
+			parts[1],
+		).Scan(&address, &lot, &sub)
+		if err != nil {
 			problem(w, 404, "not found")
 			return
 		}
@@ -190,13 +208,21 @@ func (a *app) marketReview(w http.ResponseWriter, r *http.Request, p principal, 
 		if fields := strings.Fields(lot); len(fields) > 1 {
 			plan = "%" + fields[len(fields)-1]
 		}
-		rows, err := a.db.Query(`SELECT p.id,p.no,p.street,p.suburb,p.registered,p.data,COALESCE(o.owner_names,'') FROM properties p LEFT JOIN property_ownership o ON o.property_id=p.id WHERE p.deleted_at IS NULL AND (upper(p.suburb)=upper(?) OR upper(json_extract(p.data,'$.lotplan')) LIKE upper(?)) LIMIT 10000`, sub, plan)
+		rows, err := a.db.Query(`SELECT p.id,p.no,p.street,p.suburb,p.registered,p.data,
+			COALESCE(o.owner_names,'') FROM properties p
+			LEFT JOIN property_ownership o ON o.property_id=p.id
+			WHERE p.deleted_at IS NULL AND (upper(p.suburb)=upper(?)
+			OR upper(json_extract(p.data,'$.lotplan')) LIKE upper(?)) LIMIT 10000`,
+			sub, plan,
+		)
 		if err != nil {
 			problem(w, 500, "database error")
 			return
 		}
 		type candidate struct {
 			ID, Address, Suburb, LotPlan, OwnerNames string
+			Basis                                    string
+			LL                                       any
 			Registered                               bool
 			Score                                    int
 		}
@@ -210,16 +236,27 @@ func (a *app) marketReview(w http.ResponseWriter, r *http.Request, p principal, 
 			var data map[string]any
 			_ = json.Unmarshal([]byte(raw), &data)
 			lp := str(data, "lotplan")
+			if lp == "" {
+				lp = str(data, "lot")
+			}
 			score := 0
-			if lot != "" && reviewLotMatch(lot, lp) {
-				score = 100
-			} else if strings.EqualFold(sub, suburb) && addressKey(address) == addressKey(no+" "+street) {
-				score = 80
-			} else if strings.EqualFold(sub, suburb) && strings.Contains(addressKey(address), addressKey(street)) {
-				score = 30
+			basis := ""
+			switch {
+			case lot != "" && lotKey(lot) == lotKey(lp):
+				score, basis = 100, "lot-exact"
+			case lot != "" && reviewLotMatch(lot, lp):
+				score, basis = 95, "lot-range"
+			case strings.EqualFold(sub, suburb) && addressKey(address) == addressKey(no+" "+street):
+				score, basis = 80, "address-exact"
+			case strings.EqualFold(sub, suburb) && strings.Contains(addressKey(address), addressKey(street)):
+				score, basis = 30, "street"
 			}
 			if score > 0 {
-				out = append(out, candidate{id, strings.TrimSpace(no + " " + street), suburb, lp, owners, registered != 0, score})
+				out = append(out, candidate{
+					ID: id, Address: strings.TrimSpace(no + " " + street), Suburb: suburb,
+					LotPlan: lp, OwnerNames: owners, Basis: basis, LL: data["ll"],
+					Registered: registered != 0, Score: score,
+				})
 			}
 		}
 		rows.Close()
@@ -247,7 +284,10 @@ func (a *app) marketReview(w http.ResponseWriter, r *http.Request, p principal, 
 	defer tx.Rollback()
 	var provider, kind, address, date, importID string
 	var price sql.NullInt64
-	err = tx.QueryRow(`SELECT provider,kind,address,COALESCE(event_date,''),import_id,price FROM market_events WHERE id=? AND property_id IS NULL AND review_status='pending'`, parts[1]).Scan(&provider, &kind, &address, &date, &importID, &price)
+	err = tx.QueryRow(`SELECT provider,kind,address,COALESCE(event_date,''),import_id,price
+		FROM market_events WHERE id=? AND property_id IS NULL AND review_status='pending'`,
+		parts[1],
+	).Scan(&provider, &kind, &address, &date, &importID, &price)
 	if err != nil {
 		problem(w, 409, "event already reviewed or missing")
 		return
