@@ -62,6 +62,10 @@ func TestConsolePermissionsAndExport(t *testing.T) {
 	if _, e := a.db.Exec(`INSERT INTO todos(id,assignee_id,created_by,team_id,data,created_at,updated_at) VALUES('other-task',?,?,'other','{"t":"secret"}',?,?)`, john, john, now(), now()); e != nil {
 		t.Fatal(e)
 	}
+	w = request(a, "POST", "/api/v1/admin/todos", leader, map[string]any{"id": "other-task", "assigneeId": mary, "t": "collision", "d": "2026-11-19"})
+	if w.Code != 403 || strings.Contains(w.Body.String(), "secret") {
+		t.Fatalf("task id collision: %d %s", w.Code, w.Body)
+	}
 	w = request(a, "GET", "/api/v1/admin/todos", leader, nil)
 	if w.Code != 200 || strings.Contains(w.Body.String(), "secret") {
 		t.Fatalf("team todos: %s", w.Body)

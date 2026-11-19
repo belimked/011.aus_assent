@@ -178,6 +178,45 @@ func (a *app) adminWork(w http.ResponseWriter, r *http.Request, p principal, pat
 				problem(w, 403, "admin only")
 				return
 			}
+			if r.Method == "POST" {
+				allowed := map[string]bool{"id": true, "t": true, "d": true, "time": true, "kind": true, "assigneeId": true, "propId": true, "cid": true, "createdBy": true, "by": true, "who": true}
+				for key := range m {
+					if !allowed[key] {
+						problem(w, 403, "forbidden task field")
+						return
+					}
+				}
+				var ownTeam string
+				_ = a.db.QueryRow(`SELECT team_id FROM users WHERE id=?`, p.id).Scan(&ownTeam)
+				if value := str(m, "id"); value != "" {
+					var other string
+					e := a.db.QueryRow(`SELECT u.team_id FROM todos t JOIN users u ON u.id=t.assignee_id WHERE t.id=?`, value).Scan(&other)
+					if e != nil && e != sql.ErrNoRows {
+						problem(w, 500, "database error")
+						return
+					}
+					if e == nil && other != ownTeam {
+						problem(w, 403, "outside team")
+						return
+					}
+				}
+				if value := str(m, "propId"); value != "" {
+					var n int
+					_ = a.db.QueryRow(`SELECT count(*) FROM properties WHERE id=? AND team_id=? AND deleted_at IS NULL`, value, ownTeam).Scan(&n)
+					if n != 1 {
+						problem(w, 403, "property outside team")
+						return
+					}
+				}
+				if value := str(m, "cid"); value != "" {
+					var n int
+					_ = a.db.QueryRow(`SELECT count(*) FROM contacts c JOIN users u ON u.id=c.owner_id WHERE c.id=? AND u.team_id=? AND c.deleted_at IS NULL`, value, ownTeam).Scan(&n)
+					if n != 1 {
+						problem(w, 403, "contact outside team")
+						return
+					}
+				}
+			}
 			assignee := str(m, "assigneeId")
 			if r.Method == "PATCH" {
 				var existingTeam, existingAssignee string

@@ -147,7 +147,7 @@
         <el-button @click="dialog = false">{{ t('取消') }}</el-button>
         <el-button
           type="primary"
-          :disabled="!form.propId || !form.t || !form.d || !form.assigneeId"
+          :disabled="!form.t || !form.d || !form.assigneeId"
           @click="create"
         >
           {{ t('创建') }}
