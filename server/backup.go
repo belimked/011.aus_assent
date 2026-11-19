@@ -20,7 +20,7 @@ func serviceLock(path string) (*os.File, error) {
 	}
 	if err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		f.Close()
-		return nil, fmt.Errorf("database in use; stop axleo.service before restoring: %w", err)
+		return nil, fmt.Errorf("database in use; stop axleo.service before restoring or resetting data: %w", err)
 	}
 	return f, nil
 }

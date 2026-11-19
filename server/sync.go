@@ -56,6 +56,16 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 		problem(w, 500, "database error")
 		return
 	}
+	if since != "" {
+		// A cursor issued before `axleo reset-data` (or one from another database)
+		// cannot be served incrementally: the change log no longer has tombstones
+		// for the cleared rows. Answer with a full snapshot, which clients replace.
+		var floor int64
+		_ = a.db.QueryRow(`SELECT CAST(value AS INTEGER) FROM settings WHERE key=?`, syncResetKey).Scan(&floor)
+		if from <= floor || from > high {
+			since = ""
+		}
+	}
 	out := map[string]any{"cursor": base64.RawURLEncoding.EncodeToString([]byte(strconv.FormatInt(high, 10))), "full": since == ""}
 	deleted := map[string][]string{}
 	for _, kind := range syncKinds {
@@ -70,7 +80,13 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 		}
 		params := append([]any{from, high}, args...)
 		if since == "" {
-			q += ` AND t.deleted_at IS NULL`
+			// A new login must see the tables, not depend on surviving change-log entries.
+			q = `SELECT t.id FROM ` + kind + ` t WHERE t.deleted_at IS NULL` + strings.ReplaceAll(scopeSQL, "owner_id=?", "t.owner_id=?")
+			q = strings.ReplaceAll(strings.ReplaceAll(q, "assignee_id=?", "t.assignee_id=?"), "created_by=?", "t.created_by=?")
+			params = args
+			if kind == "properties" {
+				q += ` AND t.registered=1`
+			}
 		}
 		rows, err := a.db.Query(q, params...)
 		if err != nil {
