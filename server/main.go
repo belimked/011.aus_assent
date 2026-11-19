@@ -123,19 +123,51 @@ func migrate(db *sql.DB, path string) error {
 		if err != nil {
 			return err
 		}
+		// SQLite cannot drop a referenced users table while FK enforcement is on.
+		// Keep the existing WAL backup and single DB connection; rebuild in a
+		// transaction, check every reference before committing, then restore FKs.
+		if name == "010_console.sql" {
+			if _, err = db.Exec(`PRAGMA foreign_keys=OFF`); err != nil {
+				return err
+			}
+		}
 		tx, err := db.Begin()
 		if err != nil {
+			if name == "010_console.sql" {
+				_, _ = db.Exec(`PRAGMA foreign_keys=ON`)
+			}
 			return err
 		}
 		if _, err = tx.Exec(string(b)); err == nil {
 			_, err = tx.Exec(`INSERT INTO schema_migrations VALUES (?,?)`, name, now())
 		}
+		if err == nil && name == "010_console.sql" {
+			var check *sql.Rows
+			check, err = tx.Query(`PRAGMA foreign_key_check`)
+			if err == nil {
+				if check.Next() {
+					err = fmt.Errorf("migration 010: broken foreign key")
+				}
+				check.Close()
+			}
+		}
 		if err != nil {
 			tx.Rollback()
+			if name == "010_console.sql" {
+				_, _ = db.Exec(`PRAGMA foreign_keys=ON`)
+			}
 			return err
 		}
 		if err = tx.Commit(); err != nil {
+			if name == "010_console.sql" {
+				_, _ = db.Exec(`PRAGMA foreign_keys=ON`)
+			}
 			return err
+		}
+		if name == "010_console.sql" {
+			if _, err = db.Exec(`PRAGMA foreign_keys=ON`); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -286,7 +318,7 @@ func (a *app) routes() http.Handler {
 				return
 			}
 			path := strings.TrimPrefix(r.URL.Path, "/api/v1/admin/")
-			if p.role == "leader" && path != "metrics" && path != "teams" && path != "todos" && path != "captures" && path != "ofi_attendees" && path != "listings" && path != "parcel-stats" && path != "properties" && path != "users" && path != "zones" {
+			if p.role == "leader" && path != "metrics" && path != "teams" && path != "todos" && !strings.HasPrefix(path, "todos/") && path != "captures" && path != "ofi_attendees" && path != "listings" && path != "parcel-stats" && path != "properties" && path != "users" && path != "zones" && path != "contacts" {
 				problem(w, 403, "admin only")
 				return
 			}
@@ -789,7 +821,7 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 		case "contacts":
 			_, err = tx.Exec(`INSERT INTO contacts(id,owner_id,first,last,mobile,email,data,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)`, id, owner, str(m, "first"), str(m, "last"), str(m, "mobile"), str(m, "email"), string(b), stamp, stamp)
 		case "todos":
-			_, err = tx.Exec(`INSERT INTO todos(id,assignee_id,created_by,due,time,text,kind,data,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`, id, assignee, creator, str(m, "d"), str(m, "time"), str(m, "t"), str(m, "kind"), string(b), stamp, stamp)
+			_, err = tx.Exec(`INSERT INTO todos(id,assignee_id,created_by,team_id,due,time,text,kind,data,created_at,updated_at) VALUES(?,?,?,(SELECT team_id FROM users WHERE id=?),?,?,?,?,?,?,?)`, id, assignee, creator, assignee, str(m, "d"), str(m, "time"), str(m, "t"), str(m, "kind"), string(b), stamp, stamp)
 		case "properties":
 			_, err = tx.Exec(`INSERT INTO properties(id,no,street,suburb,geometry,pf_owner,last_sale,data,created_at,updated_at,registered) VALUES(?,?,?,?,?,?,?,?,?,?,1)`, id, str(m, "no"), str(m, "street"), str(m, "suburb"), jsonField(m, "geometry"), str(m, "pfOwner"), str(m, "lastSale"), string(b), stamp, stamp)
 		case "leads", "referrals", "ofi_attendees":
@@ -809,8 +841,8 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 			args = append(args, str(m, "first"), str(m, "last"), str(m, "mobile"), str(m, "email"), owner)
 		}
 		if kind == "todos" {
-			q += `,due=?,time=?,text=?,kind=?,assignee_id=?,created_by=?`
-			args = append(args, str(m, "d"), str(m, "time"), str(m, "t"), str(m, "kind"), assignee, creator)
+			q += `,due=?,time=?,text=?,kind=?,assignee_id=?,created_by=?,team_id=(SELECT team_id FROM users WHERE id=?)`
+			args = append(args, str(m, "d"), str(m, "time"), str(m, "t"), str(m, "kind"), assignee, creator, assignee)
 		}
 		if b3Kind(kind) {
 			q += `,owner_id=?`

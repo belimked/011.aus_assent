@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -206,8 +207,9 @@ func (a *app) metrics(w http.ResponseWriter, r *http.Request, p principal) {
 	}
 	start := time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, 1-days)
 	type point struct {
-		Day    string `json:"day"`
-		Visits int    `json:"visits"`
+		Day     string         `json:"day"`
+		Visits  int            `json:"visits"`
+		Actions map[string]int `json:"actions"`
 	}
 	trend := []point{}
 	kpis := map[string]any{}
@@ -216,12 +218,13 @@ func (a *app) metrics(w http.ResponseWriter, r *http.Request, p principal) {
 		{"captures", `SELECT count(*) FROM contacts a JOIN users u ON u.id=a.owner_id WHERE a.deleted_at IS NULL AND a.created_at>=? AND a.created_at<?`},
 		{"appraisals", `SELECT count(*) FROM todos a JOIN users u ON u.id=a.assignee_id WHERE a.deleted_at IS NULL AND lower(COALESCE(a.kind,'')) LIKE '%appraisal%' AND a.created_at>=? AND a.created_at<?`},
 		{"ofi", `SELECT count(*) FROM ofi_attendees a JOIN users u ON u.id=a.owner_id WHERE a.deleted_at IS NULL AND a.created_at>=? AND a.created_at<?`},
+		{"listings", `SELECT count(*) FROM listings a JOIN users u ON u.id=a.owner_id WHERE a.deleted_at IS NULL AND a.created_at>=? AND a.created_at<?`},
 	} {
 		count := func(from, to time.Time) int {
 			q := metric.query
 			args := []any{from.Format(layout), to.Format(layout)}
 			if team != "" {
-				q += ` AND a.team_id=?`
+				q += ` AND u.team_id=?`
 				args = append(args, team)
 			}
 			if agent != "" {
@@ -233,14 +236,41 @@ func (a *app) metrics(w http.ResponseWriter, r *http.Request, p principal) {
 			return n
 		}
 		end := start.AddDate(0, 0, days)
-		kpis[metric.key] = map[string]int{"value": count(start, end), "previous": count(start.AddDate(0, 0, -days), start)}
+		spark := make([]int, days)
+		trendQuery := strings.Replace(metric.query, `SELECT count(*)`, `SELECT substr(a.created_at,1,10),count(*)`, 1)
+		trendArgs := []any{start.Format(layout), end.Format(layout)}
+		if team != "" {
+			trendQuery += ` AND u.team_id=?`
+			trendArgs = append(trendArgs, team)
+		}
+		if agent != "" {
+			trendQuery += ` AND u.id=?`
+			trendArgs = append(trendArgs, agent)
+		}
+		trendQuery += ` GROUP BY 1 LIMIT 90`
+		if rows, e := a.db.Query(trendQuery, trendArgs...); e == nil {
+			for rows.Next() {
+				var day string
+				var n int
+				if rows.Scan(&day, &n) == nil {
+					if date, err := time.Parse("2006-01-02", day); err == nil {
+						i := int(date.Sub(start).Hours() / 24)
+						if i >= 0 && i < days {
+							spark[i] = n
+						}
+					}
+				}
+			}
+			rows.Close()
+		}
+		kpis[metric.key] = map[string]any{"value": count(start, end), "previous": count(start.AddDate(0, 0, -days), start), "spark": spark}
 	}
 	for d := 0; d < days; d++ {
 		from := start.AddDate(0, 0, d)
 		q := `SELECT count(*) FROM activity a JOIN users u ON u.id=a.owner_id WHERE a.deleted_at IS NULL AND json_extract(a.data,'$.a')='DK' AND a.created_at>=? AND a.created_at<?`
 		args := []any{from.Format(layout), from.AddDate(0, 0, 1).Format(layout)}
 		if team != "" {
-			q += ` AND a.team_id=?`
+			q += ` AND u.team_id=?`
 			args = append(args, team)
 		}
 		if agent != "" {
@@ -249,12 +279,12 @@ func (a *app) metrics(w http.ResponseWriter, r *http.Request, p principal) {
 		}
 		var n int
 		_ = a.db.QueryRow(q, args...).Scan(&n)
-		trend = append(trend, point{from.Format("2006-01-02"), n})
+		trend = append(trend, point{Day: from.Format("2006-01-02"), Visits: n, Actions: map[string]int{}})
 	}
 	q := `SELECT a.id,COALESCE(json_extract(a.data,'$.t'),''),COALESCE(a.created_at,''),COALESCE(u.name,'') FROM activity a LEFT JOIN users u ON u.id=a.owner_id WHERE a.deleted_at IS NULL`
 	args := []any{}
 	if team != "" {
-		q += ` AND a.team_id=?`
+		q += ` AND u.team_id=?`
 		args = append(args, team)
 	}
 	if agent != "" {
@@ -273,7 +303,44 @@ func (a *app) metrics(w http.ResponseWriter, r *http.Request, p principal) {
 		}
 		rows.Close()
 	}
-	respond(w, 200, map[string]any{"kpis": kpis, "trend": trend, "events": events})
+	actionQuery := `SELECT substr(a.created_at,1,10),COALESCE(json_extract(a.data,'$.a'),''),count(*) FROM activity a JOIN users u ON u.id=a.owner_id WHERE a.deleted_at IS NULL AND a.created_at>=? AND a.created_at<?`
+	actionArgs := []any{start.Format(layout), start.AddDate(0, 0, days).Format(layout)}
+	if team != "" {
+		actionQuery += ` AND u.team_id=?`
+		actionArgs = append(actionArgs, team)
+	}
+	if agent != "" {
+		actionQuery += ` AND u.id=?`
+		actionArgs = append(actionArgs, agent)
+	}
+	actionQuery += ` GROUP BY 1,2 LIMIT 1800`
+	actionSet := map[string]bool{}
+	if rows, e := a.db.Query(actionQuery, actionArgs...); e == nil {
+		for rows.Next() {
+			var date, action string
+			var n int
+			if rows.Scan(&date, &action, &n) == nil && action != "" {
+				if day, e := time.Parse("2006-01-02", date); e == nil {
+					idx := int(day.Sub(start).Hours() / 24)
+					if idx >= 0 && idx < len(trend) {
+						trend[idx].Actions[action] = n
+						actionSet[action] = true
+					}
+				}
+			}
+		}
+		rows.Close()
+	}
+	actionNames := []string{}
+	for action := range actionSet {
+		actionNames = append(actionNames, action)
+	}
+	sort.Strings(actionNames)
+	extras := a.metricExtras(r, p, start, start.AddDate(0, 0, days), team, agent)
+	kpis["owners"] = extras["owners"]
+	respond(w, 200, map[string]any{"kpis": kpis, "trend": trend, "events": events,
+		"coverage": extras["coverage"], "agenda": extras["agenda"], "performance": extras["performance"],
+		"heatmap": extras["heatmap"], "visitCount": extras["visitCount"], "opportunities": extras["opportunities"], "actions": actionNames})
 }
 
 var exportFields = map[string]string{"address": "trim(COALESCE(p.no,'')||' '||COALESCE(p.street,''))", "suburb": "p.suburb", "lotPlan": "COALESCE(json_extract(p.data,'$.lotplan'),'')", "contactName": "CASE WHEN COALESCE(json_extract(c.flags,'$.dnc'),0)=0 AND (json_extract(c.consent,'$.phone')=1 OR json_extract(c.consent,'$.email')=1) THEN trim(COALESCE(c.first,'')||' '||COALESCE(c.last,'')) ELSE '' END", "mobile": "CASE WHEN json_extract(c.consent,'$.phone')=1 AND COALESCE(json_extract(c.flags,'$.dnc'),0)=0 THEN COALESCE(c.mobile,'') ELSE '' END", "email": "CASE WHEN json_extract(c.consent,'$.email')=1 AND COALESCE(json_extract(c.flags,'$.dnc'),0)=0 THEN COALESCE(c.email,'') ELSE '' END", "tags": "COALESCE(c.tags,'')", "notesCount": "(SELECT count(*) FROM contact_notes n WHERE n.contact_id=c.id)"}

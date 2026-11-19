@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -68,9 +69,55 @@ func TestConsolePermissionsAndExport(t *testing.T) {
 	if _, e := a.db.Exec(`INSERT INTO properties(id,no,street,suburb,data,created_at,updated_at) VALUES('test','1','Example','Sunnybank','{}',?,?)`, now(), now()); e != nil {
 		t.Fatal(e)
 	}
+	w = request(a, "POST", "/api/v1/admin/todos", leader, map[string]any{"assigneeId": mary, "t": "Visit", "d": "2026-11-18"})
+	if w.Code != 201 {
+		t.Fatalf("leader create: %d %s", w.Code, w.Body)
+	}
+	created := obj(t, w)
+	taskID := created["id"].(string)
+	w = request(a, "PATCH", "/api/v1/admin/todos/"+taskID, leader, map[string]any{"version": created["version"], "d": "2026-11-19"})
+	if w.Code != 200 {
+		t.Fatalf("leader reschedule: %d %s", w.Code, w.Body)
+	}
+	changed := obj(t, w)
+	w = request(a, "PATCH", "/api/v1/admin/todos/"+taskID, leader, map[string]any{"version": changed["version"], "assigneeId": john})
+	if w.Code != 403 {
+		t.Fatalf("cross-team reassign: %d %s", w.Code, w.Body)
+	}
+	var assignee string
+	_ = a.db.QueryRow(`SELECT assignee_id FROM todos WHERE id=?`, taskID).Scan(&assignee)
+	if assignee != mary {
+		t.Fatalf("task modified despite 403: %s", assignee)
+	}
 	w = request(a, "GET", "/api/v1/admin/properties", leader, nil)
 	if w.Code != 200 || bytes.Contains(w.Body.Bytes(), []byte("ownerNames")) || bytes.Contains(w.Body.Bytes(), []byte("lastSalePrice")) {
 		t.Fatalf("property exposure: %d %s", w.Code, w.Body)
+	}
+	if _, e := a.db.Exec(`INSERT INTO listings(id,owner_id,team_id,data,created_at,updated_at) VALUES('owned-listing',?,'default','{"pfOwner":"Licensed Name","market":{"lastSalePrice":123}}',?,?)`, mary, now(), now()); e != nil {
+		t.Fatal(e)
+	}
+	w = request(a, "GET", "/api/v1/admin/listings", leader, nil)
+	if w.Code != 200 || strings.Contains(w.Body.String(), "Licensed Name") || strings.Contains(w.Body.String(), "lastSalePrice") {
+		t.Fatalf("leader listing exposure: %s", w.Body)
+	}
+	if _, e := a.db.Exec(`INSERT INTO contacts(id,owner_id,data,created_at,updated_at) VALUES('link-contact',?,'{}',?,?)`, mary, now(), now()); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := a.db.Exec(`INSERT INTO property_owners(property_id,contact_id) VALUES('test','link-contact')`); e != nil {
+		t.Fatal(e)
+	}
+	w = request(a, "GET", "/api/v1/admin/metrics?period=7", leader, nil)
+	if w.Code != 200 || obj(t, w)["kpis"].(map[string]any)["owners"].(map[string]any)["value"].(float64) != 1 {
+		t.Fatalf("linked owner KPI: %s", w.Body)
+	}
+	for i := 0; i < 20; i++ {
+		if _, e := a.db.Exec(`INSERT INTO activity(id,owner_id,team_id,data,created_at,updated_at) VALUES(?,?, 'default','{"a":"DK"}',?,?)`, strconv.Itoa(i), mary, now(), now()); e != nil {
+			t.Fatal(e)
+		}
+	}
+	w = request(a, "GET", "/api/v1/admin/metrics?period=7", leader, nil)
+	if w.Code != 200 || obj(t, w)["visitCount"].(float64) != 20 {
+		t.Fatalf("visit heatmap: %s", w.Body)
 	}
 	w = request(a, "POST", "/api/v1/admin/export", admin, map[string]any{"fields": []string{"address", "suburb"}, "reason": "Approved follow-up", "acknowledge": true, "excludeDNC": true})
 	if w.Code != 200 || !bytes.HasPrefix(w.Body.Bytes(), []byte{0xef, 0xbb, 0xbf}) || !strings.Contains(w.Body.String(), "1 Example") {

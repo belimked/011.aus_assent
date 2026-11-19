@@ -43,7 +43,7 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 		return
 	}
 	if path == "parcel-stats" && r.Method == "GET" {
-		a.adminParcelStats(w)
+		a.adminParcelStats(w, p)
 		return
 	}
 	if path == "zones" || strings.HasPrefix(path, "zones/") {

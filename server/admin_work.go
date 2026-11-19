@@ -23,7 +23,7 @@ func (a *app) adminWork(w http.ResponseWriter, r *http.Request, p principal, pat
 		a.marketReview(w, r, p, parts)
 		return
 	}
-	if p.role == "leader" && (kind == "contacts" || kind == "listings") {
+	if p.role == "leader" && kind == "contacts" && r.Method != "GET" {
 		problem(w, 403, "admin only")
 		return
 	}
@@ -35,7 +35,11 @@ func (a *app) adminWork(w http.ResponseWriter, r *http.Request, p principal, pat
 		q := `SELECT id FROM ` + kind + ` WHERE deleted_at IS NULL`
 		args := []any{}
 		if p.role == "leader" {
-			q += ` AND team_id=(SELECT team_id FROM users WHERE id=?)`
+			if kind == "todos" {
+				q += ` AND assignee_id IN (SELECT id FROM users WHERE team_id=(SELECT team_id FROM users WHERE id=?))`
+			} else {
+				q += ` AND owner_id IN (SELECT id FROM users WHERE team_id=(SELECT team_id FROM users WHERE id=?))`
+			}
 			args = append(args, p.id)
 		}
 		if kind == "captures" {
@@ -117,6 +121,9 @@ func (a *app) adminWork(w http.ResponseWriter, r *http.Request, p principal, pat
 					item["propertyCars"] = property["cars"]
 				}
 			}
+			if p.role == "leader" {
+				stripLicensed(item)
+			}
 			if kind == "captures" {
 				var agent string
 				_ = a.db.QueryRow(`SELECT name FROM users WHERE id=?`, item["ownerId"]).Scan(&agent)
@@ -157,9 +164,41 @@ func (a *app) adminWork(w http.ResponseWriter, r *http.Request, p principal, pat
 			}
 		}
 		id := ""
-		if p.role == "leader" && (kind != "todos" || r.Method != "POST") {
-			problem(w, 403, "admin only")
-			return
+		if p.role == "leader" {
+			if r.Method == "PATCH" {
+				allowed := map[string]bool{"version": true, "d": true, "time": true, "assigneeId": true, "t": true, "kind": true}
+				for key := range m {
+					if !allowed[key] {
+						problem(w, 403, "forbidden task field")
+						return
+					}
+				}
+			}
+			if kind != "todos" {
+				problem(w, 403, "admin only")
+				return
+			}
+			assignee := str(m, "assigneeId")
+			if r.Method == "PATCH" {
+				var existingTeam, existingAssignee string
+				err = a.db.QueryRow(`SELECT u.team_id,t.assignee_id FROM todos t JOIN users u ON u.id=t.assignee_id WHERE t.id=? AND t.deleted_at IS NULL`, parts[1]).Scan(&existingTeam, &existingAssignee)
+				var ownTeam string
+				_ = a.db.QueryRow(`SELECT team_id FROM users WHERE id=?`, p.id).Scan(&ownTeam)
+				if err != nil || existingTeam != ownTeam {
+					problem(w, 403, "outside team")
+					return
+				}
+				if assignee == "" {
+					assignee = existingAssignee
+				}
+			}
+			if !a.teammate(p, assignee) {
+				problem(w, 403, "outside team")
+				return
+			}
+			// Use the generic mutation path with admin visibility only after both
+			// the existing task and target assignee have passed team checks.
+			p.role = "admin"
 		}
 		if len(parts) == 2 {
 			id = parts[1]
@@ -171,6 +210,26 @@ func (a *app) adminWork(w http.ResponseWriter, r *http.Request, p principal, pat
 }
 
 var lotRange = regexp.MustCompile(`(?i)^L?(\d+)-L?(\d+)\s+([A-Z]+\d+)$`)
+
+func stripLicensed(m map[string]any) {
+	forbidden := map[string]bool{"pfOwner": true, "ownerNames": true, "OwnerNames": true, "lastSale": true, "lastSalePrice": true, "lastSaleDate": true, "yearsHeld": true, "absenteeOwner": true, "market": true, "ownership": true, "sellerName": true}
+	for key, value := range m {
+		if forbidden[key] {
+			delete(m, key)
+			continue
+		}
+		switch child := value.(type) {
+		case map[string]any:
+			stripLicensed(child)
+		case []any:
+			for _, v := range child {
+				if nested, ok := v.(map[string]any); ok {
+					stripLicensed(nested)
+				}
+			}
+		}
+	}
+}
 
 func reviewLotMatch(event, parcel string) bool {
 	if lotKey(event) == lotKey(parcel) {

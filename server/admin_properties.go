@@ -117,7 +117,13 @@ func (a *app) adminProperties(w http.ResponseWriter, r *http.Request, p principa
 	for _, v := range out {
 		item := v.(map[string]any)
 		agents := []any{}
-		users, e := a.db.Query(`SELECT id,name FROM users WHERE role IN ('agent','leader') AND disabled=0 AND deleted_at IS NULL`)
+		q := `SELECT id,name FROM users WHERE role IN ('agent','leader') AND disabled=0 AND deleted_at IS NULL`
+		args := []any{}
+		if p.role == "leader" {
+			q += ` AND team_id=(SELECT team_id FROM users WHERE id=?)`
+			args = append(args, p.id)
+		}
+		users, e := a.db.Query(q, args...)
 		if e != nil {
 			continue
 		}
@@ -186,8 +192,15 @@ func (a *app) adminParcelMap(w http.ResponseWriter, r *http.Request, p principal
 	}
 	respond(w, 200, map[string]any{"type": "FeatureCollection", "features": features})
 }
-func (a *app) adminParcelStats(w http.ResponseWriter) {
-	rows, e := a.db.Query(`SELECT p.suburb,count(*),sum(CASE WHEN p.registered=1 THEN 1 ELSE 0 END),sum(CASE WHEN o.property_id IS NOT NULL THEN 1 ELSE 0 END) FROM properties p LEFT JOIN property_ownership o ON o.property_id=p.id WHERE p.deleted_at IS NULL GROUP BY p.suburb ORDER BY p.suburb`)
+func (a *app) adminParcelStats(w http.ResponseWriter, p principal) {
+	q := `SELECT p.suburb,count(*),sum(CASE WHEN p.registered=1 THEN 1 ELSE 0 END),sum(CASE WHEN o.property_id IS NOT NULL THEN 1 ELSE 0 END) FROM properties p LEFT JOIN property_ownership o ON o.property_id=p.id WHERE p.deleted_at IS NULL`
+	args := []any{}
+	if p.role == "leader" {
+		q += ` AND p.team_id=(SELECT team_id FROM users WHERE id=?)`
+		args = append(args, p.id)
+	}
+	q += ` GROUP BY p.suburb ORDER BY p.suburb`
+	rows, e := a.db.Query(q, args...)
 	if e != nil {
 		problem(w, 500, "database error")
 		return
