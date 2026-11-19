@@ -4,14 +4,16 @@ import {usePathname} from 'expo-router';
 import {Accelerometer} from 'expo-sensors';
 import {closeSheet,openSheet,useSheet,useStore} from '../store';
 
-// A deliberate shake, not a single bump: several strong peaks within a short window.
-// Values are in g (1 = gravity at rest).
-const SAMPLE_MS=60;      // accelerometer interval
-const PEAK_G=2.6;        // a sample this strong counts as one shake peak
-const RESET_G=1.3;       // must drop back below this before the next peak counts
-const PEAKS_NEEDED=4;    // peaks required...
+// A deliberate shake, not a single bump: several sharp changes in acceleration within a short window.
+// We measure the change between consecutive samples (jerk), which ignores gravity and phone orientation,
+// so it does not depend on the phone dropping back to rest between strokes.
+// Values are in g (1 = gravity).
+const SAMPLE_MS=50;      // accelerometer interval
+const JOLT_G=1.4;        // change between two samples that counts as one shake stroke
+const MIN_GAP_MS=120;    // one stroke per back-and-forth; ignore samples closer than this
+const PEAKS_NEEDED=3;    // strokes required...
 const WINDOW_MS=1000;    // ...within this window
-const COOLDOWN_MS=2000;  // ignore further shakes after one fires
+const COOLDOWN_MS=1500;  // ignore further shakes after one fires
 
 export function ShakeListener(){
   const sheet=useSheet();
@@ -24,18 +26,18 @@ export function ShakeListener(){
   useEffect(()=>{
     if(Platform.OS==='web')return;
     let foreground=AppState.currentState==='active';
-    let armed=true;
+    let prev:{x:number;y:number;z:number}|null=null;
     let peaks:number[]=[];
     let last=0;
     Accelerometer.setUpdateInterval(SAMPLE_MS);
     const subscription=Accelerometer.addListener(({x,y,z})=>{
       if(!foreground||!enabled.current)return;
       const now=Date.now();
-      if(now-last<COOLDOWN_MS)return;
-      const force=Math.sqrt(x*x+y*y+z*z);
-      if(force<RESET_G){armed=true;return}
-      if(force<PEAK_G||!armed)return;
-      armed=false;
+      const p=prev;prev={x,y,z};
+      if(!p||now-last<COOLDOWN_MS)return;
+      const jolt=Math.sqrt((x-p.x)**2+(y-p.y)**2+(z-p.z)**2);
+      if(jolt<JOLT_G)return;
+      if(peaks.length&&now-peaks[peaks.length-1]<MIN_GAP_MS)return;
       peaks=[...peaks.filter(t=>now-t<WINDOW_MS),now];
       if(peaks.length<PEAKS_NEEDED)return;
       peaks=[];
@@ -43,7 +45,7 @@ export function ShakeListener(){
       if(current.current?.kind==='translate')closeSheet();
       else openSheet({kind:'translate'});
     });
-    const app=AppState.addEventListener('change',state=>{foreground=state==='active';armed=false;peaks=[]});
+    const app=AppState.addEventListener('change',state=>{foreground=state==='active';prev=null;peaks=[]});
     return()=>{subscription.remove();app.remove()};
   },[]);
   return null;
