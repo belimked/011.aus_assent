@@ -10,6 +10,8 @@
 
 恢复（**会覆盖当前库**）：先确认要恢复的文件、维护窗口及程序版本。root 执行 `systemctl stop axleo`；确认无其他进程使用数据库；再以 `axleo` 用户、加载 `/etc/axleo/env` 的环境运行 `/opt/axleo/current/axleo restore <快照绝对路径>`。命令校验快照和 schema，将当前库另存于数据库同级 `backup/` 并输出文件名，然后替换数据库。恢复失败不要启动服务，先检查日志与备份。最后 `systemctl start axleo` 并检查健康、账号和业务数量。不要恢复比当前程序更新的 schema；不要在服务运行时替换 WAL 文件。
 
+重置测试数据（**清空业务数据并恢复 Mary/John 演示数据**）：root 执行 `systemctl stop axleo`；以 `axleo` 用户运行 `sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; exec /opt/axleo/current/axleo reset-data'` 查看各表行数（只读，不做任何修改）；确认后同样方式运行 `reset-data --yes`：先在 `AXLEO_BACKUP_DIR` 生成并校验快照（失败则中止），再在单个事务内清空业务表、删除手机端新建的房产、把 demo.json 中的 4,461 处房产恢复为种子值，并重新写入演示数据；保留账号、团队、设置、管理员绘制的区域和 Pricefinder 导入。所有会话被注销，手机须退出后重新登录。最后 `systemctl start axleo`。回滚：用输出的快照执行 `restore`。
+
 ## 只读演练
 
 在 65 以 root 设置 `AXLEO_ADMIN_EMAIL`、`AXLEO_ADMIN_PASSWORD`，运行 `server/deploy/restore-drill.sh`（先把脚本送至 65）。脚本从最新快照恢复至 `/data/axleo/drill/run.*`，在 `127.0.0.1:8092` 启动临时实例，检查健康和 admin 登录、对比线上与快照的各类记录数，退出时杀进程并清理临时文件；线上服务不停止。若线上在备份后有新写入，数量比较会不一致，需选择静默时段或手工核对差异。依赖 `curl`、`jq`。

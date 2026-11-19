@@ -368,6 +368,16 @@ func seed(db *sql.DB) error {
 			return err
 		}
 	}
+	return seedData(db)
+}
+
+type seedStore interface {
+	Query(string, ...any) (*sql.Rows, error)
+	Exec(string, ...any) (sql.Result, error)
+}
+
+// seedData is shared by seed and the atomic reset; reset never changes accounts.
+func seedData(db seedStore) error {
 	ids := map[string]string{}
 	rows, err := db.Query(`SELECT name,id FROM users WHERE email IN ('mary@axleo.local','john@axleo.local')`)
 	if err != nil {
@@ -378,7 +388,14 @@ func seed(db *sql.DB) error {
 		_ = rows.Scan(&name, &id)
 		ids[name] = id
 	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
 	rows.Close()
+	if ids["Mary"] == "" || ids["John"] == "" {
+		return fmt.Errorf("Mary and John seed accounts required; run seed first")
+	}
 	owner := func(s string) string {
 		if s == "Natalie Wong" || s == "John" {
 			return ids["John"]
@@ -491,7 +508,7 @@ func main() {
 		return
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed|passwd <email>|backup <dir>|verify <file>|restore <file>|rex-probe")
+		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed|reset-data [--yes]|passwd <email>|backup <dir>|verify <file>|restore <file>|rex-probe")
 		os.Exit(2)
 	}
 	path := env("AXLEO_DB", "./axleo.db")
@@ -518,7 +535,7 @@ func main() {
 		return
 	}
 	var lock *os.File
-	if os.Args[1] == "serve" {
+	if os.Args[1] == "serve" || os.Args[1] == "reset-data" {
 		var err error
 		lock, err = serviceLock(path)
 		fatal(err)
@@ -529,6 +546,14 @@ func main() {
 		fatal(err)
 	}
 	defer db.Close()
+	if os.Args[1] == "reset-data" {
+		if len(os.Args) != 2 && (len(os.Args) != 3 || os.Args[2] != "--yes") {
+			fatal(fmt.Errorf("usage: axleo reset-data [--yes]"))
+		}
+		// Do not migrate or write anything during a dry run.
+		fatal(resetData(db, path, len(os.Args) == 3))
+		return
+	}
 	if err = migrate(db, path); err != nil {
 		fatal(err)
 	}
