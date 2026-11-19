@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       ios:
-        description: iOS simulator runtime
+        description: iOS simulator runtime (empty = newest installed with the runner's Xcode)
         type: string
-        default: '26.0'
+        default: ''
       flows:
         description: Optional flow filename glob in mobile/e2e (e.g. '05-*' or '*map*'); empty = all
         type: string
@@ -152,8 +152,15 @@ jobs:
       - name: Get the iOS runtime
         run: |
           have() { xcrun simctl list runtimes -j | jq -r '.runtimes[] | select(.platform == "iOS" and .isAvailable) | .version'; }
-          have | grep -qx "$IOS" || sudo xcodebuild -downloadPlatform iOS -buildVersion "$IOS"
+          if [ -z "$IOS" ]; then
+            IOS=$(have | sort -V | tail -1)
+            [ -n "$IOS" ] || { echo "::error::no iOS simulator runtime installed"; exit 1; }
+          else
+            have | grep -qx "$IOS" || sudo xcodebuild -downloadPlatform iOS -buildVersion "$IOS"
+          fi
           have
+          echo "Using iOS $IOS"
+          echo "IOS=$IOS" >> "$GITHUB_ENV"
 
       - name: Boot simulator and install
         run: |
