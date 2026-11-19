@@ -194,9 +194,10 @@ const columns = computed(() => {
   return groups;
 });
 function cardTime(task, column) {
-  if (['late', 'today', 'tmr'].includes(column)) return task.time || '—';
+  // Today and tomorrow only need the time; overdue cards keep their date so the delay is visible.
+  if (['today', 'tmr'].includes(column)) return task.time || '';
   const date = new Date(`${task.d}T12:00:00`);
-  if (Number.isNaN(date.valueOf())) return '—';
+  if (Number.isNaN(date.valueOf())) return task.time || '';
   const language = locale.value === 'en' ? 'en-AU' : locale.value;
   const dateText = date.toLocaleDateString(language, {
     ...(date.getFullYear() === new Date().getFullYear() ? {} : { year: 'numeric' }),
