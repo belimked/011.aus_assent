@@ -1,0 +1,17 @@
+# Admin → phone: a to-do created through the admin API appears on Mary's phone.
+appId: com.placesunnybank.agentcollect
+name: 09 admin to phone
+---
+- runFlow: common/reset.yaml
+- runScript: common/admin-create-todo.js
+# Relaunch (keeps the session): coming to the foreground pulls immediately.
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: home-todos
+    timeout: 30000
+- tapOn:
+    id: home-todos
+- extendedWaitUntil:
+    visible: 'E2E admin assigned task.*'
+    timeout: 30000

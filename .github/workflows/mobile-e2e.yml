@@ -1,0 +1,221 @@
+name: Mobile iOS E2E
+
+# Maestro end-to-end flows (mobile/e2e) against a fresh, seeded Go server on the runner.
+# Manual only: Actions → "Mobile iOS E2E" → Run workflow, or `gh workflow run mobile-e2e.yml`.
+# See mobile/e2e/README.md.
+on:
+  workflow_dispatch:
+    inputs:
+      ios:
+        description: iOS simulator runtime
+        type: string
+        default: '26.0'
+      flows:
+        description: Optional flow filename glob in mobile/e2e (e.g. '05-*' or '*map*'); empty = all
+        type: string
+        required: false
+        default: ''
+      rebuild:
+        description: Ignore the cached simulator app and rebuild it
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-e2e-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      IOS: ${{ inputs.ios }}
+      FLOWS: ${{ inputs.flows }}
+      DEVICE: iPhone 13
+      BUNDLE_ID: com.placesunnybank.agentcollect
+      MAESTRO_VERSION: 2.12.1
+      # Go server (fresh DB) listens here; runScript admin calls go straight to it.
+      API: http://127.0.0.1:8082/api/v1
+      # The app talks to a CI-only pass-through proxy so the offline flow can cut the network.
+      # Build-time value (inlined into the JS bundle); it is part of the app cache key.
+      PROXY: http://127.0.0.1:8092
+      EXPO_PUBLIC_API_URL: http://127.0.0.1:8092/api/v1
+      AXLEO_ADDR: 127.0.0.1:8082
+      AXLEO_SEED_PASSWORD: ci-only-maestro-e2e-2026
+      E2E: ${{ github.workspace }}/.e2e-out
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      # hashFiles() cannot exclude paths, so hash tracked files ourselves. Flow YAML and docs
+      # (mobile/e2e/**, mobile/docs/**) are excluded: editing only flows reuses the cached app.
+      - name: Compute app cache key
+        id: key
+        run: |
+          SRC=$(git ls-files mobile | grep -Ev '^mobile/(e2e|docs)/' | LC_ALL=C sort | tr '\n' '\0' | xargs -0 shasum -a 256 | shasum -a 256 | cut -c1-20)
+          LOCK=$(shasum -a 256 mobile/package-lock.json | cut -c1-12)
+          XCODE=$(xcodebuild -version | tr -s ' \n' '-' | sed 's/-$//')
+          URL=$(printf '%s' "$EXPO_PUBLIC_API_URL" | shasum -a 256 | cut -c1-8)
+          KEY="e2e-sim-app-v1-${XCODE}-${SRC}-${LOCK}-${URL}"
+          echo "key=$KEY" >> "$GITHUB_OUTPUT"
+          echo "App cache key: $KEY"
+
+      # Saved entries carry a run-id suffix, so a forced rebuild can store a fresh copy; the
+      # newest entry for this key wins on restore.
+      - name: Restore simulator app
+        id: app-cache
+        if: ${{ !inputs.rebuild }}
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/sim-app
+          key: ${{ steps.key.outputs.key }}
+          restore-keys: ${{ steps.key.outputs.key }}-
+
+      - name: Cache status
+        id: app
+        run: |
+          if [ -n "${{ steps.app-cache.outputs.cache-matched-key }}" ] && ls -d "$RUNNER_TEMP"/sim-app/*.app >/dev/null 2>&1; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"; echo "Reusing ${{ steps.app-cache.outputs.cache-matched-key }}"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"; echo "Building the simulator app"
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: ${{ steps.app.outputs.hit != 'true' && 'npm' || '' }}
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install and prebuild
+        if: ${{ steps.app.outputs.hit != 'true' }}
+        working-directory: mobile
+        run: npm ci && npx expo prebuild -p ios --clean
+
+      - name: Build unsigned simulator app
+        if: ${{ steps.app.outputs.hit != 'true' }}
+        working-directory: mobile
+        run: |
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -1); SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 \
+            -derivedDataPath "$RUNNER_TEMP/dd" CODE_SIGNING_ALLOWED=NO -quiet build
+          rm -rf "$RUNNER_TEMP/sim-app" && mkdir -p "$RUNNER_TEMP/sim-app"
+          cp -R "$RUNNER_TEMP/dd/Build/Products/Release-iphonesimulator/$SCHEME.app" "$RUNNER_TEMP/sim-app/"
+
+      - name: Save simulator app
+        if: ${{ steps.app.outputs.hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/sim-app
+          key: ${{ steps.key.outputs.key }}-${{ github.run_id }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - name: Start fresh seeded server and CI proxy
+        working-directory: server
+        run: |
+          mkdir -p "$E2E"
+          export AXLEO_DB="$RUNNER_TEMP/axleo-e2e/axleo.db"
+          rm -rf "$(dirname "$AXLEO_DB")" && mkdir -p "$(dirname "$AXLEO_DB")"
+          go build -o "$RUNNER_TEMP/axleo" .
+          "$RUNNER_TEMP/axleo" seed >> "$E2E/server.log" 2>&1
+          nohup "$RUNNER_TEMP/axleo" serve >> "$E2E/server.log" 2>&1 &
+          nohup node ../mobile/e2e/common/network-proxy.cjs >> "$E2E/proxy.log" 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS "$API/health" && curl -fsS "$PROXY/api/v1/health"; then echo; exit 0; fi
+            sleep 1
+          done
+          echo "::error::server or proxy did not start"; cat "$E2E/server.log" "$E2E/proxy.log"; exit 1
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Maestro ${{ env.MAESTRO_VERSION }}
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+          "$HOME/.maestro/bin/maestro" --version
+
+      - name: Get the iOS runtime
+        run: |
+          have() { xcrun simctl list runtimes -j | jq -r '.runtimes[] | select(.platform == "iOS" and .isAvailable) | .version'; }
+          have | grep -qx "$IOS" || sudo xcodebuild -downloadPlatform iOS -buildVersion "$IOS"
+          have
+
+      - name: Boot simulator and install
+        run: |
+          RT=$(xcrun simctl list runtimes -j | jq -r --arg v "$IOS" '.runtimes[] | select(.platform == "iOS" and .version == $v) | .identifier')
+          DT=$(xcrun simctl list devicetypes -j | jq -r --arg n "$DEVICE" '.devicetypes[] | select(.name == $n) | .identifier')
+          [ -n "$RT" ] && [ -n "$DT" ] || { echo "::error::runtime $IOS or device $DEVICE not found"; exit 1; }
+          UDID=$(xcrun simctl create e2e "$DT" "$RT")
+          xcrun simctl boot "$UDID" && xcrun simctl bootstatus "$UDID" -b
+          APP=$(ls -d "$RUNNER_TEMP"/sim-app/*.app | head -1)
+          xcrun simctl install "$UDID" "$APP"
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+
+      - name: Run Maestro flows
+        run: |
+          mkdir -p "$E2E/debug"
+          xcrun simctl spawn "$UDID" log stream --style compact --level info \
+            --predicate "subsystem CONTAINS \"$BUNDLE_ID\" OR process CONTAINS[c] \"agentcollect\"" > "$E2E/device.log" 2>&1 &
+          LOG_PID=$!
+          xcrun simctl io "$UDID" recordVideo --codec=h264 --force "$E2E/session.mp4" > "$E2E/video.log" 2>&1 &
+          VIDEO_PID=$!
+          stop() { kill -INT "$VIDEO_PID" 2>/dev/null || true; wait "$VIDEO_PID" 2>/dev/null || true; kill "$LOG_PID" 2>/dev/null || true; }
+          trap stop EXIT
+          shopt -s nullglob
+          if [ -n "$FLOWS" ]; then
+            case "$FLOWS" in */*|*..*) echo "::error::flows must be a filename glob"; exit 1;; esac
+            pattern="$FLOWS"; [[ "$pattern" == *.yaml ]] || pattern="$pattern*.yaml"
+            files=(mobile/e2e/$pattern)
+          else
+            files=(mobile/e2e/*.yaml)
+          fi
+          ((${#files[@]})) || { echo "::error::no flows match '$FLOWS'"; exit 1; }
+          printf 'Flow: %s\n' "${files[@]}"
+          set -o pipefail
+          maestro test --device "$UDID" "${files[@]}" \
+            -e E2E_PASSWORD="$AXLEO_SEED_PASSWORD" -e API="$API" -e PROXY="$PROXY" \
+            --format junit --output "$E2E/junit.xml" \
+            --debug-output "$E2E/debug" --flatten-debug-output \
+            --test-output-dir "$E2E/screenshots" 2>&1 | tee "$E2E/maestro.log"
+
+      - name: Collect logs
+        if: always()
+        run: |
+          mkdir -p "$E2E"
+          cp -R "$HOME/.maestro/tests" "$E2E/maestro-tests" 2>/dev/null || true
+          ls ~/Library/Logs/DiagnosticReports/ 2>/dev/null | grep -i agentcollect | while read -r f; do cp ~/Library/Logs/DiagnosticReports/"$f" "$E2E/"; done || true
+          ls -R "$E2E" | head -100
+
+      - name: Upload E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-e2e-ios-${{ inputs.ios }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: ${{ env.E2E }}
+
+      - name: Test report
+        if: always()
+        run: |
+          [ -f "$E2E/junit.xml" ] || exit 0
+          {
+            echo "### Maestro iOS ${IOS} (app cache hit: ${{ steps.app.outputs.hit }})"
+            grep -o '<testcase [^>]*name="[^"]*"' "$E2E/junit.xml" | sed 's/.*name="/- /;s/"$//'
+            grep -c '<failure' "$E2E/junit.xml" | sed 's/^/failures: /'
+          } >> "$GITHUB_STEP_SUMMARY" || true

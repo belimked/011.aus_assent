@@ -155,7 +155,7 @@ export function TranslateSheet(){
         <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
           <Text style={{fontSize:18,fontWeight:'700',color}}>{top?t('tr_visitor'):t('tr_agent')}</Text>
           <View style={{flexDirection:'row',gap:4}}>
-            {languages.map(([code,label])=><Pressable key={code} disabled={busy} hitSlop={4}
+            {languages.map(([code,label])=><Pressable testID={`translate-${who}-${code}`} key={code} disabled={busy} hitSlop={4}
               onPress={()=>setLangs(v=>({...v,[who]:code}))}
               style={{paddingVertical:6,paddingHorizontal:8,borderRadius:8,backgroundColor:lang===code?color:'#fff'}}>
               <Text style={{fontSize:12,color:lang===code?'#fff':'#253248'}}>{label}</Text>
@@ -207,7 +207,7 @@ export function TranslateSheet(){
         <Text style={{fontWeight:'700',fontSize:16}}>{t('tr_save')}</Text>
       </Pressable>
       <Text style={{fontSize:14,fontWeight:'700'}}>{l2('Talk to me','和我说')}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={t('close')} onPress={closeSheet} hitSlop={12}
+      <Pressable testID="translate-close" accessibilityRole="button" accessibilityLabel={t('close')} onPress={closeSheet} hitSlop={12}
         style={({pressed})=>({width:48,height:48,borderRadius:24,alignItems:'center',justifyContent:'center',backgroundColor:pressed?'rgba(41,34,27,0.22)':'rgba(41,34,27,0.12)'})}>
         <Text style={{fontSize:32,lineHeight:34,fontWeight:'700',color:'#29221B'}}>×</Text>
       </Pressable>

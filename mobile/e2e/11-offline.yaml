@@ -1,0 +1,49 @@
+# Offline: save with no network, see it pending, restore the network, sync, server has it.
+appId: com.placesunnybank.agentcollect
+name: 11 offline then sync
+---
+- runFlow: common/reset.yaml
+- tapOn: DK
+- tapOn: Change
+- tapOn:
+    id: change-search
+- inputText: 12 Gager
+- tapOn:
+    id: change-p6
+- tapOn:
+    id: dk-address
+- runScript: common/offline.js
+- scrollUntilVisible:
+    element:
+      id: property-note
+    direction: DOWN
+- tapOn:
+    id: property-note
+- inputText: E2E offline note
+- tapOn:
+    id: property-note-save
+- extendedWaitUntil:
+    visible: Saved
+    timeout: 10000
+# Saved on the phone, push fails: pending chip in the header.
+- extendedWaitUntil:
+    visible: '1 waiting to sync'
+    timeout: 15000
+- assertVisible: E2E offline note
+- tapOn:
+    id: header-back
+- tapOn:
+    id: open-me
+- scrollUntilVisible:
+    element: Retry now
+    direction: DOWN
+- assertVisible: '1 waiting to sync'
+- runScript: common/online.js
+- tapOn: Retry now
+- extendedWaitUntil:
+    notVisible: '\d+ waiting to sync'
+    timeout: 60000
+- runScript:
+    file: common/verify-note.js
+    env:
+      NOTE: E2E offline note

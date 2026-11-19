@@ -1,0 +1,33 @@
+# Phone → admin: a note typed on the phone reaches the server (checked via the admin API).
+appId: com.placesunnybank.agentcollect
+name: 10 phone to admin
+---
+- runFlow: common/reset.yaml
+- tapOn: DK
+- tapOn: Change
+- tapOn:
+    id: change-search
+- inputText: 12 Gager
+- tapOn:
+    id: change-p6
+- tapOn:
+    id: dk-address
+- scrollUntilVisible:
+    element:
+      id: property-note
+    direction: DOWN
+- tapOn:
+    id: property-note
+- inputText: E2E synced property note
+- tapOn:
+    id: property-note-save
+- extendedWaitUntil:
+    visible: Saved
+    timeout: 10000
+- extendedWaitUntil:
+    notVisible: '\d+ waiting to sync'
+    timeout: 30000
+- runScript:
+    file: common/verify-note.js
+    env:
+      NOTE: E2E synced property note

@@ -1,0 +1,18 @@
+# Language switch on Me: English → 中文 → English.
+appId: com.placesunnybank.agentcollect
+name: 12 language
+---
+- runFlow: common/reset.yaml
+- tapOn:
+    id: open-me
+- assertVisible: Language
+- tapOn: 中文
+- extendedWaitUntil:
+    visible: 语言
+    timeout: 5000
+- assertVisible: 我的
+- tapOn: English
+- extendedWaitUntil:
+    visible: Language
+    timeout: 5000
+- assertNotVisible: 语言

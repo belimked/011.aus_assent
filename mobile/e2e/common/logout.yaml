@@ -1,0 +1,15 @@
+# From Home: Me → Sign out. Ends on the login screen.
+appId: com.placesunnybank.agentcollect
+---
+- tapOn:
+    id: open-me
+- scrollUntilVisible:
+    element:
+      id: logout
+    direction: DOWN
+- tapOn:
+    id: logout
+- extendedWaitUntil:
+    visible:
+      id: login-email
+    timeout: 30000

@@ -1,0 +1,28 @@
+# Review queue (offline voice captures): approve one, swipe-dismiss another.
+appId: com.placesunnybank.agentcollect
+name: 08 review queue
+---
+- runFlow: common/reset.yaml
+- tapOn:
+    id: home-captures
+- extendedWaitUntil:
+    visible:
+      id: capture-v1
+    timeout: 15000
+- tapOn:
+    id: capture-approve-v1
+- extendedWaitUntil:
+    visible: 'Saved · .*'
+    timeout: 10000
+- assertNotVisible:
+    id: capture-v1
+- swipe:
+    from:
+      id: capture-v2
+    direction: LEFT
+    duration: 400
+- extendedWaitUntil:
+    visible: Capture dismissed
+    timeout: 10000
+- assertNotVisible:
+    id: capture-v2

@@ -1,0 +1,4 @@
+# Every top-level flow starts here: clean app data, signed in, on Home.
+appId: com.placesunnybank.agentcollect
+---
+- runFlow: login.yaml

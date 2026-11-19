@@ -1,0 +1,46 @@
+# Full-screen map: the selected-home preview card floats at the top-left over the map.
+appId: com.placesunnybank.agentcollect
+name: 05 full-screen map
+---
+- runFlow: common/reset.yaml
+- tapOn: DK
+- tapOn:
+    id: dk-fullmap
+- tapOn:
+    id: map-search
+- inputText: 12 Gager
+- pressKey: Enter
+- extendedWaitUntil:
+    visible:
+      id: map-preview
+    timeout: 15000
+- assertVisible:
+    id: map-preview
+    below:
+      id: map-search
+- assertVisible: 12 Gager St, Sunnybank
+# Visual evidence of the card over the map (artifact: screenshots/).
+- takeScreenshot: 05-map-preview-top-left
+- tapOn: '\+ Note'
+- extendedWaitUntil:
+    visible: 'Add note · 12 Gager St'
+    timeout: 10000
+- tapOn:
+    id: note-text
+- inputText: Map E2E note
+- tapOn:
+    id: note-save
+- extendedWaitUntil:
+    visible: Saved
+    timeout: 10000
+- tapOn: Dismiss
+- tapOn: 'Open record ›'
+- extendedWaitUntil:
+    visible: 12 Gager St, Sunnybank
+    timeout: 10000
+- tapOn:
+    id: header-back
+- tapOn:
+    id: map-preview-close
+- assertNotVisible:
+    id: map-preview

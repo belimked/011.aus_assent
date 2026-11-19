@@ -1,0 +1,31 @@
+# Login, logout, and logout clearing local data (token + cached records).
+appId: com.placesunnybank.agentcollect
+name: 01 login and logout
+---
+- runFlow: common/reset.yaml
+- assertVisible: MY ACTIVITY
+- assertVisible: '\d+ to-dos ›'
+- runFlow: common/logout.yaml
+# Relaunch without clearing state: no token left, so the app must stay on the login screen.
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: login-email
+    timeout: 30000
+- assertNotVisible: MY ACTIVITY
+# Wrong password is rejected.
+- tapOn:
+    id: login-email
+- inputText: mary@axleo.local
+- tapOn:
+    id: login-password
+- inputText: wrong-password
+- tapOn:
+    id: login-submit
+- extendedWaitUntil:
+    visible: Incorrect email or password.
+    timeout: 15000
+- assertNotVisible: MY ACTIVITY
+# Sign in again: data comes back from the server.
+- runFlow: common/login.yaml
+- assertVisible: MY ACTIVITY
