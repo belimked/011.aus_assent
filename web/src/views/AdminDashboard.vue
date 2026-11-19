@@ -47,7 +47,7 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import VChart from 'vue-echarts';
+import VChart from '../components/chart';
 import { api, identity } from '../api';
 import { relTime } from '../admin-format';
 import { t } from '../i18n';

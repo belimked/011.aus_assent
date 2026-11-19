@@ -276,7 +276,7 @@ func (a *app) metrics(w http.ResponseWriter, r *http.Request, p principal) {
 	respond(w, 200, map[string]any{"kpis": kpis, "trend": trend, "events": events})
 }
 
-var exportFields = map[string]string{"address": "trim(COALESCE(p.no,'')||' '||COALESCE(p.street,''))", "suburb": "p.suburb", "lotPlan": "COALESCE(json_extract(p.data,'$.lotplan'),'')", "contactName": "CASE WHEN json_extract(c.consent,'$.phone')=1 OR json_extract(c.consent,'$.email')=1 THEN trim(COALESCE(c.first,'')||' '||COALESCE(c.last,'')) ELSE '' END", "mobile": "CASE WHEN json_extract(c.consent,'$.phone')=1 AND COALESCE(json_extract(c.flags,'$.optedOut'),0)=0 THEN COALESCE(c.mobile,'') ELSE '' END", "email": "CASE WHEN json_extract(c.consent,'$.email')=1 AND COALESCE(json_extract(c.flags,'$.optedOut'),0)=0 THEN COALESCE(c.email,'') ELSE '' END", "tags": "COALESCE(c.tags,'')", "notesCount": "(SELECT count(*) FROM contact_notes n WHERE n.contact_id=c.id)"}
+var exportFields = map[string]string{"address": "trim(COALESCE(p.no,'')||' '||COALESCE(p.street,''))", "suburb": "p.suburb", "lotPlan": "COALESCE(json_extract(p.data,'$.lotplan'),'')", "contactName": "CASE WHEN COALESCE(json_extract(c.flags,'$.optedOut'),0)=0 AND (json_extract(c.consent,'$.phone')=1 OR json_extract(c.consent,'$.email')=1) THEN trim(COALESCE(c.first,'')||' '||COALESCE(c.last,'')) ELSE '' END", "mobile": "CASE WHEN json_extract(c.consent,'$.phone')=1 AND COALESCE(json_extract(c.flags,'$.optedOut'),0)=0 THEN COALESCE(c.mobile,'') ELSE '' END", "email": "CASE WHEN json_extract(c.consent,'$.email')=1 AND COALESCE(json_extract(c.flags,'$.optedOut'),0)=0 THEN COALESCE(c.email,'') ELSE '' END", "tags": "COALESCE(c.tags,'')", "notesCount": "(SELECT count(*) FROM contact_notes n WHERE n.contact_id=c.id)"}
 
 func (a *app) exportCSV(w http.ResponseWriter, r *http.Request, p principal) {
 	var m struct {
@@ -343,7 +343,12 @@ func (a *app) exportCSV(w http.ResponseWriter, r *http.Request, p principal) {
 		}
 		record := make([]string, len(cols))
 		for i, v := range values {
-			record[i] = v.String
+			cell := v.String
+			// Excel interprets formula prefixes even inside quoted CSV cells.
+			if strings.HasPrefix(cell, "=") || strings.HasPrefix(cell, "+") || strings.HasPrefix(cell, "-") || strings.HasPrefix(cell, "@") {
+				cell = "'" + cell
+			}
+			record[i] = cell
 		}
 		records = append(records, record)
 	}

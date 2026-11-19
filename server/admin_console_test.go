@@ -48,6 +48,20 @@ func TestConsolePermissionsAndExport(t *testing.T) {
 	if w.Code != 403 {
 		t.Fatalf("other team metrics: %d", w.Code)
 	}
+	if _, e := a.db.Exec(`INSERT INTO activity(id,owner_id,team_id,data,created_at,updated_at) VALUES('other-visit',?,'other','{"a":"DK"}',?,?)`, john, now(), now()); e != nil {
+		t.Fatal(e)
+	}
+	w = request(a, "GET", "/api/v1/admin/metrics?period=7", leader, nil)
+	if w.Code != 200 || obj(t, w)["kpis"].(map[string]any)["visits"].(map[string]any)["value"].(float64) != 0 {
+		t.Fatalf("team metrics: %s", w.Body)
+	}
+	if _, e := a.db.Exec(`INSERT INTO todos(id,assignee_id,created_by,team_id,data,created_at,updated_at) VALUES('other-task',?,?,'other','{"t":"secret"}',?,?)`, john, john, now(), now()); e != nil {
+		t.Fatal(e)
+	}
+	w = request(a, "GET", "/api/v1/admin/todos", leader, nil)
+	if w.Code != 200 || strings.Contains(w.Body.String(), "secret") {
+		t.Fatalf("team todos: %s", w.Body)
+	}
 	if w := request(a, "POST", "/api/v1/admin/todos", leader, map[string]any{"assigneeId": "outside", "t": "bad", "d": "2026-01-01"}); w.Code != 403 {
 		t.Fatalf("outside team: %d %s", w.Code, w.Body)
 	}
