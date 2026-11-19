@@ -498,10 +498,7 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 			}
 		}
 		if e == nil && prop != "" && (eventKind == "sale" || eventKind == "ownership" || eventKind == "snapshot") {
-			_, e = tx.Exec(`INSERT INTO property_ownership(property_id,owner_names,last_sale_price,last_sale_date,source,import_id,updated_at,absentee_owner) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(property_id) DO UPDATE SET owner_names=CASE WHEN excluded.owner_names='' THEN property_ownership.owner_names ELSE excluded.owner_names END,last_sale_price=CASE WHEN excluded.last_sale_price IS NULL OR (property_ownership.last_sale_date > excluded.last_sale_date AND excluded.last_sale_date != '') THEN property_ownership.last_sale_price ELSE excluded.last_sale_price END,last_sale_date=CASE WHEN excluded.last_sale_date='' OR property_ownership.last_sale_date > excluded.last_sale_date THEN property_ownership.last_sale_date ELSE excluded.last_sale_date END,source=excluded.source,import_id=excluded.import_id,updated_at=excluded.updated_at,absentee_owner=CASE WHEN excluded.owner_names='' THEN property_ownership.absentee_owner ELSE excluded.absentee_owner END`, prop, get("owners"), sql.NullInt64{Int64: price, Valid: price > 0}, date, provider, r.ID, now(), absenteeMarket(getOwnerAddress(head, line), address))
-			if e == nil {
-				_, e = tx.Exec(`UPDATE properties SET updated_at=?,version=version+1,registered=1 WHERE id=?`, now(), prop)
-			}
+			e = applyMarketOwnership(tx, prop, get("owners"), price, date, provider, r.ID, absenteeMarket(getOwnerAddress(head, line), address))
 		}
 		if e != nil {
 			return r, e
@@ -524,6 +521,16 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 	}
 	return r, err
 }
+
+// applyMarketOwnership is shared by import and the manual match review path.
+func applyMarketOwnership(tx *sql.Tx, prop, owners string, price int64, date, provider, importID string, absentee bool) error {
+	_, err := tx.Exec(`INSERT INTO property_ownership(property_id,owner_names,last_sale_price,last_sale_date,source,import_id,updated_at,absentee_owner) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(property_id) DO UPDATE SET owner_names=CASE WHEN excluded.owner_names='' THEN property_ownership.owner_names ELSE excluded.owner_names END,last_sale_price=CASE WHEN excluded.last_sale_price IS NULL OR (property_ownership.last_sale_date > excluded.last_sale_date AND excluded.last_sale_date != '') THEN property_ownership.last_sale_price ELSE excluded.last_sale_price END,last_sale_date=CASE WHEN excluded.last_sale_date='' OR property_ownership.last_sale_date > excluded.last_sale_date THEN property_ownership.last_sale_date ELSE excluded.last_sale_date END,source=excluded.source,import_id=excluded.import_id,updated_at=excluded.updated_at,absentee_owner=CASE WHEN excluded.owner_names='' THEN property_ownership.absentee_owner ELSE excluded.absentee_owner END`, prop, owners, sql.NullInt64{Int64: price, Valid: price > 0}, date, provider, importID, now(), absentee)
+	if err == nil {
+		_, err = tx.Exec(`UPDATE properties SET updated_at=?,version=version+1,registered=1 WHERE id=?`, now(), prop)
+	}
+	return err
+}
+
 func (a *app) notifyMarket(tx *sql.Tx, eventID, prop, kind, address, agency, date string, counts map[string]int) error {
 	var raw, sub string
 	if err := tx.QueryRow(`SELECT data,suburb FROM properties WHERE id=?`, prop).Scan(&raw, &sub); err != nil {

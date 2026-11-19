@@ -276,6 +276,11 @@ func (a *app) routes() http.Handler {
 			a.approvalRoute(w, r, p)
 		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/"):
 			if p.role != "admin" {
+				path := strings.TrimPrefix(r.URL.Path, "/api/v1/admin/")
+				if path == "todos" || strings.HasPrefix(path, "todos/") || path == "captures" || path == "listings" || path == "ofi_attendees" || strings.HasPrefix(path, "ofi_attendees/") || path == "contacts" || path == "market-review" || strings.HasPrefix(path, "market-review/") {
+					problem(w, 403, "admin only")
+					return
+				}
 				problem(w, 404, "not found")
 				return
 			}

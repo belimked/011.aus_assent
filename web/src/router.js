@@ -24,9 +24,18 @@ export const routes = [
   },
   {
     path: "/review",
-    component: () => import("./views/AdminTables.vue"),
-    props: { page: "review" },
+    component: () => import("./views/Review.vue"),
     meta: { title: "审核队列", icon: "Stamp" },
+  },
+  {
+    path: "/tasks",
+    component: () => import("./views/Tasks.vue"),
+    meta: { title: "跟进任务", icon: "Calendar" },
+  },
+  {
+    path: "/ofi",
+    component: () => import("./views/Ofi.vue"),
+    meta: { title: "开放参观", icon: "House" },
   },
   {
     path: "/audit",
