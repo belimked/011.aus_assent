@@ -171,6 +171,18 @@ jobs:
           UDID=$(xcrun simctl create e2e "$DT" "$RT")
           xcrun simctl boot "$UDID" && xcrun simctl bootstatus "$UDID" -b
           APP=$(ls -d "$RUNNER_TEMP"/sim-app/*.app | head -1)
+          # The app is built with CODE_SIGNING_ALLOWED=NO, which leaves it without keychain
+          # entitlements: expo-secure-store then fails with -34018 and login cannot store its token.
+          # Ad-hoc sign it for the simulator with a keychain group (does not affect the cached build).
+          ENT="$RUNNER_TEMP/e2e.entitlements"
+          printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
+            '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+            '<plist version="1.0"><dict>' \
+            "<key>application-identifier</key><string>E2ETEAM000.$BUNDLE_ID</string>" \
+            "<key>keychain-access-groups</key><array><string>E2ETEAM000.$BUNDLE_ID</string></array>" \
+            '</dict></plist>' > "$ENT"
+          codesign --force --sign - --entitlements "$ENT" --timestamp=none "$APP"
+          codesign -d --entitlements - "$APP" 2>/dev/null | head -20
           xcrun simctl install "$UDID" "$APP"
           echo "UDID=$UDID" >> "$GITHUB_ENV"
 
