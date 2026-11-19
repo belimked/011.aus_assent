@@ -8,6 +8,21 @@ export const routes = [
     meta: { title: "工作台", icon: "Odometer" },
   },
   {
+    path: "/cockpit",
+    component: () => import("./views/AdminCockpit.vue"),
+    meta: { title: "数据驾驶舱", icon: "DataLine" },
+  },
+  {
+    path: "/export",
+    component: () => import("./views/AdminExport.vue"),
+    meta: { title: "数据导出", icon: "Download", adminOnly: true },
+  },
+  {
+    path: "/settings",
+    component: () => import("./views/AdminSettings.vue"),
+    meta: { title: "系统设置", icon: "Setting", adminOnly: true },
+  },
+  {
     path: "/map",
     component: () => import("./views/AdminMap.vue"),
     meta: { title: "区域地图", icon: "MapLocation" },
@@ -79,6 +94,9 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   if (to.path === "/login") return true;
   if (!token.value || (!identity.value && !(await restore()))) return "/login";
+  if (identity.value?.role === "leader" &&
+    (["/audit", "/rex", "/market", "/data", "/export", "/settings"].includes(to.path)))
+    return "/dashboard";
   return true;
 });
 export default router;

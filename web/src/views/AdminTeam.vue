@@ -6,9 +6,32 @@
         <div class="sub">{{ t("账户角色、访问与区域分配") }}</div>
       </div>
       <div class="sp" />
-      <el-button type="primary" :icon="Plus" @click="createOpen = true">{{
+      <el-button v-if="identity?.role === 'admin'" type="primary" :icon="Plus" @click="createOpen = true">{{
         t("创建账户")
       }}</el-button>
+    </div>
+    <div v-if="identity?.role === 'admin'" class="card team-manage">
+      <h3>{{ t('团队') }}</h3>
+      <div v-for="group in teams" :key="group.id" class="row">
+        <b class="grow">{{ group.name }}</b>
+        <span class="small muted">{{ users.filter(user => user.teamId === group.id).length }} {{ t('人') }}</span>
+        <el-button link @click="renameTeam(group)">{{ t('重命名') }}</el-button>
+      </div>
+      <el-button @click="createTeam">{{ t('创建团队') }}</el-button>
+      <div v-if="selected" class="row">
+        <label>{{ t('角色') }}
+          <el-select :model-value="selected.role" @change="value => patch({ role: value })" style="width: 140px">
+            <el-option value="agent" :label="t('经纪人')" />
+            <el-option value="leader" :label="t('团队负责人')" />
+            <el-option value="admin" :label="t('管理员')" />
+          </el-select>
+        </label>
+        <label>{{ t('团队') }}
+          <el-select :model-value="selected.teamId" @change="value => patch({ teamId: value })" style="width: 160px">
+            <el-option v-for="group in teams" :key="group.id" :value="group.id" :label="group.name" />
+          </el-select>
+        </label>
+      </div>
     </div>
     <div class="tm">
       <div class="ul">
@@ -48,7 +71,7 @@
             </div>
           </div>
           <StatusPill :status="selected.disabled ? 'disabled' : 'active'" />
-          <el-dropdown @command="command">
+          <el-dropdown v-if="identity?.role === 'admin'" @command="command">
             <el-button :icon="MoreFilled" circle :aria-label="t('账户操作')" />
             <template #dropdown>
               <el-dropdown-menu>
@@ -113,6 +136,7 @@
           <el-select v-model="form.role" style="width: 100%">
             <el-option value="agent" :label="t('经纪人')" />
             <el-option value="admin" :label="t('管理员')" />
+            <el-option value="leader" :label="t('团队负责人')" />
           </el-select>
         </el-form-item>
         <el-form-item :label="t('密码')"
@@ -131,7 +155,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { MoreFilled, Plus } from "@element-plus/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { api } from "../api";
+import { api, identity } from "../api";
 import { relTime, roleLabel } from "../admin-format";
 import { t } from "../i18n";
 import Avatar from "../components/Avatar.vue";
@@ -140,6 +164,7 @@ import StatusPill from "../components/StatusPill.vue";
 const route = useRoute();
 const users = ref([]);
 const zones = ref([]);
+const teams = ref([]);
 const selectedId = ref("");
 const createOpen = ref(false);
 const form = reactive({ email: "", name: "", role: "agent", password: "" });
@@ -154,15 +179,30 @@ const zoneCount = (id) =>
 
 async function load() {
   try {
-    [users.value, zones.value] = await Promise.all([
+    [users.value, zones.value, teams.value] = await Promise.all([
       api("admin/users"),
       api("admin/zones"),
+      api("admin/teams"),
     ]);
     selectedId.value =
       route.query.agent || selectedId.value || users.value[0]?.id;
   } catch (error) {
     ElMessage.error(error.message);
   }
+}
+async function createTeam() {
+  try {
+    const { value } = await ElMessageBox.prompt(t('团队名称'));
+    await api('admin/teams', { method: 'POST', body: JSON.stringify({ name: value }) });
+    await load();
+  } catch { /* Cancelled. */ }
+}
+async function renameTeam(group) {
+  try {
+    const { value } = await ElMessageBox.prompt(t('团队名称'), '', { inputValue: group.name });
+    await api('admin/teams', { method: 'PATCH', body: JSON.stringify({ id: group.id, name: value }) });
+    await load();
+  } catch { /* Cancelled. */ }
 }
 async function create() {
   try {
@@ -224,6 +264,9 @@ onMounted(load);
 </script>
 
 <style scoped>
+.team-manage { padding: 18px; margin-bottom: 16px; }
+.team-manage .row { margin: 12px 0; gap: 12px; }
+.team-manage label { display: flex; align-items: center; gap: 8px; }
 .tm {
   display: grid;
   grid-template-columns: 340px 1fr;

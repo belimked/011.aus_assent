@@ -71,7 +71,7 @@ async function submit() {
     });
     const data = await response.json();
     if (!response.ok) throw Error(data.error);
-    if (data.user.role !== "admin") {
+    if (data.user.role !== "admin" && data.user.role !== "leader") {
       await fetch("/api/v1/auth/logout", {
         method: "POST",
         headers: { Authorization: `Bearer ${data.token}` },
