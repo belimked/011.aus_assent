@@ -19,11 +19,10 @@ name: 10 phone to admin
 - tapOn:
     id: property-note
 - inputText: E2E synced property note
+# The keyboard covers the Add button; a tap there would type a key instead.
+- hideKeyboard
 - tapOn:
     id: property-note-save
-- extendedWaitUntil:
-    visible: Saved
-    timeout: 10000
 - extendedWaitUntil:
     notVisible: '\d+ waiting to sync'
     timeout: 30000

@@ -20,11 +20,10 @@ name: 11 offline then sync
 - tapOn:
     id: property-note
 - inputText: E2E offline note
+# The keyboard covers the Add button; a tap there would type a key instead.
+- hideKeyboard
 - tapOn:
     id: property-note-save
-- extendedWaitUntil:
-    visible: Saved
-    timeout: 10000
 # Saved on the phone, push fails: pending chip in the header.
 - extendedWaitUntil:
     visible: '1 waiting to sync'

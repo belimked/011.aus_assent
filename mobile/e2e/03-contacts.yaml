@@ -40,11 +40,10 @@ name: 03 contacts
     element:
       id: quickadd-save
     direction: DOWN
+- waitForAnimationToEnd
 - tapOn:
     id: quickadd-save
-- extendedWaitUntil:
-    visible: Saved
-    timeout: 10000
+# Saved: the property now shows "Owner linked" (checked below) instead of "No contact yet".
 - scrollUntilVisible:
     element: Owner linked
     direction: UP
@@ -56,9 +55,7 @@ name: 03 contacts
     id: pref-sms
 - assertVisible: OPTED OUT
 - tapOn: Save
-- extendedWaitUntil:
-    visible: Saved
-    timeout: 10000
+# Saved: the record shows the opt-out (checked below).
 - scrollUntilVisible:
     element: 'OPTED OUT: SMS'
     direction: DOWN

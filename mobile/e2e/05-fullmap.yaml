@@ -4,6 +4,13 @@ name: 05 full-screen map
 ---
 - runFlow: common/reset.yaml
 - tapOn: DK
+# The map card sits half under the tab bar; its centre is not tappable until scrolled into view.
+- scrollUntilVisible:
+    element:
+      id: dk-fullmap
+    direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd
 - tapOn:
     id: dk-fullmap
 - tapOn:
@@ -30,8 +37,9 @@ name: 05 full-screen map
 - inputText: Map E2E note
 - tapOn:
     id: note-save
+# Filed: the follow-up sheet opens.
 - extendedWaitUntil:
-    visible: Saved
+    visible: Dismiss
     timeout: 10000
 - tapOn: Dismiss
 - tapOn: 'Open record ›'

@@ -31,10 +31,13 @@ name: 02 door knock
     element:
       id: dk-approve
     direction: DOWN
+# A tap while the scroll is still settling only stops the scroll.
+- waitForAnimationToEnd
 - tapOn:
     id: dk-approve
+# Filed: the follow-up sheet opens (the 2.5 s "Saved" toast is too brief to assert reliably).
 - extendedWaitUntil:
-    visible: Saved
+    visible: Dismiss
     timeout: 10000
 - tapOn: Dismiss
 - tapOn:
@@ -49,9 +52,10 @@ name: 02 door knock
 - tapOn:
     id: property-note
 - inputText: E2E door knock note
+# The keyboard covers the Add button; a tap there would type a key instead.
+- hideKeyboard
 - tapOn:
     id: property-note-save
 - extendedWaitUntil:
-    visible: Saved
+    visible: E2E door knock note
     timeout: 10000
-- assertVisible: E2E door knock note

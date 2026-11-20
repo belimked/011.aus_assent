@@ -17,25 +17,37 @@ name: 07 OFI check-in
     visible:
       id: ofi-mobile
     timeout: 15000
+# The keyboard covers the fields below Mobile, and the phone pad has no key that
+# hides it: after each field, tap the "Mobile *" label (plain text in the scroll view)
+# to dismiss the keyboard before tapping the next field.
 - tapOn:
     id: ofi-mobile
 - inputText: '0499111222'
+- tapOn: 'Mobile \*'
 - tapOn:
     id: ofi-first
 - inputText: E2E
+- tapOn: 'Mobile \*'
 - tapOn:
     id: ofi-last
 - inputText: Visitor
+- tapOn: 'Mobile \*'
 - tapOn:
     id: ofi-email
 - inputText: e2e.visitor@example.test
-- hideKeyboard
+- tapOn: 'Mobile \*'
 - scrollUntilVisible:
     element:
       id: ofi-register
     direction: DOWN
+- waitForAnimationToEnd
 - tapOn:
     id: ofi-register
+# Registered: back on the open home, the visitor is in the attendee list.
 - extendedWaitUntil:
-    visible: Saved · E2E Visitor
+    notVisible:
+      id: ofi-register
     timeout: 10000
+- scrollUntilVisible:
+    element: E2E Visitor
+    direction: DOWN
