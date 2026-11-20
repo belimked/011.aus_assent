@@ -23,7 +23,7 @@ AxleoCollect 是给房产中介代理用的移动端 app（Expo / React Native�
 | `mobile/assets/splash-icon.png`（512，圆角方块，透明底） | 已替换，未提交 |
 | `mobile/assets/icon-source.svg`（矢量源文件，新增） | 已添加，未提交 |
 | `mobile/app.json` | 不需要改，路径和 `adaptiveIcon.backgroundColor: #13233F` 都保持原样 |
-| app 内 `Logo` 组件 | **未改，仍是字母 "P"**，见任务 A |
+| app 内 `Logo` 组件 | **保持原样（字母 "P"）**：2026-11-20 决定不换，见任务 A |
 | 真机或构建验证 | **未做**，目前只看过渲染预览，见任务 B |
 | 后台 `web/` 的 favicon 和 logo | 未改，是否要改待定，见任务 C |
 
@@ -68,7 +68,9 @@ viewBox="-12.08 -13.83 91.67 91.67"
 
 ## 4. 待办任务
 
-### 任务 A：app 内 Logo 组件换成新图形（必做）
+### 任务 A：app 内 Logo 组件换成新图形（已取消）
+
+> 2026-11-20 决定：app 内 Logo 维持原有的字母 "P"，不做此任务。曾在 e4a5fff 实现过，已回退；如以后要换，可参考那次提交。以下保留原说明备查。
 
 位置：`mobile/src/components/ui/index.tsx:20`，`Logo` 组件。现在是深蓝圆角方块里放一个白色字母 "P"。
 

@@ -1,7 +1,6 @@
 import React from 'react';
 import {Pressable,Text,TextInput,View,Switch as RNSwitch, type TextInputProps, type ViewStyle} from 'react-native';
 import {colors,radii,text} from '../../theme';
-import Svg,{Circle,Line,Polygon} from 'react-native-svg';
 import {Icon} from './Icon';
 import {markSheetDirty} from '../../store';
 import {NoteMic} from '../NoteMic';
@@ -18,7 +17,7 @@ export function ListItem({title,subtitle,onPress,right,testID}:{title:string;sub
 export function KV({label,value}:{label:string;value:string}){return <View style={{flexDirection:'row',justifyContent:'space-between',gap:12,paddingVertical:8,borderBottomWidth:1,borderColor:colors.line}}><Text style={[text,{color:colors.muted,fontSize:12}]}>{label}</Text><Text style={[text,{fontSize:12,fontWeight:'600',flexShrink:1,textAlign:'right'}]}>{value}</Text></View>}
 export function Banner({children}:{children:React.ReactNode}){return <View style={{backgroundColor:colors.surface2,borderRadius:8,padding:12}}><Text style={[text,{fontSize:12,color:colors.muted}]}>{children}</Text></View>}
 export function Avatar({name,size=38}:{name:string;size?:number}){return <View style={{width:size,height:size,borderRadius:size/2,backgroundColor:colors.surface2,alignItems:'center',justifyContent:'center'}}><Text style={[text,{fontWeight:'700'}]}>{name.split(' ').map(w=>w[0]).join('')}</Text></View>}
-export function Logo({onPress,lg=false,testID}:{onPress?:()=>void;lg?:boolean;testID?:string}){const n=lg?56:36;return <Pressable testID={testID} onPress={onPress} disabled={!onPress} accessibilityRole={onPress?'button':undefined} style={{width:n,height:n,borderRadius:lg?16:10,backgroundColor:colors.fg,alignItems:'center',justifyContent:'center'}}><Svg width={n} height={n} viewBox="-12.08 -13.83 91.67 91.67"><Circle cx={32} cy={32} r={28.5} fill="#FFFFFF"/><Polygon points="32,16 44.5,27 44.5,44 19.5,44 19.5,27" fill={colors.fg} stroke={colors.fg} strokeWidth={2.5} strokeLinejoin="round"/><Line x1={32} y1={33.5} x2={60.5} y2={33.5} stroke="#FFFFFF" strokeWidth={7} strokeLinecap="round"/><Circle cx={32} cy={33.5} r={6.5} fill="#E8622C"/></Svg></Pressable>}
+export function Logo({onPress,lg=false,testID}:{onPress?:()=>void;lg?:boolean;testID?:string}){const n=lg?56:36;return <Pressable testID={testID} onPress={onPress} disabled={!onPress} accessibilityRole={onPress?'button':undefined} style={{width:n,height:n,borderRadius:lg?16:10,backgroundColor:colors.fg,alignItems:'center',justifyContent:'center'}}><Text style={[text,{fontSize:lg?26:16,fontWeight:'600',color:'#fff'}]}>P</Text></Pressable>}
 export function Dot({color}:{color:string}){return <View style={{width:9,height:9,borderRadius:5,backgroundColor:(colors as Record<string,string>)[color]||colors.brand}}/>}
 export function Plate({number,color}:{number:string;color:string}){return <View style={{flexDirection:'row',gap:5,alignItems:'center',backgroundColor:colors.surface2,padding:8,borderRadius:8}}><Dot color={color}/><Text style={text}>{number}</Text></View>}
 export function EmptyState({children}:{children:string}){return <Card><Text style={[text,{color:colors.muted}]}>{children}</Text></Card>}
