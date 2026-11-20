@@ -7,10 +7,12 @@ const rows=(kind:Kind,list:RecordData[])=>kind==='activity'?list.filter(x=>x.id)
 export type RecordData={id:string;version?:number;[key:string]:any};
 export type Op={opId:string;kind:Kind;op:'upsert'|'delete';id:string;baseVersion?:number;data?:RecordData};
 export type Pull={cursor:string;full:boolean;deleted:Record<string,string[]>;[key:string]:any};
+/** The server merges upsert fields into the stored record, so a key the app removed (e.g. `done` after Undo) must be sent as null or the old value survives. */
+const cleared=(previous:RecordData|undefined,data:RecordData)=>{if(!previous)return data;const out:RecordData={...data};for(const key of Object.keys(previous))if(!(key in out))(out as any)[key]=null;return out;};
 export function diff(before:AppState,after:AppState,makeId:()=>string):Op[]{
  const ops:Op[]=[];
  for(const kind of kinds){const key=field(kind);const old=new Map(rows(kind,before[key] as RecordData[]).map(x=>[x.id,x]));const next=new Map(rows(kind,after[key] as RecordData[]).map(x=>[x.id,x]));
- for(const [id,item] of next){const previous=old.get(id);const clean=(v:RecordData)=>kind==='listings'?{...v,ofi:(v.ofi||[]).map((event:any)=>({...event,attendees:[]}))}:v;const data=clean(item);if(!previous || JSON.stringify(clean(previous))!==JSON.stringify(data))ops.push({opId:makeId(),kind,op:'upsert',id,baseVersion:previous?.version,data});}
+ for(const [id,item] of next){const previous=old.get(id);const clean=(v:RecordData)=>kind==='listings'?{...v,ofi:(v.ofi||[]).map((event:any)=>({...event,attendees:[]}))}:v;const data=clean(item);if(!previous || JSON.stringify(clean(previous))!==JSON.stringify(data))ops.push({opId:makeId(),kind,op:'upsert',id,baseVersion:previous?.version,data:cleared(previous,data)});}
  for(const [id,item] of old)if(!next.has(id))ops.push({opId:makeId(),kind,op:'delete',id,baseVersion:item.version});
  }return ops;
 }
