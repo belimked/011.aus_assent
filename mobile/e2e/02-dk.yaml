@@ -68,6 +68,8 @@ name: 02 door knock
 - pressKey: Enter
 - tapOn:
     id: property-note-save
-- extendedWaitUntil:
-    visible: E2E door knock note
+# The newest note is listed under the input, which can sit at the bottom edge.
+- scrollUntilVisible:
+    element: E2E door knock note
+    direction: DOWN
     timeout: 10000
