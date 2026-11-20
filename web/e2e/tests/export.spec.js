@@ -20,6 +20,27 @@ function parseCSV(text) {
   return rows;
 }
 
+test('contact flagged DNC through the phone sync API is excluded from export', async ({ request }) => {
+  const phone = await agentToken(request, 'mary@axleo.local');
+  const admin = await agentToken(request, 'admin@axleo.local');
+  const id = `phone-dnc-${Date.now()}`;
+  const suburb = `PhoneDNC${Date.now()}`;
+  const push = await api(request, phone, 'sync/push', 'POST', { ops: [{
+    opId: `${id}-op`, kind: 'contacts', op: 'upsert', id,
+    data: { first: 'Phone', last: 'Private', flags: { dnc: true }, consent: { phone: true } },
+  }] });
+  expect(push.results[0].status).toBe('ok');
+  await api(request, admin, 'properties', 'POST', {
+    id: `${id}-property`, no: '42', street: 'Sync DNC Street', suburb, ownerIds: [id],
+  });
+  const response = await request.post(`${base}/api/v1/admin/export`, {
+    headers: { Authorization: `Bearer ${admin}` },
+    data: { fields: ['address'], suburb, reason: 'Phone sync privacy regression', acknowledge: true, excludeDNC: true },
+  });
+  expect(response.ok()).toBe(true);
+  expect(await response.text()).not.toContain('Sync DNC Street');
+});
+
 test('UI CSV download excludes DNC and do-not-knock test fixtures and is audited', async ({ page, request }) => {
   const admin = await agentToken(request, 'admin@axleo.local');
   const leader = await agentToken(request, 'mary@axleo.local');
@@ -29,8 +50,7 @@ test('UI CSV download excludes DNC and do-not-knock test fixtures and is audited
     id: `${prefix}-dnc-contact`, first: 'Private', last: prefix, flags: { dnc: true },
     consent: { phone: 1, email: 1 }, mobile: '0499000000',
   });
-  // c4 is the seeded, database-flagged DNC contact. Link it to our own otherwise
-  // exportable parcel to exercise the contact-level exclusion independently.
+  // Link the seeded DNC contact to an otherwise exportable parcel as a second fixture.
   const seededDNC = await api(request, admin, 'contacts/c4');
   expect(seededDNC.flags.dnc).toBe(true);
   const normal = `${prefix} Allowed Street`;

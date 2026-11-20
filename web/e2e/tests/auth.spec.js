@@ -1,6 +1,15 @@
 import { test, expect } from '@playwright/test';
 import { login } from './helpers.js';
 
+test('missing session redirects protected pages to login', async ({ page }) => {
+  await page.goto('/admin/#/properties');
+  await expect(page).toHaveURL(/#\/login$/);
+  await login(page);
+  await page.evaluate(() => sessionStorage.removeItem('axleo_admin'));
+  await page.reload();
+  await expect(page).toHaveURL(/#\/login$/);
+});
+
 test('login, wrong password, role-specific navigation and logout', async ({ page }) => {
   await page.goto('/admin/#/login');
   await page.getByRole('textbox', { name: '邮箱' }).fill('admin@axleo.local');

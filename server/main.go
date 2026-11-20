@@ -819,7 +819,7 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 	case "POST":
 		switch kind {
 		case "contacts":
-			_, err = tx.Exec(`INSERT INTO contacts(id,owner_id,first,last,mobile,email,data,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)`, id, owner, str(m, "first"), str(m, "last"), str(m, "mobile"), str(m, "email"), string(b), stamp, stamp)
+			_, err = tx.Exec(`INSERT INTO contacts(id,owner_id,first,last,mobile,email,data,created_at,updated_at,roles,tags,flags,consent) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, append([]any{id, owner, str(m, "first"), str(m, "last"), str(m, "mobile"), str(m, "email"), string(b), stamp, stamp}, contactColumns(m)...)...)
 		case "todos":
 			_, err = tx.Exec(`INSERT INTO todos(id,assignee_id,created_by,team_id,due,time,text,kind,data,created_at,updated_at) VALUES(?,?,?,(SELECT team_id FROM users WHERE id=?),?,?,?,?,?,?,?)`, id, assignee, creator, assignee, str(m, "d"), str(m, "time"), str(m, "t"), str(m, "kind"), string(b), stamp, stamp)
 		case "properties":
@@ -837,8 +837,9 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 		q := `UPDATE ` + kind + ` SET data=?,updated_at=?,version=version+1`
 		args := []any{string(b), stamp}
 		if kind == "contacts" {
-			q += `,first=?,last=?,mobile=?,email=?,owner_id=?`
+			q += `,first=?,last=?,mobile=?,email=?,owner_id=?,roles=?,tags=?,flags=?,consent=?`
 			args = append(args, str(m, "first"), str(m, "last"), str(m, "mobile"), str(m, "email"), owner)
+			args = append(args, contactColumns(m)...)
 		}
 		if kind == "todos" {
 			q += `,due=?,time=?,text=?,kind=?,assignee_id=?,created_by=?,team_id=(SELECT team_id FROM users WHERE id=?)`
@@ -997,7 +998,7 @@ func (a *app) note(w http.ResponseWriter, r *http.Request, p principal, id strin
 				var b []byte
 				b, err = json.Marshal(contact)
 				if err == nil {
-					_, err = tx.Exec(`UPDATE contacts SET data=?,version=version+1,updated_at=? WHERE id=?`, string(b), now(), id)
+					_, err = tx.Exec(`UPDATE contacts SET data=?,version=version+1,updated_at=?,roles=?,tags=?,flags=?,consent=? WHERE id=?`, append([]any{string(b), now()}, append(contactColumns(contact), id)...)...)
 				}
 			}
 		}

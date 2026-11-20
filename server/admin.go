@@ -415,7 +415,7 @@ func seedData(db seedStore) error {
 		id := str(m, "id")
 		ownerID := owner(str(m, "owner"))
 		payload, _ := json.Marshal(m)
-		_, err = db.Exec(`INSERT INTO contacts(id,owner_id,first,last,mobile,email,roles,tags,flags,consent,data,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING`, id, ownerID, str(m, "first"), str(m, "last"), str(m, "mobile"), str(m, "email"), jsonField(m, "roles"), jsonField(m, "tags"), jsonField(m, "flags"), jsonField(m, "consent"), string(payload), stamp, stamp)
+		_, err = db.Exec(`INSERT INTO contacts(id,owner_id,first,last,mobile,email,roles,tags,flags,consent,data,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING`, append(append([]any{id, ownerID, str(m, "first"), str(m, "last"), str(m, "mobile"), str(m, "email")}, contactColumns(m)...), string(payload), stamp, stamp)...)
 		if err != nil {
 			return err
 		}

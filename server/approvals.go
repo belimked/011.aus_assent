@@ -265,7 +265,7 @@ func (a *app) executeApproval(tx *sql.Tx, p principal, m map[string]any) error {
 		aData[k] = aList
 	}
 	b, _ := json.Marshal(aData)
-	_, err := tx.Exec(`UPDATE contacts SET data=?,first=?,last=?,mobile=?,email=?,updated_at=?,version=version+1 WHERE id=?`, string(b), str(aData, "first"), str(aData, "last"), str(aData, "mobile"), str(aData, "email"), stamp, primary)
+	_, err := tx.Exec(`UPDATE contacts SET data=?,first=?,last=?,mobile=?,email=?,updated_at=?,version=version+1,roles=?,tags=?,flags=?,consent=? WHERE id=?`, append([]any{string(b), str(aData, "first"), str(aData, "last"), str(aData, "mobile"), str(aData, "email"), stamp}, append(contactColumns(aData), primary)...)...)
 	if err != nil {
 		return err
 	}
