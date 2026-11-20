@@ -19,8 +19,9 @@ name: 10 phone to admin
 - tapOn:
     id: property-note
 - inputText: E2E synced property note
-# The keyboard covers the Add button; a tap there would type a key instead.
-- hideKeyboard
+# Return on the keyboard ends editing (single-line field). hideKeyboard's swipe can hit
+# buttons on this screen, and a tap on the covered Add button would type a key instead.
+- pressKey: Enter
 - tapOn:
     id: property-note-save
 - extendedWaitUntil:

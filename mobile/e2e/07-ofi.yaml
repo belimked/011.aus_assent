@@ -43,11 +43,14 @@ name: 07 OFI check-in
 - waitForAnimationToEnd
 - tapOn:
     id: ofi-register
-# Registered: back on the open home, the visitor is in the attendee list.
+# Registered: back on the OFI list; the visitor is in this open home's attendee list.
 - extendedWaitUntil:
     notVisible:
       id: ofi-register
     timeout: 10000
+- tapOn:
+    text: Attendees
+    index: 0
 - scrollUntilVisible:
     element: E2E Visitor
     direction: DOWN

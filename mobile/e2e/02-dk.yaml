@@ -27,6 +27,11 @@ name: 02 door knock
 - extendedWaitUntil:
     visible: Check before saving
     timeout: 30000
+# The seed has two Mary Chen records with this mobile: approving needs a chosen contact.
+- tapOn:
+    text: Use
+    index: 0
+- assertVisible: Selected
 - scrollUntilVisible:
     element:
       id: dk-approve
@@ -39,7 +44,12 @@ name: 02 door knock
 - extendedWaitUntil:
     visible: Dismiss
     timeout: 10000
+# A tap while the sheet is still sliding in is ignored.
+- waitForAnimationToEnd
 - tapOn: Dismiss
+- extendedWaitUntil:
+    notVisible: Dismiss
+    timeout: 10000
 - tapOn:
     id: dk-address
 - extendedWaitUntil:
@@ -52,8 +62,9 @@ name: 02 door knock
 - tapOn:
     id: property-note
 - inputText: E2E door knock note
-# The keyboard covers the Add button; a tap there would type a key instead.
-- hideKeyboard
+# Return on the keyboard ends editing (single-line field). hideKeyboard's swipe can hit
+# buttons on this screen, and a tap on the covered Add button would type a key instead.
+- pressKey: Enter
 - tapOn:
     id: property-note-save
 - extendedWaitUntil:

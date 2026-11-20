@@ -41,7 +41,12 @@ name: 05 full-screen map
 - extendedWaitUntil:
     visible: Dismiss
     timeout: 10000
+# A tap while the sheet is still sliding in is ignored.
+- waitForAnimationToEnd
 - tapOn: Dismiss
+- extendedWaitUntil:
+    notVisible: Dismiss
+    timeout: 10000
 - tapOn: 'Open record ›'
 - extendedWaitUntil:
     visible: 12 Gager St, Sunnybank
