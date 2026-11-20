@@ -1,0 +1,26 @@
+import { test, expect } from '@playwright/test';
+import { login } from './helpers.js';
+
+test('login, wrong password, role-specific navigation and logout', async ({ page }) => {
+  await page.goto('/admin/#/login');
+  await page.getByRole('textbox', { name: '邮箱' }).fill('admin@axleo.local');
+  await page.locator('input[autocomplete="current-password"]').fill('not-the-password');
+  await page.getByRole('button', { name: '登录' }).click();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page).toHaveURL(/#\/login$/);
+
+  await page.locator('input[autocomplete="current-password"]').fill('web-e2e-password-2026');
+  await page.getByRole('button', { name: '登录' }).click();
+  await expect(page).toHaveURL(/#\/dashboard$/);
+  await expect(page.locator('nav').getByRole('link', { name: '数据导出' })).toBeVisible();
+  await page.locator('.top .me').click();
+  await page.getByRole('menuitem', { name: '退出登录' }).click();
+  await expect(page).toHaveURL(/#\/login$/);
+  await expect(page.evaluate(() => sessionStorage.getItem('axleo_admin'))).resolves.toBeNull();
+
+  await login(page, 'mary@axleo.local');
+  await expect(page.locator('nav').getByRole('link', { name: '跟进任务' })).toBeVisible();
+  await expect(page.locator('nav').getByRole('link', { name: '数据导出' })).toHaveCount(0);
+  await page.goto('/admin/#/export');
+  await expect(page).toHaveURL(/#\/dashboard$/);
+});
