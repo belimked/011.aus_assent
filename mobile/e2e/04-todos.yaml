@@ -5,6 +5,10 @@ name: 04 to-dos
 - runFlow: common/reset.yaml
 - tapOn:
     id: home-todos
+- scrollUntilVisible:
+    element: '\+ To-do'
+    direction: DOWN
+    centerElement: true
 - tapOn: '\+ To-do'
 - tapOn:
     id: todo-title
