@@ -49,5 +49,12 @@ name: 04 to-dos
 - extendedWaitUntil:
     visible: To-do sent to John
     timeout: 10000
+- scrollUntilVisible:
+    element: 'Assigned by me.*'
+    direction: UP
+    centerElement: true
 - tapOn: 'Assigned by me.*'
+- scrollUntilVisible:
+    element: 'E2E follow-up task.*'
+    direction: DOWN
 - assertVisible: 'E2E follow-up task.*'
