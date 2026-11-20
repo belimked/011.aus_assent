@@ -34,7 +34,7 @@ func (a *app) imageAI(w http.ResponseWriter, r *http.Request, p principal) {
 	if mime == "image/png" {
 		format = "png"
 	}
-	prompt := "Extract real estate contact facts visible in the image. Context: card=business card, note=handwritten or printed note, enq=chat/SMS screenshot of an enquiry. For screenshots, the enquirer is the person asking, not the agent. Put referral source, agency and any other useful facts into notes. Never invent information; unknown fields must be null. Return only the record_contact tool input."
+	prompt := "Extract real estate contact facts visible in the image. Context: card=business card, note=handwritten or printed note, enq=chat/SMS screenshot of an enquiry. For screenshots, the enquirer is the person asking, not the agent. Put referral source, agency and any other useful facts into notes. Never invent information; unknown fields must be null." + audRule + " priceMin/priceMax are whole Australian dollars. In notes, write money as Australian dollars ($ in English, 澳元 in Chinese). Return only the record_contact tool input."
 	content := []any{
 		map[string]any{"image": map[string]any{"format": format, "source": map[string]any{"bytes": base64.StdEncoding.EncodeToString(data)}}},
 		map[string]any{"text": "Context: " + ctx + "; language: " + lang},

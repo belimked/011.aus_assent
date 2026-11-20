@@ -4,7 +4,8 @@ export const byId = <T extends {id:string}>(arr:T[],id:string) => arr.find(x=>x.
 export const propAddr = (p:Property) => `${p.no} ${p.street}, ${p.suburb}`;
 export const shortAddr = (p:Property) => `${p.no} ${p.street}`;
 export const cname = (c:Contact) => `${c.first} ${c.last}`.trim();
-export const money = (n:number) => n>=1e6?'$'+(n/1e6).toFixed(2).replace(/0$/,'')+'m':'$'+Math.round(n/1000)+'k';
+// Amounts are Australian dollars. English keeps the local $ shorthand; Chinese spells out 万澳元 so it is never read as 美元/人民币.
+export const money = (n:number,lang:string='en') => lang==='zh'?(n>=1e4?String(Number((n/1e4).toFixed(2)))+'万澳元':Math.round(n)+'澳元'):n>=1e6?'$'+(n/1e6).toFixed(2).replace(/0$/,'')+'m':'$'+Math.round(n/1000)+'k';
 export const propColor = (p:Property) => p.flags.dnc?'red':p.pending?'pending':p.ownerIds.length?(p.otherAgent||p.otherListing?'sky':'green'):'orange';
 export const yearsSince = (ym:string) => ym?2026-parseInt(ym.slice(0,4),10):'';
 export const normMobile = (m:string) => (m||'').replace(/\D/g,'');

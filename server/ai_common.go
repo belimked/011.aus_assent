@@ -6,6 +6,9 @@ import (
 	"time"
 )
 
+// audRule makes every AI step treat money as Australian dollars (the app is used by Brisbane agents).
+const audRule = " Currency: all money is Australian dollars (AUD) unless the speaker explicitly names another currency; never convert between currencies or change an amount. In Chinese speech, 元/块/刀 and bare 万 amounts mean Australian dollars; 万 = 10,000 and 亿 = 100,000,000 (120万 = 1.2 million)."
+
 func (a *app) allowCall(p principal) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
