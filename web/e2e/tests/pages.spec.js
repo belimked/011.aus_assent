@@ -63,21 +63,38 @@ test('property filters and cursor pagination', async ({ page }) => {
 
 test('open-home visitor is listed and admin follow-up persists', async ({ page, request }) => {
   const admin = await agentToken(request, 'admin@axleo.local');
-  const agent = await agentToken(request, 'john@axleo.local');
+  const users = await api(request, admin, 'admin/users');
   const listings = await api(request, admin, 'admin/listings');
-  const listing = listings.find(l => l.ofi?.length && l.agent === 'Natalie Wong');
-  expect(listing).toBeTruthy();
-  const id = `web-ofi-${Date.now()}`;
-  const contact = await api(request, agent, 'contacts', 'POST', { id: `${id}-contact`, first: 'Visitor', last: id });
-  const attendee = await api(request, agent, 'ofi_attendees', 'POST', { id, listingId: listing.id, eventIndex: 0, contactId: contact.id });
+  const cases = [
+    ['Natalie Wong', 'john@axleo.local', 'agent'],
+    ['Owen Chen', 'mary@axleo.local', 'leader'], // E2E bootstrap promotes Mary without reassigning her listings.
+  ];
+  const visits = [];
+  for (const [displayName, email, role] of cases) {
+    const listing = listings.find(l => l.ofi?.length && l.agent === displayName);
+    const owner = users.find(u => u.email === email);
+    expect(listing).toBeTruthy();
+    expect(owner.role).toBe(role);
+    expect(listing.ownerId).toBe(owner.id);
+    const id = `web-ofi-${Date.now()}-${visits.length}`;
+    const agent = await agentToken(request, email);
+    const contact = await api(request, agent, 'contacts', 'POST', { id: `${id}-contact`, first: 'Visitor', last: id });
+    const attendee = await api(request, agent, 'ofi_attendees', 'POST', { id, listingId: listing.id, eventIndex: 0, contactId: contact.id });
+    visits.push({ listing, owner, attendee, id });
+  }
   await login(page);
   await page.locator('nav').getByRole('link', { name: '开放参观' }).click();
-  await expect(page.locator('.oc').filter({ hasText: listing.propertyAddress }).first()).toBeVisible();
-  await page.locator('.oc').filter({ hasText: listing.propertyAddress }).first().click();
-  const visitor = page.locator('.vi').filter({ hasText: `Visitor ${id}` });
-  await expect(visitor).toBeVisible();
-  await visitor.getByRole('button', { name: '跟进' }).click();
-  await expect(visitor).toContainText('已跟进');
-  const saved = (await api(request, admin, 'admin/ofi_attendees')).find(a => a.id === attendee.id);
-  expect(saved.follow).toBe(true);
+  for (const { listing, owner, attendee, id } of visits) {
+    const event = page.locator('.oc').filter({ hasText: listing.propertyAddress }).first();
+    await expect(event).toBeVisible();
+    await event.click();
+    const visitor = page.locator('.vi').filter({ hasText: `Visitor ${id}` });
+    await expect(visitor).toBeVisible();
+    await visitor.getByRole('button', { name: '跟进' }).click();
+    await expect(visitor).toContainText('已跟进');
+    const saved = (await api(request, admin, 'admin/ofi_attendees')).find(a => a.id === attendee.id);
+    expect(saved.follow).toBe(true);
+    const task = (await api(request, admin, 'admin/todos')).find(todo => todo.id === `ofi-follow-${id}`);
+    expect(task?.assigneeId).toBe(owner.id);
+  }
 });

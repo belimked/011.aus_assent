@@ -206,8 +206,10 @@ async function load() {
 }
 async function follow(attendee) {
   const event = current.value;
-  const owner = agents.value.find(agent => agent.id === event.listing.ownerId && agent.role === 'agent') ||
-    agents.value.find(agent => agent.name === event.listing.agent && agent.role === 'agent');
+  // The listing owner is authoritative: seeded display names can differ from account names.
+  const eligible = agent => (agent.role === 'agent' || agent.role === 'leader') && !agent.disabled;
+  const owner = agents.value.find(agent => agent.id === event.listing.ownerId && eligible(agent)) ||
+    agents.value.find(agent => agent.name === event.listing.agent && eligible(agent));
   if (!owner) return ElMessage.warning(t('没有经纪人'));
   const date = new Date();
   date.setDate(date.getDate() + 1);
