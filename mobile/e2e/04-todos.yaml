@@ -20,9 +20,6 @@ name: 04 to-dos
 - scrollUntilVisible:
     element: 'E2E follow-up task.*'
     direction: DOWN
-# Keep Complete and Undo in the same local sync batch. Otherwise the server's
-# in-flight Complete response can replace the restored row before Reassign.
-- runScript: common/offline.js
 # Done (multi-select → Complete), then Undo from the toast.
 - tapOn: Select
 # Select mode adds an action bar at the bottom that can cover the row.
@@ -54,4 +51,3 @@ name: 04 to-dos
     timeout: 10000
 - tapOn: 'Assigned by me.*'
 - assertVisible: 'E2E follow-up task.*'
-- runScript: common/online.js
