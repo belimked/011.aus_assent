@@ -1,6 +1,10 @@
 # From Home: Me → Sign out. Ends on the login screen.
 appId: com.placesunnybank.agentcollect
 ---
+# A late iOS "Save Password?" sheet can still be over Home.
+- tapOn:
+    text: Not Now
+    optional: true
 - tapOn:
     id: open-me
 - scrollUntilVisible:

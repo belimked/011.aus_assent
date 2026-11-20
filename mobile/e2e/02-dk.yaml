@@ -28,10 +28,11 @@ name: 02 door knock
     visible: Check before saving
     timeout: 30000
 # The seed has two Mary Chen records with this mobile: approving needs a chosen contact.
+# Each match row is one accessibility element: "Mary Chen, Matched mobile · Mary, Use".
 - tapOn:
-    text: Use
+    text: 'Mary Chen, Matched mobile.*'
     index: 0
-- assertVisible: Selected
+- assertVisible: '.*Selected'
 - scrollUntilVisible:
     element:
       id: dk-approve

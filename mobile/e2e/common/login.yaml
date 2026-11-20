@@ -22,7 +22,8 @@ appId: com.placesunnybank.agentcollect
 # iOS may show the system "Save Password?" sheet over the app after sign-in; dismiss it if it appears.
 - extendedWaitUntil:
     visible: Not Now
-    timeout: 8000
+    # On the first launch after boot the sheet has taken more than 9 s to appear.
+    timeout: 15000
     optional: true
 - tapOn:
     text: Not Now

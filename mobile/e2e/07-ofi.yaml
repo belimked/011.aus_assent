@@ -51,6 +51,7 @@ name: 07 OFI check-in
 - tapOn:
     text: Attendees
     index: 0
+# The attendee row reads "E2E Visitor 0499 111 ••••".
 - scrollUntilVisible:
-    element: E2E Visitor
+    element: 'E2E Visitor.*'
     direction: DOWN

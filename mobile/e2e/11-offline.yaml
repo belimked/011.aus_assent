@@ -27,7 +27,8 @@ name: 11 offline then sync
     id: property-note-save
 # Saved on the phone, push fails: pending chip in the header.
 - extendedWaitUntil:
-    visible: '1 waiting to sync'
+    # The note and the property visit are queued separately.
+    visible: '\d+ waiting to sync'
     timeout: 15000
 - assertVisible: E2E offline note
 - tapOn:
@@ -37,7 +38,7 @@ name: 11 offline then sync
 - scrollUntilVisible:
     element: Retry now
     direction: DOWN
-- assertVisible: '1 waiting to sync'
+- assertVisible: '\d+ waiting to sync'
 - runScript: common/online.js
 - tapOn: Retry now
 - extendedWaitUntil:
