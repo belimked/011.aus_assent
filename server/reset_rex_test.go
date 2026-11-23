@@ -107,6 +107,10 @@ func TestResetRexImportGateAndSuccess(t *testing.T) {
 					_, _ = w.Write([]byte(`{"result":"token","error":null}`))
 					return
 				}
+				if r.URL.Path == "/v1/rex/AccountSettings/read" {
+					_, _ = w.Write([]byte(`{"result":{"id":2057,"name":"Sandbox","is_test_account":true},"error":null}`))
+					return
+				}
 				var b map[string]any
 				_ = json.NewDecoder(r.Body).Decode(&b)
 				if b["extra_options"] == nil && r.URL.Path == "/v1/rex/properties/search" {
@@ -154,7 +158,7 @@ func TestResetRexImportGateAndSuccess(t *testing.T) {
 				t.Fatal("demo removed")
 			}
 			_ = a.db.QueryRow(`SELECT count(*) FROM rex_links WHERE account_id='2057'`).Scan(&n)
-			if readEnabled && (n != 2 || calls != 3) {
+			if readEnabled && (n != 2 || calls != 4) {
 				t.Fatalf("import failed: links=%d calls=%d", n, calls)
 			}
 			if !readEnabled && n != 0 {

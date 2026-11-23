@@ -49,6 +49,8 @@ func fakeRex(t *testing.T) (*httptest.Server, *[]string) {
 				t.Error("login payload")
 			}
 			result = "secret-token"
+		case "/v1/rex/AccountSettings/read":
+			result = map[string]any{"id": 2057, "name": "Sandbox", "is_test_account": true}
 		case "/v1/rex/user-profile/get-accessible-accounts":
 			result = []any{map[string]any{"id": "sandbox", "name": "Company"}}
 		case "/v1/rex/contacts/create":
@@ -78,7 +80,8 @@ func setupProbe(t *testing.T, srv *httptest.Server) string {
 	t.Setenv("REX_APP_ID", "Integration:PlaceSunnybank:Portal")
 	t.Setenv("REX_EMAIL", "login@example.com")
 	t.Setenv("REX_PASSWORD", "my-password")
-	t.Setenv("REX_ACCOUNT_ID", "sandbox")
+	t.Setenv("REX_ACCOUNT_ID", "2057")
+	t.Setenv("REX_WRITE_ACCOUNT_ID", "2057")
 	t.Setenv("REX_INTERVAL_MS", "0")
 	return filepath.Join(".tmp", "rex-test-"+strings.ReplaceAll(t.Name(), "/", "-"))
 }
@@ -96,7 +99,7 @@ func TestRexClientPathsAnd429(t *testing.T) {
 	if _, _, err := c.Call(context.Background(), "Listings", "search", map[string]any{"limit": 1}); err != nil {
 		t.Fatal(err)
 	}
-	if len(*calls) != 3 {
+	if len(*calls) != 4 {
 		t.Fatalf("expected 429 retry: %v", *calls)
 	}
 }
@@ -114,7 +117,7 @@ func TestRexProbeGuardsAndFullRun(t *testing.T) {
 		}
 	}
 	*calls = nil
-	if err := rexProbe([]string{"--account", "sandbox", "--out", base, "--only", "F1,F2,F3,F5"}); err != nil {
+	if err := rexProbe([]string{"--account", "2057", "--out", base, "--only", "F1,F2,F3,F5"}); err != nil {
 		t.Fatal(err)
 	}
 	for _, path := range *calls {
@@ -123,7 +126,7 @@ func TestRexProbeGuardsAndFullRun(t *testing.T) {
 		}
 	}
 	*calls = nil
-	if err := rexProbe([]string{"--account", "sandbox", "--write", "--remindee", "6", "--out", base}); err != nil {
+	if err := rexProbe([]string{"--account", "2057", "--write", "--remindee", "6", "--out", base}); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(base, "report.md"))
@@ -170,7 +173,7 @@ func TestRexProbeKeepAndCleanup(t *testing.T) {
 	defer srv.Close()
 	dir := setupProbe(t, srv)
 	defer os.RemoveAll(dir)
-	if err := rexProbe([]string{"--account", "sandbox", "--write", "--only", "F1", "--keep", "--out", dir}); err != nil {
+	if err := rexProbe([]string{"--account", "2057", "--write", "--only", "F1", "--keep", "--out", dir}); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(dir, "state.json"))

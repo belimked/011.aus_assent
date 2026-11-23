@@ -63,3 +63,6 @@ COMMIT;
 ```
 
 之后启动服务，客户端须重新全量同步。SQL 未清理手工添加且指向导入实体的其他业务记录（待逐一核对）；若出现 FK 错误事务将失败，请回滚并使用快照恢复。`/api/v1/sync` 仍未分页，约每人 4,000 联系人 + 1,700 房产。同步 JSON 已剔除联系人/房产的 `data.rex`，以及房产的 `data.geometry`（手机使用本地地块图层和 `ll` 点坐标），后台详情保留；支持请求 `Accept-Encoding: gzip` 时对 >=1 KiB JSON API 响应压缩，流式响应与静态资源不压缩。gzip 降低网络流量，但不减少逐行查询与手机解压后内存；上线前仍应压测真实 2057 数据。
+
+### Rex 双向同步安全开关（沙箱）
+仅在沙箱 2057 经批准后设置 `AXLEO_REX_READ=1`、`AXLEO_REX_WRITE=1`、`REX_ACCOUNT_ID=2057`、`REX_WRITE_ACCOUNT_ID=2057`。写入还需 AccountSettings::read 当前账户验证通过并在 `REX_WRITE_ALLOWED_ACCOUNTS`（默认只有 2057）内；758 即使列入也必须另设 `REX_ALLOW_PRODUCTION_WRITE=1`，**目前不可设置**。已在沙箱确认 `POST /v1/rex/AccountSettings/read`（请求 `{}`）返回数字 `result.id`、`name`、`is_test_account`；不匹配账户或验证失败时写入一律拦截；非测试账户须额外设置 `REX_ALLOW_PRODUCTION_WRITE=1`（目前不设）。后台 `/api/v1/admin/rex/status` 显示拦截和轮询状态。`REX_POLL_SECONDS=60`（至少 30）拉取，`REX_POLL_SOFT_DELETE=0` 可暂停消失记录的软删。每小时基线约 120 次 search（两种实体各一页），变化记录另加每条一次 read，登录另计；超过 10000 条每页另加 search。迁移 015 将旧未关联 outbox 标为 skipped，新未关联任务由 worker 同样跳过。部署前先备份，核对 import 用户和日志，切勿把真实 Rex 凭证用于自动化测试。

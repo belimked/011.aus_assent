@@ -19,14 +19,15 @@ type rexLog struct {
 	Error                                                         string
 	DurationMS                                                    int64
 	ResultSummary, ResponseExcerpt                                string
+	Entity, LocalID, RexID                                        string
 }
 
 func rexKind(service, method string) string {
-	if strings.EqualFold(service, "Authentication") || service == "authentication" {
+	if strings.EqualFold(service, "Authentication") || strings.EqualFold(service, "AccountSettings") && strings.EqualFold(method, "read") {
 		return "auth"
 	}
 	m := strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(method, "-", ""), "_", ""))
-	for _, prefix := range []string{"search", "read", "get", "describe", "find"} {
+	for _, prefix := range []string{"search", "read", "get", "describe", "find", "getcurrent"} {
 		if strings.HasPrefix(m, prefix) {
 			return "read"
 		}
@@ -103,7 +104,7 @@ func rexSummary(raw []byte, err error) string {
 }
 func rexDBLogger(db *sql.DB) func(rexLog) {
 	return func(l rexLog) {
-		if _, err := db.Exec(`INSERT INTO rex_request_log(at,account_id,direction,kind,service,method,path,caller,attempt,request_json,http_status,ok,error,duration_ms,result_summary,response_excerpt) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, l.At, l.AccountID, l.Direction, l.Kind, l.Service, l.Method, l.Path, l.Caller, l.Attempt, l.RequestJSON, l.HTTPStatus, l.OK, l.Error, l.DurationMS, l.ResultSummary, l.ResponseExcerpt); err != nil {
+		if _, err := db.Exec(`INSERT INTO rex_request_log(at,account_id,direction,kind,service,method,path,caller,attempt,request_json,http_status,ok,error,duration_ms,result_summary,response_excerpt,entity,local_id,rex_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, l.At, l.AccountID, l.Direction, l.Kind, l.Service, l.Method, l.Path, l.Caller, l.Attempt, l.RequestJSON, l.HTTPStatus, l.OK, l.Error, l.DurationMS, l.ResultSummary, l.ResponseExcerpt, l.Entity, l.LocalID, l.RexID); err != nil {
 			log.Printf("Rex request log insert failed: %v", err)
 		}
 	}

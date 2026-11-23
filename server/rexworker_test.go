@@ -31,7 +31,7 @@ func workerDB(t *testing.T) *app {
 }
 func workerQueue(t *testing.T, a *app, entity, id, payload string) {
 	t.Helper()
-	_, e := a.db.Exec(`INSERT INTO rex_outbox(entity,entity_id,op,payload,created_at) VALUES(?,?, 'POST',?,'now')`, entity, id, payload)
+	_, e := a.db.Exec(`INSERT INTO rex_outbox(entity,entity_id,op,payload,created_at) VALUES(?,?, 'PATCH',?,'now')`, entity, id, payload)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -44,100 +44,111 @@ func workerStatus(t *testing.T, a *app, id int) string {
 	}
 	return s
 }
-func TestRexWorkerContactLeadAndLink(t *testing.T) {
-	a := workerDB(t)
-	_, e := a.db.Exec(`INSERT INTO contacts(id,owner_id,data,created_at,updated_at) VALUES('c','u',?,'now','now')`, `{"first":"Jane","last":"Doe","mobile":"0411111111"}`)
+func linkedContact(t *testing.T, a *app) {
+	t.Helper()
+	_, e := a.db.Exec(`INSERT INTO contacts(id,owner_id,data,created_at,updated_at) VALUES('c','u',?,'now','now')`, `{"source":"rex_import","first":"Jane","last":"Doe","mobile":"0499999999"}`)
 	if e != nil {
 		t.Fatal(e)
 	}
-	_, e = a.db.Exec(`INSERT INTO leads(id,contact_id,owner_id,data,created_at,updated_at) VALUES('l','c','u',?,'now','now')`, `{"note":"Interested"}`)
+	_, e = a.db.Exec(`INSERT INTO rex_links(entity,local_id,rex_id,rex_service,account_id,created_at,etag) VALUES('contacts','c','91','Contacts','2057','now','old')`)
 	if e != nil {
 		t.Fatal(e)
-	}
-	workerQueue(t, a, "contacts", "c", `{"first":"Jane"}`)
-	workerQueue(t, a, "leads", "l", `{"contactId":"c"}`)
-	var calls []string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls = append(calls, r.URL.Path)
-		var b map[string]any
-		_ = json.NewDecoder(r.Body).Decode(&b)
-		var result any = "token"
-		switch r.URL.Path {
-		case "/v1/rex/contacts/create":
-			result = map[string]any{"id": "91"}
-		case "/v1/rex/leads/create":
-			data := b["data"].(map[string]any)
-			if data["contact"].(map[string]any)["id"] != "91" || !strings.Contains(data["note"].(string), "via AxleoCollect · Mary") {
-				t.Errorf("lead mapping: %v", data)
-			}
-			result = map[string]any{"id": "92"}
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"result": result, "error": nil})
-	}))
-	defer srv.Close()
-	w := &rexWorker{db: a.db, client: newRexClient(srv.URL, "app"), email: "e", password: "p", account: "a"}
-	w.client.Interval = 0
-	w.client.Retries = 0
-	for i := 0; i < 2; i++ {
-		if e := w.step(context.Background()); e != nil {
-			t.Fatal(e)
-		}
-	}
-	if workerStatus(t, a, 1) != "sent" || workerStatus(t, a, 2) != "sent" || w.link("leads", "l") != "92" {
-		t.Fatalf("status/link: %s %s", workerStatus(t, a, 1), workerStatus(t, a, 2))
-	}
-	_, e = a.db.Exec(`UPDATE rex_outbox SET status='pending' WHERE id=1`)
-	if e != nil {
-		t.Fatal(e)
-	}
-	if e = w.step(context.Background()); e != nil {
-		t.Fatal(e)
-	}
-	creates := 0
-	for _, p := range calls {
-		if p == "/v1/rex/contacts/create" {
-			creates++
-		}
-	}
-	if creates != 1 {
-		t.Fatalf("duplicate contact: %v", calls)
 	}
 }
-func TestRexWorkerDisabledAnd429(t *testing.T) {
+func sandboxWorker(t *testing.T, a *app, handle func(string, map[string]any) (any, int)) (*rexWorker, *[]string) {
+	t.Helper()
+	t.Setenv("REX_WRITE_ACCOUNT_ID", "2057")
+	calls := &[]string{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var b map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&b)
+		*calls = append(*calls, r.URL.Path)
+		var result any = "token"
+		code := 200
+		switch r.URL.Path {
+		case "/v1/rex/authentication/login":
+		case "/v1/rex/AccountSettings/read":
+			result = map[string]any{"id": 2057, "name": "Sandbox", "is_test_account": true}
+		default:
+			result, code = handle(r.URL.Path, b)
+		}
+		w.WriteHeader(code)
+		_ = json.NewEncoder(w).Encode(map[string]any{"result": result, "error": nil})
+	}))
+	t.Cleanup(srv.Close)
+	w := &rexWorker{db: a.db, client: newRexClient(srv.URL, "app"), email: "e", password: "p", account: "2057"}
+	w.client.AccountID = "2057"
+	w.client.Interval = 0
+	w.client.Retries = 0
+	return w, calls
+}
+func TestRexWorkerContactUpdateAndEtag(t *testing.T) {
 	a := workerDB(t)
-	workerQueue(t, a, "enquiries", "e", `{}`)
-	t.Setenv("AXLEO_REX_ENABLED", "0")
-	if newRexWorker(a.db) != nil {
-		t.Fatal("worker enabled")
+	linkedContact(t, a)
+	workerQueue(t, a, "contacts", "c", `{"mobile":"0499999999"}`)
+	w, calls := sandboxWorker(t, a, func(path string, b map[string]any) (any, int) {
+		switch path {
+		case "/v1/rex/contacts/read":
+			return map[string]any{"id": 91, "etag": "new", "related": map[string]any{"contact_names": []any{map[string]any{"id": 11}}, "contact_phones": []any{map[string]any{"id": 22}}}}, 200
+		case "/v1/rex/contacts/update":
+			d := b["data"].(map[string]any)
+			related := d["related"].(map[string]any)
+			phone := related["contact_phones"].([]any)[0].(map[string]any)
+			if phone["id"] != float64(22) || phone["phone_number"] != "0499999999" || d["id"] != "91" {
+				t.Errorf("update shape: %v", b)
+			}
+			return map[string]any{"id": 91, "etag": "new"}, 200
+		default:
+			t.Errorf("unexpected %s", path)
+			return nil, 500
+		}
+	})
+	if err := w.step(context.Background()); err != nil {
+		t.Fatal(err)
 	}
-	if workerStatus(t, a, 1) != "waiting_auth" {
-		t.Fatal("changed while disabled")
+	if workerStatus(t, a, 1) != "sent" {
+		t.Fatal(workerStatus(t, a, 1))
 	}
-	_, e := a.db.Exec(`INSERT INTO contacts(id,owner_id,data,created_at,updated_at) VALUES('c','u','{}','now','now')`)
+	var etag string
+	_ = a.db.QueryRow(`SELECT etag FROM rex_links WHERE entity='contacts' AND local_id='c'`).Scan(&etag)
+	if etag != "new" {
+		t.Fatal(etag)
+	}
+	if len(*calls) != 4 {
+		t.Fatal(*calls)
+	}
+}
+func TestRexWorkerSkipsUnlinked(t *testing.T) {
+	a := workerDB(t)
+	_, e := a.db.Exec(`INSERT INTO contacts(id,owner_id,data,created_at,updated_at) VALUES('c','u','{"first":"Demo"}','now','now')`)
 	if e != nil {
 		t.Fatal(e)
 	}
 	workerQueue(t, a, "contacts", "c", `{}`)
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "login") {
-			_ = json.NewEncoder(w).Encode(map[string]any{"result": "token", "error": nil})
-			return
-		}
-		w.Header().Set("Retry-After", "30")
-		w.WriteHeader(429)
-	}))
-	defer srv.Close()
-	w := &rexWorker{db: a.db, client: newRexClient(srv.URL, "app"), email: "e", password: "p"}
-	w.client.Interval = 0
-	w.client.Retries = 0
-	_ = w.step(context.Background())
-	_ = w.step(context.Background())
-	if workerStatus(t, a, 2) != "pending" {
-		t.Fatal("429 not deferred")
+	w, calls := sandboxWorker(t, a, func(string, map[string]any) (any, int) { t.Error("unexpected HTTP"); return nil, 500 })
+	if e = w.step(context.Background()); e != nil {
+		t.Fatal(e)
 	}
-	var tries int
-	_ = a.db.QueryRow(`SELECT tries FROM rex_outbox WHERE id=2`).Scan(&tries)
-	if tries != 1 {
-		t.Fatal(tries)
+	if workerStatus(t, a, 1) != "skipped" || len(*calls) != 0 {
+		t.Fatal(workerStatus(t, a, 1), *calls)
+	}
+	var reason string
+	_ = a.db.QueryRow(`SELECT last_error FROM rex_outbox WHERE id=1`).Scan(&reason)
+	if reason != "not linked to Rex sandbox record" {
+		t.Fatal(reason)
+	}
+}
+func TestRexWorkerDisabledAnd429(t *testing.T) {
+	a := workerDB(t)
+	t.Setenv("AXLEO_REX_WRITE", "0")
+	if newRexWorker(a.db) != nil {
+		t.Fatal("worker enabled")
+	}
+	linkedContact(t, a)
+	workerQueue(t, a, "contacts", "c", `{}`)
+	w, _ := sandboxWorker(t, a, func(path string, b map[string]any) (any, int) { return nil, 429 })
+	_ = w.step(context.Background())
+	if workerStatus(t, a, 1) != "pending" {
+		t.Fatal(workerStatus(t, a, 1))
 	}
 }

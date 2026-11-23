@@ -972,13 +972,6 @@ func (a *app) record(tx *sql.Tx, p principal, action, kind, id string, diff any)
 		return err
 	}
 	if kind == "contacts" || kind == "todos" || kind == "enquiries" || kind == "leads" || kind == "ofi_attendees" || kind == "referrals" || (kind == "captures" && captureApproved(diff)) {
-		if kind == "contacts" {
-			// TODO(write-phase): imported records must not write back to Rex yet.
-			var source string
-			if err := tx.QueryRow(`SELECT COALESCE(json_extract(data,'$.source'),'') FROM contacts WHERE id=?`, id).Scan(&source); err == nil && source == "rex_import" {
-				return nil
-			}
-		}
 		_, err := tx.Exec(`INSERT INTO rex_outbox(entity,entity_id,op,payload,created_at) VALUES(?,?,?,?,?)`, kind, id, action, string(b), stamp)
 		if err != nil {
 			return err
