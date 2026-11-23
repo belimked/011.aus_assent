@@ -15,6 +15,8 @@ export default {
   "oh": "OFI",
   "enq": "Enquiry",
   "me": "我的",
+  "not_connected": "未接入",
+  "shown_once_connected": "接入后显示",
   "data": "资料",
   "speak": "Hold to speak",
   "search": "搜索",

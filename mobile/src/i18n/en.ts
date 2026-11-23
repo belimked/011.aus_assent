@@ -15,6 +15,8 @@ export default {
   "oh": "OFI",
   "enq": "Enquiry",
   "me": "Me",
+  "not_connected": "Not connected",
+  "shown_once_connected": "Shown once connected",
   "data": "Data",
   "speak": "Hold to speak",
   "search": "Search",
