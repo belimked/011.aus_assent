@@ -39,11 +39,12 @@ func rexImportCLI(args []string) error {
 	account := f.String("account", "", "Rex sandbox account")
 	dry := f.Bool("dry-run", false, "read without changing business tables")
 	limit := f.Int("limit", 0, "maximum records per service (0 = all)")
-	assign := f.String("assign", "", "two agent emails, comma-separated")
+	assign := f.String("assign", "", "legacy round-robin: two agent emails, comma-separated")
+	plan := f.String("plan", "sandbox-test", "sandbox-test or legacy")
 	if err := f.Parse(args); err != nil {
 		return err
 	}
-	if f.NArg() != 0 || *limit < 0 {
+	if f.NArg() != 0 || *limit < 0 || (*plan != "sandbox-test" && *plan != "legacy") {
 		return fmt.Errorf("invalid rex-import arguments")
 	}
 	cfg := loadRexConfig()
@@ -68,6 +69,16 @@ func rexImportCLI(args []string) error {
 		c.Interval = time.Duration(ms) * time.Millisecond
 	}
 	ctx := context.Background()
+	if *assign == "" && *plan == "sandbox-test" {
+		ids, err := sandboxUsers(db)
+		if err != nil {
+			return err
+		}
+		if _, err = c.Login(ctx, cfg.Email, cfg.Password, *account); err != nil {
+			return err
+		}
+		return runSandboxImport(ctx, db, c, *account, *dry, *limit, ids)
+	}
 	users := []string{}
 	if *assign != "" {
 		users = strings.Split(*assign, ",")
@@ -246,6 +257,13 @@ func importSave(db *sql.DB, kind, account string, r importRow, owner string, dry
 				first = iv(imap(names[0]), "name_first")
 				last = iv(imap(names[0]), "name_last")
 			}
+		}
+		if exists {
+			var existingOwner sql.NullString
+			if err = tx.QueryRow(`SELECT owner_id FROM contacts WHERE id=?`, id).Scan(&existingOwner); err != nil {
+				return err
+			}
+			owner = existingOwner.String
 		}
 		data := importRow{"id": id, "first": first, "last": last, "mobile": iv(r, "phone_number"), "email": iv(r, "email_address"), "address": iv(r, "address"), "owner": owner, "roles": []string{}, "tags": []string{}, "notes": []any{}, "rels": []any{}, "source": "rex_import", "flags": map[string]any{"dnc": ibool(r["is_dnd"])}, "consent": map[string]any{"letter": iopt(r["contact_by_letter"]), "email": iopt(r["contact_by_email"]), "phone": iopt(r["contact_by_phone"]), "sms": iopt(r["contact_by_sms"])}, "rex": r}
 		if exists {

@@ -258,9 +258,11 @@ webhook_events(id PK, type, received_at, processed_at, payload_ref)   -- 可选
 
 ### 4.4 初始导入（`source = rex_import`）
 
-当前 SQLite 服务实现（沙箱 2057，一次性导入及手动重跑）：`axleo rex-import --account 2057 [--dry-run] [--limit N] [--assign mary@axleo.local,john@axleo.local]`。必须 `AXLEO_REX_READ=1` 且 `REX_ACCOUNT_ID=2057`；命令强制客户端 ReadOnly，所有 Rex 请求（包括登录）以 `caller=import` 入日志，绝不调用 Rex 写接口。`--limit` 是每种实体各 N 条，0 表示全量。dry-run 仍写调用日志，但不写业务表。只读分页每页 100，按 id 排序；房产请求 `extra_options.extra_fields=[contact_reln_property]`。`rex_links` 以 `(entity,account_id,rex_id)` 标识，etag 不变跳过；变更则更新源字段和关系，保留现有 `owner_id`。与演示数据并存，不写 outbox。房产与联系人初始按 Mary/John 轮流，联系人优先跟关联房产的本地负责人（多房产取首个），无关联的轮流。`properties.owner_id` 仅对导入数据设置，非管理员只能读取自己负责的导入房产；演示房产仍共享。详细运行和删除步骤见 `docs/ops-runbook.md`。
+当前 SQLite 服务实现：`axleo rex-import --account 2057 [--plan sandbox-test] [--dry-run] [--limit N]`。默认 `sandbox-test`；旧轮流方式用 `--plan legacy` 或 `--assign mary@axleo.local,john@axleo.local`。必须 `AXLEO_REX_READ=1` 且 `REX_ACCOUNT_ID=2057`；命令强制 ReadOnly，不调用 Rex 写接口。`--limit` 是每种实体各 N 条，0 表示全量。dry-run 仍写调用日志但不写业务表。只读分页每页 100，按 id 排序；房产请求 `extra_options.extra_fields=[contact_reln_property]`。`rex_links` 以 `(entity,account_id,rex_id)` 标识；etag 不变跳过，变更更新源字段和关系，不改已有负责人（包括联系人 `data.owner`）。不写 outbox。
 
-**与目标架构的差距**：当前服务仍存完整 `data.rex`，不是 §3 所述短期加密缓存；没有夜间对账、P2 跨实例限流，也没有按 Rex 负责人映射（本次业务确认改为 Mary/John 平分）。重新分配以本地 owner_id 为准。`/api/v1/sync` 当前未分页，首次登录每人约 4,000 联系人 + 1,700 房产，且逐行查询；手机响应已移除 `data.rex` 和房产 `data.geometry`，支持 gzip JSON，但不降低逐行读取和解压后的内存压力。分页另议；上线前须用真实数据压测。
+方案需预先创建启用的 `mary@axleo.local`、`john@axleo.local`、`import@axleo.local`（仅用于测试大数据同步耗时）、`admin@axleo.local`；缺任何账号会在 Rex 登录前报错，导入命令不会创建账号。只对未删除的 `source=rex_import` 排序：有 `property_owners` 关系优先，其次以 Sunnybank (-27.5794, 153.0606) 的平面距离平方（经度乘 0.887，缺坐标排最后），再按 id。前 400 个房产按 Mary/John 奇偶交替各 200，接着 1,734 个给 import，其余给 admin，绝不留空。联系人按所关联的最靠前房产负责人：Mary、John 各先取关联自己房产的 200 个（按房产排名），不足从无关联联系人按 id 补足；import 先取剩余有关联的联系人，再取无关联的，最多 3,938 个；其余给 admin。同步更新 `contacts.owner_id` 与 `data.owner`。不重置重跑只给新记录按剩余容量分配，已有负责人不动；分配发生变化会吊销这四个账号的 sessions，手机须重新登录全量同步。`properties.owner_id` 仅对导入数据设置，演示房产仍共享。详细运行和删除步骤见 `docs/ops-runbook.md`。
+
+**与目标架构的差距**：当前服务仍存完整 `data.rex`，不是 §3 所述短期加密缓存；没有夜间对账、P2 跨实例限流，也没有按 Rex 负责人映射（沙箱按固定测试方案分配）。重新分配以本地 owner_id 为准。`/api/v1/sync` 当前未分页，首次登录每人约 4,000 联系人 + 1,700 房产，且逐行查询；手机响应已移除 `data.rex` 和房产 `data.geometry`，支持 gzip JSON，但不降低逐行读取和解压后的内存压力。分页另议；上线前须用真实数据压测。
 
 ### 4.5 和中介要书面确认的事
 

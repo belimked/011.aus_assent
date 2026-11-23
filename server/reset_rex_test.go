@@ -96,6 +96,9 @@ func TestResetRexImportGateAndSuccess(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			a, path, _ := resetFixture(t)
+			if err := createUser(a.db, "import@axleo.local", "Import", "agent", "password123"); err != nil {
+				t.Fatal(err)
+			}
 			calls := 0
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				calls++
