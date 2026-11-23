@@ -27,7 +27,7 @@ func TestImportPages(t *testing.T) {
 		calls++
 		var b map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&b)
-		if b["order_by"] == nil || b["limit"] != float64(100) {
+		if ob, _ := b["order_by"].(map[string]any); ob["id"] != "asc" || b["limit"] != float64(100) {
 			t.Error("pagination request", b)
 		}
 		off := int(b["offset"].(float64))

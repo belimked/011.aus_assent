@@ -108,7 +108,7 @@ func importPages(ctx context.Context, c *rexClient, service string, limit int, c
 		if size <= 0 {
 			return nil
 		}
-		body := map[string]any{"limit": size, "offset": offset, "order_by": []any{map[string]any{"name": "id", "direction": "asc"}}}
+		body := map[string]any{"limit": size, "offset": offset, "order_by": map[string]any{"id": "asc"}} // Rex: {"field":"direction"}, verified against 2057
 		if service == "Properties" {
 			body["extra_options"] = map[string]any{"extra_fields": []string{"contact_reln_property"}}
 		}
