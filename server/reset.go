@@ -19,7 +19,7 @@ var resetTables = []string{
 }
 
 // keptTables are never cleared (properties and zones are partly reset; see below).
-var keptTables = []string{"properties", "zones", "users", "teams", "settings", "market_imports", "market_events", "property_ownership"}
+var keptTables = []string{"properties", "zones", "users", "teams", "settings", "market_imports", "market_events", "property_ownership", "rex_request_log"}
 
 // syncResetKey stores the last change-log sequence that existed before a reset.
 // Pull treats any cursor at or below it as stale and answers with a full snapshot.
@@ -58,10 +58,15 @@ func resetCounts(db *sql.DB, demo string) (map[string]int64, error) {
 	}
 	extra := map[string]string{
 		"properties: demo/import rows (restored)":              `SELECT count(*) FROM properties WHERE id IN ` + demoPropertyIDs,
-		"properties: Pricefinder-linked/other imported (kept)": `SELECT count(*) FROM properties WHERE id NOT IN ` + demoPropertyIDs + ` AND ` + keptProperty,
-		"properties: app-created (deleted)":                    `SELECT count(*) FROM properties WHERE id NOT IN ` + demoPropertyIDs + ` AND NOT ` + keptProperty,
-		"zones: demo":                                          `SELECT count(*) FROM zones WHERE id IN ` + demoZoneIDs,
-		"zones: admin-drawn (kept)":                            `SELECT count(*) FROM zones WHERE id NOT IN ` + demoZoneIDs,
+		"properties: Pricefinder-linked/other imported (kept)": `SELECT count(*) FROM properties WHERE id NOT IN ` + demoPropertyIDs + ` AND ` + keptProperty + ` AND COALESCE(json_extract(data,'$.source'),'')<>'rex_import'`,
+		"properties: app-created (deleted)":                    `SELECT count(*) FROM properties WHERE id NOT IN ` + demoPropertyIDs + ` AND NOT ` + keptProperty + ` AND COALESCE(json_extract(data,'$.source'),'')<>'rex_import'`,
+		"properties: rex_import (deleted unless demo)":         `SELECT count(*) FROM properties WHERE id NOT IN ` + demoPropertyIDs + ` AND json_extract(data,'$.source')='rex_import'`,
+		"contacts: rex_import (cleared)":                       `SELECT count(*) FROM contacts WHERE json_extract(data,'$.source')='rex_import'`,
+		"rex_links: rex_import (cleared)":                      `SELECT count(*) FROM rex_links WHERE local_id IN (SELECT id FROM contacts WHERE json_extract(data,'$.source')='rex_import' UNION SELECT id FROM properties WHERE json_extract(data,'$.source')='rex_import')`,
+		"rex_outbox: all (cleared)":                            `SELECT count(*) FROM rex_outbox`,
+		"property_owners: all (cleared then demo restored)":    `SELECT count(*) FROM property_owners`,
+		"zones: demo":               `SELECT count(*) FROM zones WHERE id IN ` + demoZoneIDs,
+		"zones: admin-drawn (kept)": `SELECT count(*) FROM zones WHERE id NOT IN ` + demoZoneIDs,
 	}
 	for k, q := range extra {
 		var n int64
@@ -84,6 +89,7 @@ func resetCounts(db *sql.DB, demo string) (map[string]int64, error) {
 
 var resetDetailKeys = []string{
 	"properties: demo/import rows (restored)", "properties: Pricefinder-linked/other imported (kept)", "properties: app-created (deleted)",
+	"properties: rex_import (deleted unless demo)", "contacts: rex_import (cleared)", "rex_links: rex_import (cleared)", "rex_outbox: all (cleared)", "property_owners: all (cleared then demo restored)",
 	"zones: demo", "zones: admin-drawn (kept)", "photo files",
 }
 
@@ -148,6 +154,33 @@ func printCounts(title string, before, after map[string]int64) {
 	for _, k := range resetDetailKeys {
 		row(k)
 	}
+}
+
+// resetCommand keeps the original preview/reset behaviour unless explicitly asked
+// to import. Import failures do not undo the already committed, backed-up reset.
+func resetCommand(db *sql.DB, path string, args []string) error {
+	yes, importRex := false, false
+	switch {
+	case len(args) == 0:
+	case len(args) == 1 && args[0] == "--yes":
+		yes = true
+	case len(args) == 2 && args[0] == "--yes" && args[1] == "--rex-import":
+		yes, importRex = true, true
+	default:
+		return fmt.Errorf("usage: axleo reset-data [--yes [--rex-import]]")
+	}
+	if err := resetData(db, path, yes); err != nil {
+		return err
+	}
+	if !importRex {
+		return nil
+	}
+	account := loadRexConfig().AccountID
+	if err := rexImportCLI([]string{"--account", account}); err != nil {
+		fmt.Println("未导入：", err)
+		return fmt.Errorf("reset completed but Rex import failed: %w", err)
+	}
+	return nil
 }
 
 // resetData restores the demo starting state. Without yes it only reports.
@@ -239,7 +272,8 @@ func resetTx(db *sql.DB, demo string) error {
 	if _, err = tx.Exec(`INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`, syncResetKey, strconv.FormatInt(lastSeq, 10)); err != nil {
 		return err
 	}
-	if _, err = tx.Exec(`DELETE FROM properties WHERE id NOT IN `+demoPropertyIDs+` AND NOT `+keptProperty, demo); err != nil {
+	// Rex imports may carry a lotplan. Never mistake those for DCDB parcels.
+	if _, err = tx.Exec(`DELETE FROM properties WHERE id NOT IN `+demoPropertyIDs+` AND (json_extract(data,'$.source')='rex_import' OR NOT `+keptProperty+`)`, demo); err != nil {
 		return fmt.Errorf("delete app properties: %w", err)
 	}
 	stamp := now()

@@ -511,12 +511,16 @@ func sliceMaps(v any) []map[string]any {
 	return out
 }
 func main() {
+	if len(os.Args) >= 2 && os.Args[1] == "rex-import" {
+		fatal(rexImportCLI(os.Args[2:]))
+		return
+	}
 	if len(os.Args) >= 2 && os.Args[1] == "rex-probe" {
 		fatal(rexProbe(os.Args[2:]))
 		return
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed|reset-data [--yes]|passwd <email>|backup <dir>|verify <file>|restore <file>|rex-probe")
+		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed|reset-data [--yes [--rex-import]]|passwd <email>|backup <dir>|verify <file>|restore <file>|rex-probe|rex-import")
 		os.Exit(2)
 	}
 	path := env("AXLEO_DB", "./axleo.db")
@@ -555,11 +559,7 @@ func main() {
 	}
 	defer db.Close()
 	if os.Args[1] == "reset-data" {
-		if len(os.Args) != 2 && (len(os.Args) != 3 || os.Args[2] != "--yes") {
-			fatal(fmt.Errorf("usage: axleo reset-data [--yes]"))
-		}
-		// Do not migrate or write anything during a dry run.
-		fatal(resetData(db, path, len(os.Args) == 3))
+		fatal(resetCommand(db, path, os.Args[2:]))
 		return
 	}
 	if err = migrate(db, path); err != nil {

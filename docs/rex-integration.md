@@ -258,11 +258,9 @@ webhook_events(id PK, type, received_at, processed_at, payload_ref)   -- 可选
 
 ### 4.4 初始导入（`source = rex_import`）
 
-1. 用集成用户登录，读取 `AccountUsers`，把 Rex 用户和我们的用户对应起来（先按邮箱自动匹配，再由管理员在后台核对）；
-2. 用 P2 优先级全量拉取 `Properties` 和 `Contacts` 的 id 和 etag，再分页拉取详情，写入索引表和关系表；
-3. 根据 Rex 里的负责人字段（具体字段名待确认），生成 `assignments` 草稿，`source = rex_import`；
-4. 管理员在「分配管理」页面按团队、区域核对后启用；
-5. 导入完成后，**分配以我们的库为准**。之后 Rex 里负责人的变化**不会自动覆盖**我们的分配，只会出现在「差异提示」列表里，由管理员决定是否采纳。
+当前 SQLite 服务实现（沙箱 2057，一次性导入及手动重跑）：`axleo rex-import --account 2057 [--dry-run] [--limit N] [--assign mary@axleo.local,john@axleo.local]`。必须 `AXLEO_REX_READ=1` 且 `REX_ACCOUNT_ID=2057`；命令强制客户端 ReadOnly，所有 Rex 请求（包括登录）以 `caller=import` 入日志，绝不调用 Rex 写接口。`--limit` 是每种实体各 N 条，0 表示全量。dry-run 仍写调用日志，但不写业务表。只读分页每页 100，按 id 排序；房产请求 `extra_options.extra_fields=[contact_reln_property]`。`rex_links` 以 `(entity,account_id,rex_id)` 标识，etag 不变跳过；变更则更新源字段和关系，保留现有 `owner_id`。与演示数据并存，不写 outbox。房产与联系人初始按 Mary/John 轮流，联系人优先跟关联房产的本地负责人（多房产取首个），无关联的轮流。`properties.owner_id` 仅对导入数据设置，非管理员只能读取自己负责的导入房产；演示房产仍共享。详细运行和删除步骤见 `docs/ops-runbook.md`。
+
+**与目标架构的差距**：当前服务仍存完整 `data.rex`，不是 §3 所述短期加密缓存；没有夜间对账、P2 跨实例限流，也没有按 Rex 负责人映射（本次业务确认改为 Mary/John 平分）。重新分配以本地 owner_id 为准。`/api/v1/sync` 当前未分页，首次登录每人约 4,000 联系人 + 1,700 房产，且逐行查询；手机响应已移除 `data.rex` 和房产 `data.geometry`，支持 gzip JSON，但不降低逐行读取和解压后的内存压力。分页另议；上线前须用真实数据压测。
 
 ### 4.5 和中介要书面确认的事
 

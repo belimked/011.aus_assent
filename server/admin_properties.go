@@ -27,6 +27,10 @@ func (a *app) adminProperties(w http.ResponseWriter, r *http.Request, p principa
 	}
 	where := ` WHERE p.deleted_at IS NULL`
 	args := []any{}
+	if p.role != "admin" {
+		where += ` AND (p.owner_id IS NULL OR p.owner_id=?)`
+		args = append(args, p.id)
+	}
 	if p.role == "leader" {
 		where += ` AND p.team_id=(SELECT team_id FROM users WHERE id=?)`
 		args = append(args, p.id)
@@ -107,6 +111,7 @@ func (a *app) adminProperties(w http.ResponseWriter, r *http.Request, p principa
 		}
 		var data map[string]any
 		_ = json.Unmarshal([]byte(raw), &data)
+		item["source"] = str(data, "source")
 		item["lotplan"] = str(data, "lotplan")
 		item["geometry"] = data["geometry"]
 		item["ll"] = data["ll"]
@@ -167,8 +172,12 @@ func (a *app) adminParcelMap(w http.ResponseWriter, r *http.Request, p principal
 	if err != nil || limit < 1 || limit > 5000 {
 		limit = 5000
 	}
-	query := `SELECT p.id,COALESCE(json_extract(p.data,'$.lotplan'),''),p.registered,o.property_id IS NOT NULL FROM properties p LEFT JOIN property_ownership o ON o.property_id=p.id WHERE p.deleted_at IS NULL AND CAST(COALESCE(json_extract(p.data,'$.lng'),json_extract(p.data,'$.ll[1]')) AS REAL) BETWEEN ? AND ? AND CAST(COALESCE(json_extract(p.data,'$.lat'),json_extract(p.data,'$.ll[0]')) AS REAL) BETWEEN ? AND ?`
+	query := `SELECT p.id,COALESCE(json_extract(p.data,'$.lotplan'),''),p.registered,o.property_id IS NOT NULL,COALESCE(json_extract(p.data,'$.source'),''),CAST(COALESCE(json_extract(p.data,'$.lng'),json_extract(p.data,'$.ll[1]')) AS REAL),CAST(COALESCE(json_extract(p.data,'$.lat'),json_extract(p.data,'$.ll[0]')) AS REAL) FROM properties p LEFT JOIN property_ownership o ON o.property_id=p.id WHERE p.deleted_at IS NULL AND CAST(COALESCE(json_extract(p.data,'$.lng'),json_extract(p.data,'$.ll[1]')) AS REAL) BETWEEN ? AND ? AND CAST(COALESCE(json_extract(p.data,'$.lat'),json_extract(p.data,'$.ll[0]')) AS REAL) BETWEEN ? AND ?`
 	args := []any{b[0], b[2], b[1], b[3]}
+	if p.role != "admin" {
+		query += ` AND (p.owner_id IS NULL OR p.owner_id=?)`
+		args = append(args, p.id)
+	}
 	if p.role == "leader" {
 		query += ` AND p.team_id=(SELECT team_id FROM users WHERE id=?)`
 		args = append(args, p.id)
@@ -183,17 +192,22 @@ func (a *app) adminParcelMap(w http.ResponseWriter, r *http.Request, p principal
 	defer rows.Close()
 	features := []any{}
 	for rows.Next() {
-		var id, lotplan string
+		var id, lotplan, source string
 		var registered, owned int
-		if rows.Scan(&id, &lotplan, &registered, &owned) != nil {
+		var lng, lat float64
+		if rows.Scan(&id, &lotplan, &registered, &owned, &source, &lng, &lat) != nil {
 			continue
 		}
-		features = append(features, map[string]any{"type": "Feature", "geometry": nil, "properties": map[string]any{"id": id, "lotplan": lotplan, "registered": registered != 0, "hasOwner": owned != 0}})
+		var geometry any
+		if source == "rex_import" {
+			geometry = map[string]any{"type": "Point", "coordinates": []float64{lng, lat}}
+		}
+		features = append(features, map[string]any{"type": "Feature", "geometry": geometry, "properties": map[string]any{"id": id, "lotplan": lotplan, "registered": registered != 0, "hasOwner": owned != 0}})
 	}
 	respond(w, 200, map[string]any{"type": "FeatureCollection", "features": features})
 }
 func (a *app) adminParcelStats(w http.ResponseWriter, p principal) {
-	q := `SELECT p.suburb,count(*),sum(CASE WHEN p.registered=1 THEN 1 ELSE 0 END),sum(CASE WHEN o.property_id IS NOT NULL THEN 1 ELSE 0 END) FROM properties p LEFT JOIN property_ownership o ON o.property_id=p.id WHERE p.deleted_at IS NULL`
+	q := `SELECT p.suburb,count(*),sum(CASE WHEN p.registered=1 THEN 1 ELSE 0 END),sum(CASE WHEN o.property_id IS NOT NULL THEN 1 ELSE 0 END) FROM properties p LEFT JOIN property_ownership o ON o.property_id=p.id WHERE p.deleted_at IS NULL AND p.owner_id IS NULL`
 	args := []any{}
 	if p.role == "leader" {
 		q += ` AND p.team_id=(SELECT team_id FROM users WHERE id=?)`

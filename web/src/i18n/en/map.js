@@ -1,4 +1,5 @@
 export default {
+  'Rex 沙箱': 'Rex sandbox',
   '街道或门牌…': 'Street or house number…',
   '全部区域': 'All suburbs',
   '按门牌': 'Street number',

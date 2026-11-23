@@ -348,7 +348,7 @@ func (a *app) routes() http.Handler {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		m.ServeHTTP(w, r)
+		gzipAPI(w, r, m)
 	})
 }
 func (a *app) login(w http.ResponseWriter, r *http.Request) {
@@ -407,8 +407,11 @@ func (a *app) login(w http.ResponseWriter, r *http.Request) {
 
 // scope is the only authority for resource visibility. Every read and write uses it.
 func scope(kind string, p principal) (string, []any) {
-	if p.role == "admin" || kind == "properties" || kind == "listings" {
+	if p.role == "admin" || kind == "listings" {
 		return "", nil
+	}
+	if kind == "properties" {
+		return " AND (owner_id IS NULL OR owner_id=?)", []any{p.id}
 	}
 	if kind == "tags" {
 		return " AND (owner_id=? OR owner_id='')", []any{p.id}
@@ -969,6 +972,13 @@ func (a *app) record(tx *sql.Tx, p principal, action, kind, id string, diff any)
 		return err
 	}
 	if kind == "contacts" || kind == "todos" || kind == "enquiries" || kind == "leads" || kind == "ofi_attendees" || kind == "referrals" || (kind == "captures" && captureApproved(diff)) {
+		if kind == "contacts" {
+			// TODO(write-phase): imported records must not write back to Rex yet.
+			var source string
+			if err := tx.QueryRow(`SELECT COALESCE(json_extract(data,'$.source'),'') FROM contacts WHERE id=?`, id).Scan(&source); err == nil && source == "rex_import" {
+				return nil
+			}
+		}
 		_, err := tx.Exec(`INSERT INTO rex_outbox(entity,entity_id,op,payload,created_at) VALUES(?,?,?,?,?)`, kind, id, action, string(b), stamp)
 		if err != nil {
 			return err
