@@ -108,6 +108,7 @@ func pollRex(ctx context.Context, db *sql.DB, c *rexClient, account string) erro
 				if iv(detail, "etag") == "" {
 					detail["etag"] = etag
 				}
+				flattenRexRead(detail)
 				if local == "" {
 					added := newContacts
 					if kind == "properties" {
@@ -173,4 +174,44 @@ func pollRex(ctx context.Context, db *sql.DB, c *rexClient, account string) erro
 		}
 	}
 	return assignSandbox(db, ids, newProps, newContacts)
+}
+
+// flattenRexRead lifts the primary name/phone/email from a Contacts::read result
+// (nested under related.*) to the top-level keys that search rows and importSave use.
+func flattenRexRead(r importRow) {
+	rel := imap(r["related"])
+	if rel == nil {
+		return
+	}
+	pick := func(list string, primary string) importRow {
+		rows, _ := rel[list].([]any)
+		var first importRow
+		for _, x := range rows {
+			m := imap(x)
+			if m == nil {
+				continue
+			}
+			if first == nil {
+				first = m
+			}
+			if primary != "" && ibool(m[primary]) {
+				return m
+			}
+		}
+		return first
+	}
+	if n := pick("contact_names", ""); n != nil {
+		if iv(r, "name_first") == "" {
+			r["name_first"] = n["name_first"]
+		}
+		if iv(r, "name_last") == "" {
+			r["name_last"] = n["name_last"]
+		}
+	}
+	if p := pick("contact_phones", "phone_primary"); p != nil && iv(r, "phone_number") == "" {
+		r["phone_number"] = p["phone_number"]
+	}
+	if e := pick("contact_emails", "email_primary"); e != nil && iv(r, "email_address") == "" {
+		r["email_address"] = e["email_address"]
+	}
 }

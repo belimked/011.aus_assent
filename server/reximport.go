@@ -272,6 +272,9 @@ func importSave(db *sql.DB, kind, account string, r importRow, owner string, dry
 		}
 		data := importRow{"id": id, "first": first, "last": last, "mobile": iv(r, "phone_number"), "email": iv(r, "email_address"), "address": iv(r, "address"), "owner": owner, "roles": []string{}, "tags": []string{}, "notes": []any{}, "rels": []any{}, "source": "rex_import", "flags": map[string]any{"dnc": ibool(r["is_dnd"])}, "consent": map[string]any{"letter": iopt(r["contact_by_letter"]), "email": iopt(r["contact_by_email"]), "phone": iopt(r["contact_by_phone"]), "sms": iopt(r["contact_by_sms"])}, "rex": r}
 		if exists {
+			if err = mergeImportData(tx, "contacts", id, data); err != nil {
+				return err
+			}
 			_, err = tx.Exec(`UPDATE contacts SET first=?,last=?,mobile=?,email=?,flags=?,consent=?,data=?,updated_at=?,version=version+1,deleted_at=NULL WHERE id=?`, first, last, data["mobile"], data["email"], ijson(data["flags"]), ijson(data["consent"]), ijson(data), stamp, id)
 		} else {
 			_, err = tx.Exec(`INSERT INTO contacts(id,owner_id,first,last,mobile,email,flags,consent,data,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, id, owner, first, last, data["mobile"], data["email"], ijson(data["flags"]), ijson(data["consent"]), ijson(data), stamp, stamp)
@@ -285,6 +288,9 @@ func importSave(db *sql.DB, kind, account string, r importRow, owner string, dry
 			data["ll"] = []float64{lat, lng}
 		} // no parcel geometry: map as point only
 		if exists {
+			if err = mergeImportData(tx, "properties", id, data); err != nil {
+				return err
+			}
 			_, err = tx.Exec(`UPDATE properties SET no=?,street=?,suburb=?,data=?,updated_at=?,version=version+1,deleted_at=NULL WHERE id=?`, no, street, suburb, ijson(data), stamp, id)
 		} else {
 			_, err = tx.Exec(`INSERT INTO properties(id,owner_id,no,street,suburb,data,registered,created_at,updated_at) VALUES(?,?,?,?,?,?,1,?,?)`, id, owner, no, street, suburb, ijson(data), stamp, stamp)
@@ -338,4 +344,42 @@ func saveImportRelations(db *sql.DB, account string, r importRow) error {
 		}
 	}
 	return tx.Commit()
+}
+
+// mergeImportData keeps app-side fields (notes, tags, roles, rels, geometry, ...) on
+// re-import/poll; only Rex-owned keys are overwritten. flags are merged key by key.
+func mergeImportData(tx *sql.Tx, table, id string, data importRow) error {
+	var raw string
+	if err := tx.QueryRow(`SELECT data FROM `+table+` WHERE id=?`, id).Scan(&raw); err != nil {
+		return err
+	}
+	var old importRow
+	if json.Unmarshal([]byte(raw), &old) != nil || old == nil {
+		return nil
+	}
+	owned := map[string]bool{"id": true, "rex": true, "source": true}
+	keys := []string{"first", "last", "mobile", "email", "address", "consent"}
+	if table == "properties" {
+		keys = []string{"no", "street", "suburb", "address", "state", "postcode", "unit", "lat", "lng", "beds", "baths", "cars", "ll"}
+	}
+	for _, k := range keys {
+		owned[k] = true
+	}
+	for k, v := range old {
+		if k == "flags" {
+			merged := imap(v)
+			if merged == nil {
+				merged = importRow{}
+			}
+			for fk, fv := range imap(data["flags"]) {
+				merged[fk] = fv
+			}
+			data["flags"] = merged
+			continue
+		}
+		if !owned[k] {
+			data[k] = v
+		}
+	}
+	return nil
 }
