@@ -8,6 +8,11 @@ on:
       - '!mobile/docs/**'
       - '.github/workflows/mobile-ios-adhoc.yml'
   workflow_dispatch:
+    inputs:
+      ios_push:
+        description: 'Enable APNs (requires a push-enabled ad-hoc profile)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -20,6 +25,7 @@ concurrency:
 
 env:
   TEAM_ID: 8J42Q87M5P
+  AXLEO_IOS_PUSH: ${{ inputs.ios_push && '1' || '0' }}
   CI: 1
   EXPO_NO_TELEMETRY: 1
   CF_PROJECT: agentcollect-install

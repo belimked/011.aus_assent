@@ -1,5 +1,8 @@
 // Generated from prototype/index.html by tools/extract-i18n.mjs
 export default {
+  "notification_todo_title": "待办提醒",
+  "notification_channel": "待办提醒",
+  "notification_permission": "允许接收待办到期提醒",
   "home": "Home",
   "tr_warming": "正在准备双语交流…",
   "tr_skip": "点击跳过",
