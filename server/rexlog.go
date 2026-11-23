@@ -23,7 +23,7 @@ type rexLog struct {
 }
 
 func rexKind(service, method string) string {
-	if strings.EqualFold(service, "Authentication") || service == "authentication" {
+	if strings.EqualFold(service, "Authentication") || strings.EqualFold(service, "AccountSettings") && strings.EqualFold(method, "read") {
 		return "auth"
 	}
 	m := strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(method, "-", ""), "_", ""))

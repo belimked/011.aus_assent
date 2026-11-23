@@ -42,6 +42,10 @@ func TestRexLogAttemptsAndSecrets(t *testing.T) {
 			w.WriteHeader(429)
 			return
 		}
+		if r.URL.Path == "/v1/rex/AccountSettings/read" {
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": map[string]any{"id": 2057, "name": "Sandbox", "is_test_account": true}, "error": nil})
+			return
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"result": "secret-token", "error": nil})
 	}))
 	defer srv.Close()
@@ -56,8 +60,12 @@ func TestRexLogAttemptsAndSecrets(t *testing.T) {
 	}
 	var n int
 	var request, response string
-	if e := a.db.QueryRow(`SELECT count(*) FROM rex_request_log`).Scan(&n); e != nil || n != 2 {
+	if e := a.db.QueryRow(`SELECT count(*) FROM rex_request_log`).Scan(&n); e != nil || n != 4 {
 		t.Fatalf("attempts=%d %v", n, e)
+	}
+	account, name, test, reason := rexVerifiedStatus(a.db)
+	if account != "2057" || name != "Sandbox" || !test || reason != "" {
+		t.Fatalf("verification: %q %q %v %q", account, name, test, reason)
 	}
 	if e := a.db.QueryRow(`SELECT request_json,response_excerpt FROM rex_request_log ORDER BY id DESC LIMIT 1`).Scan(&request, &response); e != nil {
 		t.Fatal(e)

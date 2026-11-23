@@ -24,17 +24,18 @@ type rexEnvelope struct {
 	Error  json.RawMessage `json:"error"`
 }
 type rexClient struct {
-	BaseURL, AppID, Token       string
-	HTTP                        *http.Client
-	Interval                    time.Duration
-	Retries                     int
-	mu                          sync.Mutex
-	next                        time.Time
-	AccountID, Caller, Password string
-	Log                         func(rexLog)
-	ReadOnly                    bool
-	VerifiedAccount             string // Never inferred from the requested login account.
-	Entity, LocalID, RexID      string
+	BaseURL, AppID, Token                string
+	HTTP                                 *http.Client
+	Interval                             time.Duration
+	Retries                              int
+	mu                                   sync.Mutex
+	next                                 time.Time
+	AccountID, Caller, Password          string
+	Log                                  func(rexLog)
+	ReadOnly                             bool
+	VerifiedAccount, VerifiedAccountName string // Never inferred from the requested login account.
+	VerifiedIsTest                       bool
+	Entity, LocalID, RexID               string
 }
 
 func rexPath(s string) string {
@@ -102,7 +103,7 @@ func (c *rexClient) callPath(ctx context.Context, service, method string, body a
 		if json.Unmarshal(raw, &response) != nil {
 			response = string(raw)
 		}
-		if rexKind(service, method) == "auth" {
+		if strings.EqualFold(service, "authentication") {
 			response = map[string]any{"result": "[REDACTED]"}
 		}
 		excerpt := rexRedact(response, c.Password, c.Token)
@@ -117,7 +118,7 @@ func (c *rexClient) callPath(ctx context.Context, service, method string, body a
 	}
 	if rexKind(service, method) == "write" && !c.ReadOnly {
 		account := c.VerifiedAccount
-		if account == "" || account != c.AccountID || !rexAccountAllowed(account) {
+		if account == "" || account != c.AccountID || account != os.Getenv("REX_WRITE_ACCOUNT_ID") || !rexAccountAllowed(account) || (!c.VerifiedIsTest && os.Getenv("REX_ALLOW_PRODUCTION_WRITE") != "1") {
 			err := fmt.Errorf("blocked: account %s not in write allowlist", account)
 			record(0, 0, time.Now(), nil, err)
 			return nil, e, err
@@ -252,6 +253,7 @@ func (c *rexClient) Call(ctx context.Context, service, method string, body any) 
 	return c.callPath(ctx, service, method, body, false)
 }
 func (c *rexClient) Login(ctx context.Context, email, password, account string) (json.RawMessage, error) {
+	c.Token, c.VerifiedAccount, c.VerifiedAccountName, c.VerifiedIsTest = "", "", "", false
 	b := map[string]any{"email": email, "password": password, "token_lifetime": 86400}
 	if account != "" {
 		b["account_id"] = account
@@ -265,21 +267,32 @@ func (c *rexClient) Login(ctx context.Context, email, password, account string) 
 		return raw, fmt.Errorf("Rex login token missing")
 	}
 	c.Token = token
-	c.VerifiedAccount = ""
-	// Authentication::login returns a token, not proof of the active account.
-	// UserProfile is a read-only endpoint; fail closed unless it explicitly supplies the active account.
-	_, profile, err := c.Call(ctx, "UserProfile", "getCurrentAccount", map[string]any{})
-	if err == nil {
-		var current map[string]any
-		if json.Unmarshal(profile.Result, &current) == nil {
-			c.VerifiedAccount = istring(current["account_id"])
-			if c.VerifiedAccount == "" {
-				c.VerifiedAccount = istring(current["id"])
-			}
+	c.VerifiedAccount, c.VerifiedAccountName, c.VerifiedIsTest = "", "", false
+	// The token alone cannot establish the active account: the user may belong to several.
+	// AccountSettings::read is a read-only API, with a numeric result.id.
+	_, settings, verifyErr := c.callPath(ctx, "AccountSettings", "read", map[string]any{}, true)
+	if verifyErr == nil {
+		var current struct {
+			ID     json.Number `json:"id"`
+			Name   string      `json:"name"`
+			IsTest bool        `json:"is_test_account"`
+		}
+		if json.Unmarshal(settings.Result, &current) == nil && current.ID != "" {
+			c.VerifiedAccount = string(current.ID)
+			c.VerifiedAccountName = current.Name
+			c.VerifiedIsTest = current.IsTest
 		}
 	}
 	if c.Log != nil {
-		c.Log(rexLog{At: rexLogAt(), AccountID: c.VerifiedAccount, Direction: "out", Kind: "auth", Service: "UserProfile", Method: "verifiedAccount", Caller: c.Caller, OK: c.VerifiedAccount != "" && c.VerifiedAccount == c.AccountID})
+		reason := ""
+		if verifyErr != nil {
+			reason = "account verification failed"
+		} else if c.VerifiedAccount == "" {
+			reason = "account id missing"
+		} else if c.VerifiedAccount != c.AccountID {
+			reason = "active account mismatches REX_ACCOUNT_ID"
+		}
+		c.Log(rexLog{At: rexLogAt(), AccountID: c.VerifiedAccount, Direction: "out", Kind: "auth", Service: "AccountSettings", Method: "read", Caller: "verification", OK: reason == "", Error: reason, ResponseExcerpt: rexRedact(map[string]any{"id": c.VerifiedAccount, "name": c.VerifiedAccountName, "is_test_account": c.VerifiedIsTest})})
 	}
 	return raw, nil
 }

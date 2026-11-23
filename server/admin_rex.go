@@ -2,7 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -23,20 +25,27 @@ func (a *app) adminRex(w http.ResponseWriter, r *http.Request, path string) {
 		if err == sql.ErrNoRows {
 			loginAt = ""
 		}
-		verified := rexVerifiedStatus(a.db)
-		blocked := !c.Write || verified != c.AccountID || !rexAccountAllowed(verified)
+		verified, name, isTest, verificationError := rexVerifiedStatus(a.db)
+		blocked := !c.Write || verified == "" || verified != c.AccountID || verified != c.WriteAccountID || !rexAccountAllowed(verified) || !isTest && os.Getenv("REX_ALLOW_PRODUCTION_WRITE") != "1"
 		reason := ""
-		if !c.Write {
+		switch {
+		case !c.Write:
 			reason = c.WriteReason
-		} else if verified != c.AccountID {
-			reason = "Rex active account not verified or mismatched"
-		} else if !rexAccountAllowed(verified) {
+		case verificationError != "":
+			reason = verificationError
+		case verified == "":
+			reason = "Rex active account not verified"
+		case verified != c.AccountID || verified != c.WriteAccountID:
+			reason = "Rex active account mismatches configured account"
+		case !rexAccountAllowed(verified):
 			reason = "account not in write allowlist"
+		case !isTest && os.Getenv("REX_ALLOW_PRODUCTION_WRITE") != "1":
+			reason = "production account requires REX_ALLOW_PRODUCTION_WRITE=1"
 		}
 		var lastPoll string
 		var pollOK int
 		_ = a.db.QueryRow(`SELECT at,ok FROM rex_poll_status WHERE id=1`).Scan(&lastPoll, &pollOK)
-		respond(w, 200, map[string]any{"accountId": c.AccountID, "verifiedAccount": verified, "writeBlocked": blocked, "writeBlockReason": reason, "pollEnabled": c.Read, "lastPollAt": lastPoll, "lastPollOK": pollOK == 1 && lastPoll != "", "baseUrl": c.BaseURL, "appId": c.AppID, "read": c.Read, "write": c.Write, "readReason": c.ReadReason, "writeReason": c.WriteReason, "lastLoginAt": loginAt, "lastLoginOK": loginOK == 1 && loginAt != "", "callsHour": calls, "failuresHour": failures})
+		respond(w, 200, map[string]any{"accountId": c.AccountID, "verifiedAccount": verified, "verifiedAccountName": name, "verifiedIsTest": isTest, "writeBlocked": blocked, "writeBlockReason": reason, "pollEnabled": c.Read, "lastPollAt": lastPoll, "lastPollOK": pollOK == 1 && lastPoll != "", "baseUrl": c.BaseURL, "appId": c.AppID, "read": c.Read, "write": c.Write, "readReason": c.ReadReason, "writeReason": c.WriteReason, "lastLoginAt": loginAt, "lastLoginOK": loginOK == 1 && loginAt != "", "callsHour": calls, "failuresHour": failures})
 		return
 	}
 	if path == "rex/events" {
@@ -108,10 +117,18 @@ func (a *app) adminRex(w http.ResponseWriter, r *http.Request, path string) {
 	}
 	respond(w, 200, map[string]any{"items": items})
 }
-func rexVerifiedStatus(db *sql.DB) string {
-	var account string
-	_ = db.QueryRow(`SELECT CASE WHEN ok=1 THEN account_id ELSE '' END FROM rex_request_log WHERE service='UserProfile' AND method='verifiedAccount' ORDER BY id DESC LIMIT 1`).Scan(&account)
-	return account
+func rexVerifiedStatus(db *sql.DB) (account, name string, isTest bool, reason string) {
+	var raw string
+	_ = db.QueryRow(`SELECT response_excerpt,error FROM rex_request_log WHERE service='AccountSettings' AND method='read' AND caller='verification' ORDER BY id DESC LIMIT 1`).Scan(&raw, &reason)
+	var result struct {
+		ID     string `json:"id"`
+		Name   string `json:"name"`
+		IsTest bool   `json:"is_test_account"`
+	}
+	if json.Unmarshal([]byte(raw), &result) == nil {
+		account, name, isTest = result.ID, result.Name, result.IsTest
+	}
+	return
 }
 func scanRexRow(scan func(...any) error) (map[string]any, error) {
 	var id, attempt, status, ok, duration int64

@@ -109,13 +109,13 @@ func TestRexImportReadOnlyAndReplay(t *testing.T) {
 	if n < 6 {
 		t.Fatal("missing read logs", n)
 	}
-	// Imported contacts remain local-only when edited through the ordinary API.
+	// Imported contacts now queue a linked update through the ordinary API.
 	w := request(a, "PATCH", "/api/v1/contacts/rex-contacts-2057-1", tokens["mary"], map[string]any{"version": 1, "first": "Edited"})
 	if w.Code != 200 {
 		t.Fatalf("edit: %d %s", w.Code, w.Body.String())
 	}
 	_ = a.db.QueryRow(`SELECT count(*) FROM rex_outbox`).Scan(&n)
-	if n != 0 {
-		t.Fatal("edit queued Rex writes")
+	if n == 0 {
+		t.Fatal("edit did not queue Rex update")
 	}
 }

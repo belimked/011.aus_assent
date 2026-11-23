@@ -100,13 +100,13 @@ func (w *rexWorker) step(ctx context.Context) error {
 	}
 	// Outbox is not a create queue. No job may write an unlinked demo/app record.
 	linkID := j.localID
-	if j.entity == "rex_contact_dnd" {
+	if strings.HasPrefix(j.entity, "rex_contact_") {
 		var payload map[string]any
 		_ = json.Unmarshal([]byte(j.payload), &payload)
 		linkID = str(payload, "contactId")
 	}
 	linked := w.link("contacts", linkID)
-	if (j.entity != "contacts" && j.entity != "rex_contact_dnd") || linked == "" {
+	if (j.entity != "contacts" && j.entity != "rex_contact_dnd" && j.entity != "rex_contact_tag" && j.entity != "rex_contact_letter") || linked == "" {
 		return finish("skipped", "not linked to Rex sandbox record", "", "")
 	}
 	var source string
@@ -287,9 +287,6 @@ func (w *rexWorker) step(ctx context.Context) error {
 				related["contact_emails"] = []any{email}
 			}
 			data["related"] = related
-			if v, ok := c["note"]; ok {
-				data["note"] = v
-			}
 			for _, field := range []string{"letter", "email", "phone", "sms"} {
 				if value, ok := imap(c["consent"])[field]; ok {
 					data["contact_by_"+field] = value
