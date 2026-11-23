@@ -13,13 +13,13 @@ import (
 )
 
 var bedrockBaseURL = "" // test-only override
-var contactKeys = []string{"contactName", "firstName", "lastName", "phone", "email", "address", "suburb", "intent", "priceMin", "priceMax", "timeframe", "notes", "language"}
+var contactKeys = []string{"contactName", "firstName", "lastName", "phone", "email", "address", "suburb", "intent", "priceMin", "priceMax", "buyerBeds", "buyerSuburbs", "timeframe", "notes", "language"}
 
 func contactSchema() map[string]any {
 	props, confidence := map[string]any{}, map[string]any{}
 	for _, key := range contactKeys {
 		field := map[string]any{"type": []string{"string", "null"}}
-		if key == "priceMin" || key == "priceMax" {
+		if key == "priceMin" || key == "priceMax" || key == "buyerBeds" {
 			field["type"] = []string{"number", "null"}
 		}
 		if key == "intent" {
@@ -62,7 +62,7 @@ func (a *app) extractAI(w http.ResponseWriter, r *http.Request, p principal) {
 	meta["lang"] = lang
 	location, _ := time.LoadLocation("Australia/Brisbane")
 	today := time.Now().In(location).Format("2006-01-02")
-	prompt := "Extract real estate contact facts in English, Mandarin or Cantonese. Today in Australia/Brisbane is " + today + ". Context: dk=door knock owner/tenant, oh=open home attendee/buyer, enq=enquiry, note=free note. Australian mobile phones use 04xx xxx xxx. Never invent information; unknown fields must be null. For Chinese names, put the whole name in firstName if unsure how to split. Phone: output exactly the digits spoken; if the transcript has a mis-recognised extra or missing digit (an Australian mobile is 10 digits starting 04), keep it as heard and give phone confidence below 0.5. intent: decide from the speaker's words only (sell/may sell/thinking of selling = sell; looking to buy = buy); the context is a hint, not evidence; English words inside Chinese speech count (e.g. 'maybe sell'). notes: only extra facts the speaker said that no other field holds, in the speaker's language; null if none; never describe the context or the task." + audRule + " priceMin/priceMax are whole Australian dollars. In notes, write money as Australian dollars ($ in English, 澳元 in Chinese). Return only the record_contact tool input."
+	prompt := "Extract real estate contact facts in English, Mandarin or Cantonese. Today in Australia/Brisbane is " + today + ". Context: dk=door knock owner/tenant, oh=open home attendee/buyer, enq=enquiry, note=free note. Australian mobile phones use 04xx xxx xxx. Never invent information; unknown fields must be null. For Chinese names, put the whole name in firstName if unsure how to split. Phone: output exactly the digits spoken; if the transcript has a mis-recognised extra or missing digit (an Australian mobile is 10 digits starting 04), keep it as heard and give phone confidence below 0.5. intent: decide from the speaker's words only (sell/may sell/thinking of selling = sell; looking to buy = buy); the context is a hint, not evidence; English words inside Chinese speech count (e.g. 'maybe sell'). For a buyer, extract buyerBeds as the minimum bedroom count (number), buyerSuburbs as the named suburbs separated by commas, and priceMin/priceMax as the explicit budget range (for '1.5 to 2 million' use 1500000 and 2000000; for '$900k–1.1m' use 900000 and 1100000). Do not confuse a medical condition such as Parkinson's with the suburb Parkinson; only extract a suburb when it refers to location. For names, 'Mary' alone is firstName Mary and lastName null; 'Mary Chen' is firstName Mary and lastName Chen. notes: only extra facts the speaker said that no other field holds, in the speaker's language; null if none; never describe the context or the task." + audRule + " priceMin/priceMax are whole Australian dollars. In notes, write money as Australian dollars ($ in English, 澳元 in Chinese). Return only the record_contact tool input."
 	a.converseContact(w, r, key, model, prompt, []any{map[string]any{"text": "Context: " + ctx + "; language: " + lang + "\n" + text}}, started, meta)
 }
 
@@ -137,7 +137,7 @@ func (a *app) converseContact(w http.ResponseWriter, r *http.Request, key, model
 		rawConf, _ := input["confidence"].(map[string]any)
 		for _, k := range contactKeys {
 			value := input[k]
-			if k == "priceMin" || k == "priceMax" {
+			if k == "priceMin" || k == "priceMax" || k == "buyerBeds" {
 				if _, ok := value.(float64); !ok {
 					value = nil
 				}

@@ -117,11 +117,16 @@ func TestAIEndpoints(t *testing.T) {
 		}
 		var payload map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&payload)
+		prompt := payload["system"].([]any)[0].(map[string]any)["text"].(string)
+		if !strings.Contains(prompt, "buyerBeds") || !strings.Contains(prompt, "Mary Chen") { t.Error("buyer/name extraction prompt missing") }
 		config := payload["toolConfig"].(map[string]any)
+		schema := config["tools"].([]any)[0].(map[string]any)["toolSpec"].(map[string]any)["inputSchema"].(map[string]any)["json"].(map[string]any)
+		props := schema["properties"].(map[string]any)
+		if props["buyerBeds"] == nil || props["buyerSuburbs"] == nil { t.Error("buyer fields missing from schema") }
 		if config["toolChoice"].(map[string]any)["tool"].(map[string]any)["name"] != "record_contact" {
 			t.Error("tool not forced")
 		}
-		_, _ = w.Write([]byte(`{"output":{"message":{"content":[{"toolUse":{"name":"record_contact","input":{"contactName":"Mary","firstName":"Mary","phone":"0412 345 678","confidence":{"contactName":0.9}}}}]}},"usage":{"inputTokens":12,"outputTokens":3}}`))
+		_, _ = w.Write([]byte(`{"output":{"message":{"content":[{"toolUse":{"name":"record_contact","input":{"contactName":"Mary","firstName":"Mary","phone":"0412 345 678","buyerBeds":4,"buyerSuburbs":"Parkinson","priceMin":1500000,"priceMax":2000000,"confidence":{"contactName":0.9}}}}]}},"usage":{"inputTokens":12,"outputTokens":3}}`))
 	}))
 	defer server.Close()
 	bedrockBaseURL = server.URL
@@ -131,7 +136,7 @@ func TestAIEndpoints(t *testing.T) {
 		t.Fatal(w.Code, w.Body)
 	}
 	result := obj(t, w)
-	if result["fields"].(map[string]any)["lastName"] != nil || result["confidence"].(map[string]any)["phone"] != float64(0) {
+	if result["fields"].(map[string]any)["lastName"] != nil || result["fields"].(map[string]any)["buyerBeds"] != float64(4) || result["fields"].(map[string]any)["buyerSuburbs"] != "Parkinson" || result["confidence"].(map[string]any)["phone"] != float64(0) {
 		t.Fatal(result)
 	}
 	if w = request(a, "POST", "/api/v1/ai/extract", tokens["mary"], map[string]any{"text": strings.Repeat("x", 4001)}); w.Code != 400 {

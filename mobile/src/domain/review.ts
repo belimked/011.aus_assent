@@ -2,7 +2,24 @@ import type {AppState} from '../data/types';
 import {TODAY} from '../data/seed';
 import {extract} from './extract';
 import {commitDK} from './dk';
-import {audit,byId,matchContacts,noteOn,ownersOf,propAddr} from './index';
+import {audit,byId,matchContacts,normMobile,noteOn,ownersOf,propAddr} from './index';
+
+export function captureIdentity(text:string, first='',last=''){
+  if(first)return {first,last};
+  const named=text.match(/\b(?:spoke (?:to|with)|talked to|met|name is|this is|with)\s+([A-Z][a-z]+)(?:\s+([A-Z][a-z]+))?\b/i);
+  if(named)return {first:named[1],last:named[2]||''};
+  const leading=text.match(/^([A-Z][a-z]+)(?:\s+([A-Z][a-z]+))?\s*[,.:]?\s*(?:mobile|phone|0[45]\d|$)/);
+  return leading?{first:leading[1],last:leading[2]||''}:{first,last};
+}
+export function captureCandidates(s:AppState,identity:{first:string;last:string;mobile:string;email:string}){
+  const mobile=normMobile(identity.mobile),email=identity.email.trim().toLowerCase();
+  return s.contacts.flatMap(c=>{const by:string[]=[];
+    if(mobile.length>=10&&normMobile(c.mobile)===mobile)by.push('phone');
+    if(email&&c.email.toLowerCase()===email)by.push('email');
+    if(identity.first&&c.first.toLowerCase()===identity.first.toLowerCase()&&(!identity.last||c.last.toLowerCase()===identity.last.toLowerCase()))by.push('name');
+    return by.length?[{c,by,duplicate:s.contacts.some(other=>other.id!==c.id&&other.first.toLowerCase()===c.first.toLowerCase()&&other.last.toLowerCase()===c.last.toLowerCase()&&!!normMobile(c.mobile)&&normMobile(other.mobile)===normMobile(c.mobile))}]:[];
+  });
+}
 
 export function approveCapture(s:AppState,id:string,transcript?:string,keepApproved=false,fields?:Partial<ReturnType<typeof extract>>,pick?:string){
   const capture=byId(s.captures,id);if(!capture)return;
@@ -11,7 +28,7 @@ export function approveCapture(s:AppState,id:string,transcript?:string,keepAppro
   const p=byId(s.properties,capture.propId);
   const matches=matchContacts(s,r);
   // A visit has no contact identity; it belongs to the property's owner, not a new contact.
-  if(matches.status==='none'&&!r.mobile&&!r.email&&(!r.first||!r.last)){
+  if(!pick&&matches.status==='none'&&!r.mobile&&!r.email&&!r.first){
     if(p){p.visits=[...(p.visits||[]),{d:TODAY,o:r.tags.includes('Not at home')?'not_home':r.tags.includes('Left card')?'left_card':'spoke'}];const owner=ownersOf(s,p)[0];if(owner){owner.tags=[...new Set([...owner.tags,...r.tags])];noteOn(s,owner,t)}}
     audit(s,'DK',`${p?propAddr(p):capture.propId} · visit logged`);
   }else{
