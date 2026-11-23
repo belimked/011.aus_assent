@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/extrame/xls"
+	"github.com/shakinm/xlsReader/xls"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -29,19 +29,7 @@ func normalMarketExcelDate(value string, data []byte) string {
 
 func marketRows(data []byte) ([][]string, error) {
 	if bytes.HasPrefix(data, []byte{0xd0, 0xcf, 0x11, 0xe0}) {
-		wb, err := xls.OpenReader(bytes.NewReader(data), "utf-8")
-		if err != nil {
-			return nil, err
-		}
-		if wb.NumSheets() == 0 {
-			return nil, fmt.Errorf("no sheets")
-		}
-		sheet := wb.GetSheet(0)
-		rows := make([][]string, 0, int(sheet.MaxRow)+1)
-		for i := 0; i <= int(sheet.MaxRow); i++ {
-			rows = append(rows, xlsMarketRow(sheet, i))
-		}
-		return rows, nil
+		return xlsRows(data)
 	}
 	if bytes.HasPrefix(data, []byte{'P', 'K', 3, 4}) {
 		f, err := excelize.OpenReader(bytes.NewReader(data))
@@ -60,17 +48,64 @@ func marketRows(data []byte) ([][]string, error) {
 	return r.ReadAll()
 }
 
-// extrame/xls panics on missing row records; treat those as blank worksheet rows.
-func xlsMarketRow(sheet *xls.WorkSheet, index int) (out []string) {
+// xlsRows reads the first sheet of a legacy .xls (BIFF8) workbook.
+// extrame/xls v0.0.1 mis-indexes the shared string table on large Pricefinder
+// exports (owner names land in other columns), and its master branch formats
+// every formatted number as a date; shakinm/xlsReader reads both correctly.
+// Numbers and dates come back raw (Excel serials), as normalMarketExcelDate expects.
+func xlsRows(data []byte) (rows [][]string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			rows, err = nil, fmt.Errorf("unreadable xls: %v", r)
+		}
+	}()
+	wb, err := xls.OpenReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	if wb.GetNumberSheets() == 0 {
+		return nil, fmt.Errorf("no sheets")
+	}
+	sheet, err := wb.GetSheet(0)
+	if err != nil {
+		return nil, err
+	}
+	n := sheet.GetNumberRows()
+	rows = make([][]string, 0, n)
+	width := 0
+	for i := 0; i < n; i++ {
+		row := xlsRow(sheet, i, width)
+		if i == 0 {
+			width = len(row)
+		}
+		rows = append(rows, row)
+	}
+	return rows, nil
+}
+
+// xlsRow returns one row padded to the header width; missing rows are blank.
+func xlsRow(sheet *xls.Sheet, index, width int) (out []string) {
 	defer func() {
 		if recover() != nil {
 			out = nil
 		}
 	}()
-	row := sheet.Row(index)
-	out = make([]string, row.LastCol())
+	r, err := sheet.GetRow(index)
+	if err != nil || r == nil {
+		return nil
+	}
+	n := width
+	if n == 0 {
+		n = len(r.GetCols())
+	}
+	out = make([]string, n)
 	for i := range out {
-		out[i] = row.Col(i)
+		if c, e := r.GetCol(i); e == nil && c != nil {
+			out[i] = c.GetString()
+		}
+	}
+	for len(out) > 0 && out[len(out)-1] == "" {
+		out = out[:len(out)-1]
 	}
 	return out
 }
