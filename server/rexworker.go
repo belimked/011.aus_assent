@@ -90,7 +90,29 @@ func (w *rexWorker) step(ctx context.Context) error {
 		if e != nil {
 			return e
 		}
+		if status == "skipped" || status == "failed" {
+			_, e = tx.Exec(`INSERT INTO rex_sync_events(at,direction,entity,local_id,rex_id,changes,result,error) VALUES(?,?,?,?,?,?,?,?)`, now(), "app_to_rex", j.entity, j.localID, link, `{}`, map[string]string{"skipped": "skipped", "failed": "error"}[status], reason)
+			if e != nil {
+				return e
+			}
+		}
 		return tx.Commit()
+	}
+	// Outbox is not a create queue. No job may write an unlinked demo/app record.
+	linkID := j.localID
+	if j.entity == "rex_contact_dnd" {
+		var payload map[string]any
+		_ = json.Unmarshal([]byte(j.payload), &payload)
+		linkID = str(payload, "contactId")
+	}
+	linked := w.link("contacts", linkID)
+	if (j.entity != "contacts" && j.entity != "rex_contact_dnd") || linked == "" {
+		return finish("skipped", "not linked to Rex sandbox record", "", "")
+	}
+	var source string
+	_ = w.db.QueryRow(`SELECT COALESCE(json_extract(data,'$.source'),'') FROM contacts WHERE id=?`, linkID).Scan(&source)
+	if source != "rex_import" {
+		return finish("skipped", "not linked to Rex sandbox record", "", "")
 	}
 	var m map[string]any
 	if json.Unmarshal([]byte(j.payload), &m) != nil {
@@ -207,23 +229,72 @@ func (w *rexWorker) step(ctx context.Context) error {
 			if json.Unmarshal([]byte(raw), &c) != nil {
 				return finish("failed", "invalid contact", "", "")
 			}
-			if entityLink != "" {
-				if j.op == "POST" { // create already done (link stored)
-					return finish("sent", "", "", "")
-				}
-				// Contacts::update with related rows would append duplicate phones/emails in Rex; not mapped until the update shape is sandbox-verified.
-				return finish("skipped", "contact update not mapped yet", "", "")
+			if entityLink == "" {
+				return finish("skipped", "not linked to Rex sandbox record", "", "")
 			}
-			// Shape verified in sandbox 2026-11-17 (.tmp/rex/extra run.sh / run2.sh).
-			data = map[string]any{"contact_type": "person"}
-			related := map[string]any{"contact_names": []any{map[string]any{"name_first": str(c, "first"), "name_last": str(c, "last")}}}
+			method = "update"
+			// Read the current sub-row identifiers before updating, never append duplicates.
+			if w.client.Token == "" {
+				if _, e := w.client.Login(ctx, w.email, w.password, w.account); e != nil {
+					return w.retry(j, "Rex login failed", 0)
+				}
+			}
+			w.client.Entity, w.client.LocalID, w.client.RexID = "contacts", j.localID, entityLink
+			_, current, readErr := w.client.Call(ctx, "Contacts", "read", map[string]any{"id": entityLink})
+			if readErr != nil {
+				return w.retry(j, "Rex contact read failed", 0)
+			}
+			var currentRow map[string]any
+			if json.Unmarshal(current.Result, &currentRow) != nil {
+				return w.retry(j, "invalid Rex contact read", 0)
+			}
+			c["rex"] = currentRow
+			data = map[string]any{"id": entityLink}
+			rex := map[string]any{}
+			if r, ok := c["rex"].(map[string]any); ok {
+				rex = r
+			}
+			subID := func(key string) any {
+				rows, _ := imap(rex["related"])[key].([]any)
+				if len(rows) > 0 {
+					return imap(rows[0])["id"]
+				}
+				return nil
+			}
+			name := map[string]any{"name_first": str(c, "first"), "name_last": str(c, "last")}
+			if id := subID("contact_names"); id != nil {
+				name["id"] = id
+			} else {
+				return finish("failed", "contact name subrow id missing; re-import detailed Rex record", "", "")
+			}
+			related := map[string]any{"contact_names": []any{name}}
 			if s := str(c, "mobile"); s != "" {
-				related["contact_phones"] = []any{map[string]any{"phone_number": s, "phone_type": "mobile", "phone_primary": true}}
+				phone := map[string]any{"phone_number": s, "phone_type": "mobile", "phone_primary": true}
+				if id := subID("contact_phones"); id != nil {
+					phone["id"] = id
+				} else {
+					return finish("failed", "contact phone subrow id missing; re-import detailed Rex record", "", "")
+				}
+				related["contact_phones"] = []any{phone}
 			}
 			if s := str(c, "email"); s != "" {
-				related["contact_emails"] = []any{map[string]any{"email_address": s, "email_desc": "home", "email_primary": true}}
+				email := map[string]any{"email_address": s, "email_desc": "home", "email_primary": true}
+				if id := subID("contact_emails"); id != nil {
+					email["id"] = id
+				} else {
+					return finish("failed", "contact email subrow id missing; re-import detailed Rex record", "", "")
+				}
+				related["contact_emails"] = []any{email}
 			}
 			data["related"] = related
+			if v, ok := c["note"]; ok {
+				data["note"] = v
+			}
+			for _, field := range []string{"letter", "email", "phone", "sms"} {
+				if value, ok := imap(c["consent"])[field]; ok {
+					data["contact_by_"+field] = value
+				}
+			}
 		}
 	case "leads":
 		service = "Leads"
@@ -295,6 +366,7 @@ func (w *rexWorker) step(ctx context.Context) error {
 	if data != nil {
 		body = map[string]any{"data": data, "return_id": true}
 	}
+	w.client.Entity, w.client.LocalID, w.client.RexID = "contacts", linkID, linked
 	if w.client.Token == "" {
 		if _, e := w.client.Login(ctx, w.email, w.password, w.account); e != nil {
 			return w.retry(j, "Rex login failed", 0)
@@ -328,6 +400,18 @@ func (w *rexWorker) step(ctx context.Context) error {
 		return w.retry(j, "Rex update failed", 0)
 	}
 	if method != "create" || update {
+		var resultRow map[string]any
+		_ = json.Unmarshal(result, &resultRow)
+		if entityLink != "" && str(resultRow, "etag") == "" {
+			_, read, readErr := w.client.Call(ctx, service, "read", map[string]any{"id": entityLink})
+			if readErr == nil {
+				_ = json.Unmarshal(read.Result, &resultRow)
+			}
+		}
+		if entityLink != "" && str(resultRow, "etag") != "" {
+			_, _ = w.db.Exec(`UPDATE rex_links SET etag=? WHERE entity=? AND local_id=?`, str(resultRow, "etag"), j.entity, j.localID)
+		}
+		_, _ = w.db.Exec(`INSERT INTO rex_sync_events(at,direction,entity,local_id,rex_id,changes,result) VALUES(?,?,?,?,?,?,?)`, now(), "app_to_rex", j.entity, j.localID, entityLink, ijson(map[string]any{"etag": map[string]any{"old": nil, "new": str(resultRow, "etag")}}), "ok")
 		return finish("sent", "", "", "")
 	}
 	id := probeID(result)

@@ -448,3 +448,6 @@ GET  /api/captures/:id        → 进度，以及每一步的结果
 - 认证：<https://api-docs.rexsoftware.com/article/authentication>
 - 测试账号 / Verified Integrator 申请：<https://www.rexsoftware.com/contact/crm-api-enquiry>
 - 本地拉取的原始定义：`.tmp/rexdocs/`（`svc_*.json`、`model_*.json`、`art_*.json`）
+
+### 沙箱双向增量同步
+读取开关 `AXLEO_REX_READ=1` 启用每 60 秒（`REX_POLL_SECONDS`，最低 30）搜索 Contacts/Properties `result_format=etags`（每页 10000）；变化后按 id 读取，复用导入映射及剩余容量分配；同一记录有未发送 outbox 时跳过，完整搜索后可软删消失的记录（`REX_POLL_SOFT_DELETE=0` 禁用）。写入须 `AXLEO_REX_WRITE=1`、`REX_WRITE_ACCOUNT_ID=2057` 且账户验证通过；`REX_WRITE_ALLOWED_ACCOUNTS` 默认为 2057，758 另需 `REX_ALLOW_PRODUCTION_WRITE=1`，当前不得启用。写入仅限 `source=rex_import` 且已有 rex_links 的联系人；其他 outbox 跳过，不向 Rex 新建数据。联系人更新发送 `Contacts::update`，`data.id` 为已有 Rex ID，`data.related.contact_names/contact_phones/contact_emails` 含已导入的子行 id（如有），以及渠道偏好字段；DND 单独更新。更新成功后读取最新 etag。现有文档仅确认 UserProfile 的账户列表和切换方法，未确认 `getCurrentAccount` 返回形状；验证失败写操作 fail closed，不影响只读，须在沙箱验证后才能启用真实写入。`rex_request_log` 提供实体 ID 筛选；`rex_sync_events` 对应 `/api/v1/admin/rex/events`，方向为 `app_to_rex` / `rex_to_app`。

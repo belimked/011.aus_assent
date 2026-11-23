@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,6 +33,8 @@ type rexClient struct {
 	AccountID, Caller, Password string
 	Log                         func(rexLog)
 	ReadOnly                    bool
+	VerifiedAccount             string // Never inferred from the requested login account.
+	Entity, LocalID, RexID      string
 }
 
 func rexPath(s string) string {
@@ -110,7 +113,15 @@ func (c *rexClient) callPath(ctx context.Context, service, method string, body a
 		if callErr != nil {
 			reason = rexRedact(callErr.Error(), c.Password, c.Token)
 		}
-		c.Log(rexLog{At: rexLogAt(), AccountID: c.AccountID, Direction: "out", Kind: rexKind(service, method), Service: service, Method: method, Path: path, Caller: c.Caller, Attempt: attempt + 1, RequestJSON: rexRedact(body, c.Password, c.Token), HTTPStatus: status, OK: callErr == nil && status < 400 && status > 0, Error: reason, DurationMS: time.Since(started).Milliseconds(), ResultSummary: rexSummary(raw, callErr), ResponseExcerpt: excerpt})
+		c.Log(rexLog{Entity: c.Entity, LocalID: c.LocalID, RexID: c.RexID, At: rexLogAt(), AccountID: c.AccountID, Direction: "out", Kind: rexKind(service, method), Service: service, Method: method, Path: path, Caller: c.Caller, Attempt: attempt + 1, RequestJSON: rexRedact(body, c.Password, c.Token), HTTPStatus: status, OK: callErr == nil && status < 400 && status > 0, Error: reason, DurationMS: time.Since(started).Milliseconds(), ResultSummary: rexSummary(raw, callErr), ResponseExcerpt: excerpt})
+	}
+	if rexKind(service, method) == "write" && !c.ReadOnly {
+		account := c.VerifiedAccount
+		if account == "" || account != c.AccountID || !rexAccountAllowed(account) {
+			err := fmt.Errorf("blocked: account %s not in write allowlist", account)
+			record(0, 0, time.Now(), nil, err)
+			return nil, e, err
+		}
 	}
 	if c.ReadOnly && rexKind(service, method) == "write" {
 		err := fmt.Errorf("Rex write blocked by read-only mode")
@@ -219,6 +230,24 @@ func safeRexError(raw json.RawMessage) string { // Do not echo credentials embed
 		return "error (see redacted raw file)"
 	}
 }
+func rexAccountAllowed(account string) bool {
+	if account == "" || account == "758" && os.Getenv("REX_ALLOW_PRODUCTION_WRITE") != "1" {
+		return false
+	}
+	list, configured := os.LookupEnv("REX_WRITE_ALLOWED_ACCOUNTS")
+	if !configured {
+		list = "2057"
+	}
+	if strings.TrimSpace(list) == "" {
+		return false
+	}
+	for _, id := range strings.Split(list, ",") {
+		if strings.TrimSpace(id) == account {
+			return true
+		}
+	}
+	return false
+}
 func (c *rexClient) Call(ctx context.Context, service, method string, body any) (json.RawMessage, rexEnvelope, error) {
 	return c.callPath(ctx, service, method, body, false)
 }
@@ -236,5 +265,21 @@ func (c *rexClient) Login(ctx context.Context, email, password, account string) 
 		return raw, fmt.Errorf("Rex login token missing")
 	}
 	c.Token = token
+	c.VerifiedAccount = ""
+	// Authentication::login returns a token, not proof of the active account.
+	// UserProfile is a read-only endpoint; fail closed unless it explicitly supplies the active account.
+	_, profile, err := c.Call(ctx, "UserProfile", "getCurrentAccount", map[string]any{})
+	if err == nil {
+		var current map[string]any
+		if json.Unmarshal(profile.Result, &current) == nil {
+			c.VerifiedAccount = istring(current["account_id"])
+			if c.VerifiedAccount == "" {
+				c.VerifiedAccount = istring(current["id"])
+			}
+		}
+	}
+	if c.Log != nil {
+		c.Log(rexLog{At: rexLogAt(), AccountID: c.VerifiedAccount, Direction: "out", Kind: "auth", Service: "UserProfile", Method: "verifiedAccount", Caller: c.Caller, OK: c.VerifiedAccount != "" && c.VerifiedAccount == c.AccountID})
+	}
 	return raw, nil
 }
