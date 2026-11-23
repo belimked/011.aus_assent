@@ -294,6 +294,8 @@ func (a *app) routes() http.Handler {
 			h := sha256.Sum256(raw)
 			_, _ = a.db.Exec(`DELETE FROM sessions WHERE token_hash=?`, hex.EncodeToString(h[:]))
 			respond(w, 200, map[string]any{"ok": true})
+		case r.URL.Path == "/api/v1/devices":
+			a.devices(w, r, p)
 		case r.Method == "GET" && r.URL.Path == "/api/v1/me":
 			respond(w, 200, map[string]any{"id": p.id, "name": p.name, "email": p.email, "role": p.role})
 		case r.Method == "GET" && r.URL.Path == "/api/v1/team":
@@ -669,6 +671,10 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 		}
 	}
 	previousVersion := old["version"]
+	previousAssignee := ""
+	if kind == "todos" && method != "POST" {
+		_ = a.db.QueryRow(`SELECT assignee_id FROM todos WHERE id=?`, id).Scan(&previousAssignee)
+	}
 	owner := p.id
 	assignee := p.id
 	creator := p.id
@@ -908,6 +914,7 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 		problem(w, 500, "database error")
 		return
 	}
+	a.notifyMutation(kind, method, id, m, previousAssignee, p.id)
 	if method == "DELETE" {
 		respond(w, 200, map[string]any{"id": id, "deleted_at": stamp})
 		return

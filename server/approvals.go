@@ -64,6 +64,7 @@ func (a *app) approvalRoute(w http.ResponseWriter, r *http.Request, p principal)
 		}
 		var request map[string]any
 		_ = json.Unmarshal([]byte(raw), &request)
+		previousAssignee := a.previousApprovalAssignee(request)
 		tx, err := a.db.Begin()
 		if err != nil {
 			problem(w, 500, "database error")
@@ -92,6 +93,9 @@ func (a *app) approvalRoute(w http.ResponseWriter, r *http.Request, p principal)
 		if err != nil {
 			problem(w, 409, "request no longer valid")
 			return
+		}
+		if str(m, "decision") == "approve" {
+			a.notifyApprovedTodo(request, previousAssignee, p.id)
 		}
 		respond(w, 200, request)
 		return
@@ -123,6 +127,7 @@ func (a *app) approvalRoute(w http.ResponseWriter, r *http.Request, p principal)
 			problem(w, 404, "not found")
 			return
 		}
+		previousAssignee := a.previousApprovalAssignee(m)
 		tx, _ := a.db.Begin()
 		defer tx.Rollback()
 		err = a.executeApproval(tx, p, m)
@@ -136,6 +141,7 @@ func (a *app) approvalRoute(w http.ResponseWriter, r *http.Request, p principal)
 			problem(w, 409, "conflict")
 			return
 		}
+		a.notifyApprovedTodo(m, previousAssignee, p.id)
 		respond(w, 200, map[string]any{"ok": true})
 		return
 	}

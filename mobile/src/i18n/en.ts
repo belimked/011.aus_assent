@@ -1,5 +1,8 @@
 // Generated from prototype/index.html by tools/extract-i18n.mjs
 export default {
+  "notification_todo_title": "To-do reminder",
+  "notification_channel": "To-do reminders",
+  "notification_permission": "Allow notifications for scheduled to-dos",
   "home": "Home",
   "tr_warming": "Warming up both brains…",
   "tr_skip": "Tap to skip",

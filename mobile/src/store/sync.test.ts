@@ -1,5 +1,6 @@
 import type {Op,Pull} from './sync-logic';
 
+jest.mock('../lib/notifications',()=>({reconcileReminders:jest.fn(),registerDevice:jest.fn(),unregisterDevice:jest.fn()}));
 jest.mock('../lib/photos',()=>({uploadPendingPhotos:jest.fn(async()=>{})}));
 jest.mock('expo-secure-store',()=>({setItemAsync:jest.fn(async()=>{}),getItemAsync:jest.fn(async()=>null),deleteItemAsync:jest.fn(async()=>{})}));
 jest.mock('@react-native-async-storage/async-storage',()=>({__esModule:true,default:{setItem:jest.fn(async()=>{}),getItem:jest.fn(async()=>null),removeItem:jest.fn(async()=>{})}}));
