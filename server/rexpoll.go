@@ -18,7 +18,11 @@ func startRexPoller(ctx context.Context, db *sql.DB) {
 	c := newRexClient(cfg.BaseURL, cfg.AppID)
 	c.ReadOnly, c.AccountID, c.Caller, c.Password, c.Log = true, cfg.AccountID, "poller", cfg.Password, rexDBLogger(db)
 	seconds, _ := strconv.Atoi(os.Getenv("REX_POLL_SECONDS"))
-	if seconds == 0 { seconds = 60 } else if seconds < 30 { seconds = 30 }
+	if seconds == 0 {
+		seconds = 60
+	} else if seconds < 30 {
+		seconds = 30
+	}
 	go func() {
 		ticker := time.NewTicker(time.Duration(seconds) * time.Second)
 		defer ticker.Stop()
@@ -146,6 +150,10 @@ func pollRex(ctx context.Context, db *sql.DB, c *rexClient, account string) erro
 			rows.Close()
 			if e != nil {
 				return e
+			}
+			// Guard against a truncated or changed listing wiping local data.
+			if len(missing) > 20 && len(missing)*20 > len(seen)+len(missing) {
+				return fmt.Errorf("%s poll: %d linked records missing from Rex listing (seen %d); soft delete skipped", kind, len(missing), len(seen))
 			}
 			for _, p := range missing {
 				var pending int
