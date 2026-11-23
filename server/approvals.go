@@ -83,6 +83,9 @@ func (a *app) approvalRoute(w http.ResponseWriter, r *http.Request, p principal)
 		if err == nil {
 			err = a.record(tx, p, "decide", "approvals", id, request)
 		}
+		if err == nil && str(m, "decision") == "approve" && str(request, "kind") == "merge" {
+			err = enqueueRexMerge(tx, id, request)
+		}
 		if err == nil {
 			err = tx.Commit()
 		}
@@ -116,13 +119,16 @@ func (a *app) approvalRoute(w http.ResponseWriter, r *http.Request, p principal)
 			problem(w, 404, "not found")
 			return
 		}
-		if !a.validRequest(m, p) {
+		if !a.validRequest(m, p) || (str(m, "kind") == "merge" && p.role != "admin") {
 			problem(w, 404, "not found")
 			return
 		}
 		tx, _ := a.db.Begin()
 		defer tx.Rollback()
 		err = a.executeApproval(tx, p, m)
+		if err == nil && str(m, "kind") == "merge" {
+			err = enqueueRexMerge(tx, "direct:"+str(m, "primaryId")+":"+str(m, "secondaryId"), m)
+		}
 		if err == nil {
 			err = tx.Commit()
 		}
@@ -134,6 +140,11 @@ func (a *app) approvalRoute(w http.ResponseWriter, r *http.Request, p principal)
 		return
 	}
 	problem(w, 404, "not found")
+}
+func enqueueRexMerge(tx *sql.Tx, id string, m map[string]any) error {
+	b, _ := json.Marshal(map[string]any{"primaryId": str(m, "primaryId"), "secondaryId": str(m, "secondaryId")})
+	_, err := tx.Exec(`INSERT INTO rex_outbox(entity,entity_id,op,payload,created_at) VALUES('rex_merge',?,'POST',?,?)`, id, string(b), now())
+	return err
 }
 func (a *app) validRequest(m map[string]any, p principal) bool {
 	if str(m, "kind") == "merge" {

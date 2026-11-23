@@ -963,7 +963,13 @@ func (a *app) record(tx *sql.Tx, p principal, action, kind, id string, diff any)
 	}
 	if kind == "contacts" || kind == "todos" || kind == "enquiries" || kind == "leads" || kind == "ofi_attendees" || kind == "referrals" || (kind == "captures" && captureApproved(diff)) {
 		_, err := tx.Exec(`INSERT INTO rex_outbox(entity,entity_id,op,payload,created_at) VALUES(?,?,?,?,?)`, kind, id, action, string(b), stamp)
-		return err
+		if err != nil {
+			return err
+		}
+		if (kind == "contacts" || kind == "todos") && action != "DELETE" {
+			return enqueueRexDetails(tx, kind, id, diff, stamp)
+		}
+		return nil
 	}
 	return nil
 }
