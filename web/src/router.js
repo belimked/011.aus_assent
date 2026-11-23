@@ -65,6 +65,11 @@ export const routes = [
     meta: { title: "Rex 队列", icon: "Connection" },
   },
   {
+    path: "/rex-log",
+    component: () => import("./views/AdminRexLog.vue"),
+    meta: { title: "Rex 调用日志", icon: "Tickets", adminOnly: true },
+  },
+  {
     path: "/market",
     component: () => import("./views/AdminTables.vue"),
     props: { page: "market" },
@@ -95,7 +100,7 @@ router.beforeEach(async (to) => {
   if (to.path === "/login") return true;
   if (!token.value || (!identity.value && !(await restore()))) return "/login";
   if (identity.value?.role === "leader" &&
-    (["/audit", "/rex", "/market", "/data", "/export", "/settings"].includes(to.path)))
+    (["/audit", "/rex", "/rex-log", "/market", "/data", "/export", "/settings"].includes(to.path)))
     return "/dashboard";
   return true;
 });

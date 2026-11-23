@@ -1,6 +1,6 @@
 # Rex 沙箱验证（axleo rex-probe）
 
-此工具**不会自动读取凭证文件**，也不会修改本地 SQLite / rex_outbox。仅在收到 Rex 共享沙箱凭证、确认账户 ID 后使用；先只读，再写入。不可对正式账号运行。
+此工具**不会自动读取凭证文件**，不会修改本地业务数据或 rex_outbox；若 AXLEO_DB 指向可访问的服务数据库，会写入 rex_request_log 调用日志，否则在 --out 目录写 rex-request-log.jsonl。仅在收到 Rex 共享沙箱凭证、确认账户 ID 后使用；先只读，再写入。不可对正式账号运行。
 
 ## 在 65 上执行
 
@@ -24,7 +24,7 @@ mkdir -p /data/axleo/rex-probes
 /data/axleo/axleo rex-probe --account "$REX_ACCOUNT_ID" --write --remindee '沙箱用户ID' --out /data/axleo/rex-probes/write
 ```
 
-`--account` 必填且必须等于 `REX_ACCOUNT_ID`；不符时只登录并打印可访问账户 ID，不执行检查。`--only F1,F5` 可筛选，`--keep` 暂留测试数据供人工检查；之后执行 `/data/axleo/axleo rex-probe cleanup --state /data/axleo/rex-probes/write/state.json`。清理失败时保留 state.json 中的未清理 ID，必须人工核对并重试。报告目录须保密，尤其 state.json 中的 Rex ID。
+`--account` 必填且必须等于 `REX_ACCOUNT_ID`；不符时拒绝运行，不登录、不执行检查。`--only F1,F5` 可筛选，`--keep` 暂留测试数据供人工检查；之后执行 `/data/axleo/axleo rex-probe cleanup --state /data/axleo/rex-probes/write/state.json`。清理失败时保留 state.json 中的未清理 ID，必须人工核对并重试。报告目录须保密，尤其 state.json 中的 Rex ID。
 
 ## 检查与报告
 

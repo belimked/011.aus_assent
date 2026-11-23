@@ -19,3 +19,7 @@
 ## 账号
 
 改密码：停止/不停服务均可，在加载 `/etc/axleo/env` 后执行 `printf '%s\n' '<新密码>' | /opt/axleo/current/axleo passwd <邮箱>`；会吊销旧 session，密码至少 8 位。加账号：在 `/admin/` 用管理员登录，在 Accounts 创建（邮箱、姓名、角色、初始密码），并通过安全渠道告知密码；需要时禁用账号或执行 Sign out devices。切勿把密码放在工单、命令行历史或截图中。
+
+## Rex 账户与调用日志
+
+在 65 的 `/etc/axleo/env` 中配置 `REX_BASE_URL`、`REX_APP_ID`、`REX_EMAIL`、`REX_PASSWORD`、`REX_ACCOUNT_ID`（2057 共享沙箱 / 758 Place Sunnybank 正式）。缺任一项绝不调用。`AXLEO_REX_READ=1` 允许后续读取；仅 `AXLEO_REX_WRITE=1` 且 `REX_WRITE_ACCOUNT_ID` 与目标账户完全一致时启动写入 worker。删除旧 `AXLEO_REX_ENABLED`（被忽略）；可选 `REX_INTERVAL_MS` 和 `AXLEO_REX_WEBHOOK_TOKEN`。修改后重启 `axleo`，检查 `journalctl -u axleo` 中禁用原因。管理员 `/admin/#/settings` 查看连接状态，`/admin/#/rex-log` 查看分页调用日志；`rex_request_log` 每次 HTTP 尝试和 webhook 留痕，启动时清理 180 天前日志。探测 CLI 仅使用配置账户，需显式 `--account` 匹配；如数据库不可用，日志落到 `--out/rex-request-log.jsonl`。切勿在正式账户运行沙箱探测。

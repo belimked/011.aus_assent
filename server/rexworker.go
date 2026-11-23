@@ -23,15 +23,15 @@ type rexJob struct {
 }
 
 func newRexWorker(db *sql.DB) *rexWorker {
-	if os.Getenv("AXLEO_REX_ENABLED") != "1" {
+	c := loadRexConfig()
+	if !c.canWrite() {
 		return nil
 	}
-	for _, k := range []string{"REX_BASE_URL", "REX_APP_ID", "REX_EMAIL", "REX_PASSWORD", "REX_ACCOUNT_ID"} {
-		if os.Getenv(k) == "" {
-			return nil
-		}
-	}
-	w := &rexWorker{db: db, client: newRexClient(os.Getenv("REX_BASE_URL"), os.Getenv("REX_APP_ID")), email: os.Getenv("REX_EMAIL"), password: os.Getenv("REX_PASSWORD"), account: os.Getenv("REX_ACCOUNT_ID")}
+	w := &rexWorker{db: db, client: newRexClient(c.BaseURL, c.AppID), email: c.Email, password: c.Password, account: c.AccountID}
+	w.client.AccountID = c.AccountID
+	w.client.Caller = "worker"
+	w.client.Password = c.Password
+	w.client.Log = rexDBLogger(db)
 	if ms, e := strconv.Atoi(os.Getenv("REX_INTERVAL_MS")); e == nil && ms >= 1000 {
 		w.client.Interval = time.Duration(ms) * time.Millisecond
 	}

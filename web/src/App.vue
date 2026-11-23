@@ -107,7 +107,7 @@ const collapsed = ref(false);
 const epLocale = computed(
   () => ({ "zh-CN": zhCn, "zh-HK": zhHk, en })[locale.value],
 );
-const restricted = ['/audit', '/rex', '/market', '/data', '/export', '/settings'];
+const restricted = ['/audit', '/rex', '/rex-log', '/market', '/data', '/export', '/settings'];
 const navGroups = [
   {
     title: "工作",

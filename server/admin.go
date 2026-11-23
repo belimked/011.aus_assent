@@ -31,6 +31,14 @@ func createUser(db *sql.DB, email, name, role, pass string) error {
 }
 func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/admin/")
+	if path == "rex/status" || path == "rex/log" || strings.HasPrefix(path, "rex/log/") {
+		if p.role != "admin" {
+			problem(w, 403, "forbidden")
+			return
+		}
+		a.adminRex(w, r, path)
+		return
+	}
 	if (p.role == "admin" && (path == "market-review" || strings.HasPrefix(path, "market-review/"))) ||
 		path == "todos" || strings.HasPrefix(path, "todos/") || path == "captures" ||
 		path == "ofi_attendees" || strings.HasPrefix(path, "ofi_attendees/") ||
@@ -638,6 +646,10 @@ func main() {
 		fmt.Println(string(out))
 	case "serve":
 		a := &app{db: db, failures: map[string][]time.Time{}}
+		loadRexConfig().logStartup()
+		if _, err := db.Exec(`DELETE FROM rex_request_log WHERE at < ?`, time.Now().UTC().AddDate(0, 0, -180).Format(layout)); err != nil {
+			fmt.Fprintln(os.Stderr, "Rex log cleanup:", err)
+		}
 		if worker := newRexWorker(db); worker != nil {
 			go worker.run(context.Background())
 		}
