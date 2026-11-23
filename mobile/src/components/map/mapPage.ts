@@ -2,7 +2,7 @@ import {LEAFLET_CSS,LEAFLET_JS} from './leafletAsset';
 
 /** One marker as drawn in the WebView. kind follows the prototype legend. */
 export type MapMark={id:string;ll:[number,number];no:string;color:string;kind:'dot'|'pending'|'listed'|'other'|'pin'|'dnc'};
-export type MapState={sat:boolean;selected?:string;center:[number,number];centerKey:string;zoom:number;marks:MapMark[];bg:[number,number][];parcels:[number,number][][];me:[number,number]|null;labels:boolean};
+export type MapState={sat:boolean;selected?:string;center:[number,number];centerKey:string;locate:number;zoom:number;marks:MapMark[];bg:[number,number][];parcels:[number,number][][];me:[number,number]|null;labels:boolean};
 export type MapMsg={t:'ready'}|{t:'move';s:number;n:number;w:number;e:number;z:number}|{t:'sel';id:string}|{t:'tap';lat:number;lng:number};
 
 // Runs inside the WebView. Mirrors the prototype's Leaflet map (prototype/index.html propMarker/drawMap).
@@ -15,7 +15,7 @@ const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Worl
 const parcels=L.layerGroup().addTo(map),bg=L.layerGroup().addTo(map),marks=L.layerGroup().addTo(map),me=L.layerGroup().addTo(map);
 const PATH={ban:'<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8" fill="none"/>',star:'<path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3-4.6-4.4 6.3-.9z"/>'};
 const icon=(html,size)=>L.divIcon({className:'',html,iconSize:[size,size],iconAnchor:[size/2,size/2]});
-let cur=null,lastKey=null,quiet=false;
+let cur=null,lastKey=null,lastLocate=null,quiet=false;
 function setTiles(isSat){const want=isSat?sat:osm,other=isSat?osm:sat;if(map.hasLayer(other))map.removeLayer(other);if(!map.hasLayer(want))want.addTo(map);}
 function draw(s){
   parcels.clearLayers();bg.clearLayers();marks.clearLayers();me.clearLayers();
@@ -35,7 +35,10 @@ function draw(s){
 }
 function report(){if(quiet)return;const b=map.getBounds();post({t:'move',s:b.getSouth(),n:b.getNorth(),w:b.getWest(),e:b.getEast(),z:map.getZoom()});}
 window.axUpdate=function(s){cur=s;setTiles(s.sat);
-  if(s.centerKey!==lastKey){lastKey=s.centerKey;quiet=true;map.setView(s.center,s.zoom,{animate:false});quiet=false;setTimeout(report,0);}
+  // Closing a selection (key falls back to init / me#n with the same locate count) keeps the current view.
+  const wasSel=lastKey!==null&&lastKey!=='init'&&!lastKey.startsWith('me');
+  const keep=wasSel&&(s.centerKey==='init'||s.centerKey.startsWith('me#'))&&s.locate===lastLocate;lastLocate=s.locate;
+  if(s.centerKey!==lastKey){lastKey=s.centerKey;if(!keep){quiet=true;map.setView(s.center,s.zoom,{animate:false});quiet=false;setTimeout(report,0);}}
   document.body.classList.toggle('z18',map.getZoom()>=18);draw(s);};
 map.on('moveend',()=>{document.body.classList.toggle('z18',map.getZoom()>=18);report();});
 map.on('click',e=>post({t:'tap',lat:e.latlng.lat,lng:e.latlng.lng}));
