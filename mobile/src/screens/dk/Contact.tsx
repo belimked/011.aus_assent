@@ -1,12 +1,17 @@
-import React from 'react';
+import React,{useState} from 'react';
 import {Text,View} from 'react-native';
 import {useLocalSearchParams,useRouter} from 'expo-router';
 import {Screen} from '../../components/Screen';
-import {Banner,Button,Card,Chip,KV,SectionLabel,Toggle,ListItem,Icon} from '../../components/ui';
+import {Banner,Button,Card,Chip,KV,SectionLabel,Toggle,ListItem,Icon,Field} from '../../components/ui';
+import {MicInput} from '../../components/MicInput';
 import {TagField} from '../../components/TagField';
 import {useStore,update,openSheet,showToast} from '../../store';
 import {audit,cname,mask,maskEmail,propAddr,noteOn} from '../../domain';
 import {duplicatesOf,applyTags,applyPreference} from '../../domain/dk';
+import {buyerProfileFromText} from '../../domain/enq';
+import {aiExtract} from '../../lib/voice';
+import {isOnline} from '../../store/sync';
+import type {Contact as ContactRecord,AppState} from '../../data/types';
 import {colors,text} from '../../theme';
 import {useT} from '../../i18n';
 export function Contact(){const {id}=useLocalSearchParams<{id:string}>();const s=useStore(s=>s);const router=useRouter();const {l2}=useT();const c=s.contacts.find(c=>c.id===id);if(!c)return <Screen title="Contact" back><Banner>Contact not found</Banner></Screen>;const props=s.properties.filter(p=>p.ownerIds.includes(c.id));const off=Object.entries(c.consent||{}).filter(([,v])=>v===0).map(([k])=>k);const dup=duplicatesOf(s,c);
@@ -19,5 +24,10 @@ export function Contact(){const {id}=useLocalSearchParams<{id:string}>();const s
  <Card><TagField tags={c.tags} onChange={tags=>update(d=>{const x=d.contacts.find(x=>x.id===id)!;applyTags(d,x,d.properties.find(p=>p.ownerIds.includes(x.id)),tags)})}/></Card>
  <Card><SectionLabel>HISTORY</SectionLabel>{[...c.notes.map(n=>({d:n.d,t:n.t})),...(c.history||[]),...s.listings.flatMap(l=>l.ofi.flatMap(o=>o.attendees.filter((a:{contactId:string})=>a.contactId===c.id).map(()=>({d:o.d,t:'OFI '+propAddr(s.properties.find(p=>p.id===l.propertyId)!)}))))].sort((a,b)=>b.d.localeCompare(a.d)).map((n,i)=><KV key={i} label={n.d} value={n.t}/>)}</Card>
  <Card><SectionLabel>RELATIONSHIPS</SectionLabel>{(c.rels||[]).map((r:{type:string;name:string},i:number)=><KV key={i} label={r.type} value={r.name}/>)}<Button onPress={()=>openSheet({kind:'rel',cid:c.id})}>+ Add relationship</Button></Card>
- {c.buyerProfile&&<Card><SectionLabel>BUYER PROFILE</SectionLabel><Text style={text}>{[c.buyerProfile.price,c.buyerProfile.suburbs,c.buyerProfile.beds?`${c.buyerProfile.beds}+ bed`:'',c.buyerProfile.finance].filter(Boolean).join(' · ')}</Text><Button onPress={()=>router.push(`/moreinfo/${c.id}`)}>Edit</Button></Card>}<Card><SectionLabel>LINKED PROPERTIES</SectionLabel>{props.map(p=><ListItem key={p.id} title={propAddr(p)} onPress={()=>router.push(`/prop/${p.id}`)}/>)}</Card>
+ {(c.buyerProfile||c.roles.includes('buyer'))&&<BuyerMatchEditor key={c.id} c={c} s={s}/>}<Card><SectionLabel>LINKED PROPERTIES</SectionLabel>{props.map(p=><ListItem key={p.id} title={propAddr(p)} onPress={()=>router.push(`/prop/${p.id}`)}/>)}</Card>
  </Screen></View>}
+function BuyerMatchEditor({c,s}:{c:ContactRecord;s:AppState}){const {l2}=useT();const [note,setNote]=useState('');const [price,setPrice]=useState<string>(c.buyerProfile?.price||'');const [beds,setBeds]=useState(String(c.buyerProfile?.beds||''));const [suburbs,setSuburbs]=useState<string>(c.buyerProfile?.suburbs||'');const [busy,setBusy]=useState(false);
+ const parse=(raw:string)=>{setNote(raw);const parsed=buyerProfileFromText(raw,[...s.properties.map(p=>p.suburb),'Parkinson','Sunnybank','Runcorn','Eight Mile Plains','Calamvale']);if(parsed.price)setPrice(parsed.price);if(parsed.beds)setBeds(String(parsed.beds));if(parsed.suburbs)setSuburbs(parsed.suburbs);};
+ const analyse=async()=>{if(!note.trim()||!isOnline())return;setBusy(true);try{const ai=await aiExtract(note,'note');const f=ai.fields;if(f.priceMin&&f.priceMax&&f.priceMax>=f.priceMin)setPrice(`$${Number((f.priceMin/1e6).toFixed(2))}m–$${Number((f.priceMax/1e6).toFixed(2))}m`);if(f.suburb)setSuburbs(v=>v||f.suburb||'');const extra=f as typeof f & {buyerBeds?:number;buyerSuburbs?:string};if(extra.buyerBeds)setBeds(String(extra.buyerBeds));if(extra.buyerSuburbs)setSuburbs(extra.buyerSuburbs)}catch{showToast(l2('Using offline extraction; check the fields','使用本地识别，请核对字段'))}finally{setBusy(false)}};
+ return <Card><SectionLabel>{l2('BUYER MATCH PROFILE · REVIEW BEFORE SAVING','买家匹配档案 · 保存前核对')}</SectionLabel><MicInput label={l2('Voice note / transcript','语音备注 / 转写')} value={note} onChangeText={parse} multiline placeholder={l2('Describe budget, bedrooms and suburbs…','说出预算、卧室和区域…')}/>{isOnline()&&<Button disabled={busy||!note.trim()} variant="ghost" onPress={()=>void analyse()}>{busy?l2('Reading…','识别中…'):l2('Refine with AI','用 AI 补充识别')}</Button>}<Field label={l2('Price','价格')} value={price} onChangeText={setPrice} placeholder={l2('e.g. $900k–1.1m','例如 $900k–1.1m')}/><Field label={l2('Min beds','最少卧室')} value={beds} onChangeText={setBeds} keyboardType="numeric" placeholder={l2('e.g. 4','例如 4')}/><Field label={l2('Suburbs','区域')} value={suburbs} onChangeText={setSuburbs} placeholder={l2('e.g. Parkinson, Runcorn','例如 Parkinson、Runcorn')}/><Button variant="primary" onPress={()=>{update(d=>{const x=d.contacts.find(x=>x.id===c.id)!;x.buyerProfile={...(x.buyerProfile||{}),price,beds:Number(beds)||0,suburbs};if(note.trim())noteOn(d,x,note.trim());audit(d,'Buyer profile',cname(x))});setNote('');showToast(l2('Buyer profile saved','买家档案已保存'))}}>{l2('Save buyer profile','保存买家档案')}</Button></Card>
+}

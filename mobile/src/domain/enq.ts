@@ -5,6 +5,20 @@ import {audit,matchContacts,normMobile,propAddr,shortAddr,upsertContact,linkOwne
 // Match an address embedded in free text, but not a house number inside another number.
 const propertyInText = (s:AppState,text:string) => s.properties.find(p=>{const hay=text.toLowerCase(),key=`${p.no} ${p.street}`.toLowerCase();let i=hay.indexOf(key);while(i>=0){if(i===0||!/[0-9a-z/]/.test(hay[i-1]))return true;i=hay.indexOf(key,i+1)}return false});
 
+// Conservative offline fallback: only explicit budgets, beds and recognised suburb names.
+export function buyerProfileFromText(raw:string, knownSuburbs:string[]=[]){
+  const text=raw.replace(/[–—]/g,'-');
+  const num='\\$?\\s*(\\d+(?:,\\d{3})*(?:\\.\\d+)?)\\s*(million|millions|mil|m|thousand|k)?';
+  const pair=new RegExp(`${num}\\s*(?:to|and|-)\\s*${num}`,'i').exec(text);
+  const value=(digits:string,unit:string)=>Number(digits.replace(/,/g,''))*(/^(m|mil)/i.test(unit)?1e6:/^(k|thousand)/i.test(unit)?1e3:1);
+  let price='';
+  if(pair && (pair[2]||pair[4]||pair[0].includes('$'))){const unit=pair[4]||pair[2]||'';const a=value(pair[1],pair[2]||unit),b=value(pair[3],pair[4]||unit);if(a>=100000&&b>=a)price=`${formatBudget(a)}–${formatBudget(b)}`}
+  else {const single=new RegExp(`(?:budget|price|up to|under|around|about)\\s*(?:is|of)?\\s*${num}`,'i').exec(text);if(single){const n=value(single[1],single[2]||'');if(n>=100000)price=`${/up to|under/i.test(single[0])?'Up to ':''}${formatBudget(n)}`}}
+  const bed=text.match(/\b(\d{1,2})\s*(?:\+\s*)?(?:bed(?:room)?s?|br)\b/i);
+  const suburbs=[...new Set(knownSuburbs.map(x=>x.trim()).filter(Boolean))].sort((a,b)=>b.length-a.length).filter(x=>new RegExp(`(^|[^a-z])${x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}($|[^a-z])`,'i').test(text));
+  return {price,beds:bed?Number(bed[1]):0,suburbs:suburbs.join(', ')};
+}
+function formatBudget(n:number){return '$'+(n>=1e6?Number((n/1e6).toFixed(2))+'m':Number((n/1e3).toFixed(0))+'k')}
 export type EnqDraft = {type:string;mobile:string;first:string;last:string;email:string;addr:string;propId:string;propText:string;listingId:string;src:string;note:string;sl:boolean|null;tags:string[];consent?:boolean;assignee?:string;newMobile?:string};
 export const emptyEnq = ():EnqDraft => ({type:'',mobile:'',first:'',last:'',email:'',addr:'',propId:'',propText:'',listingId:'',src:'phone',note:'',sl:null,tags:[]});
 export function mobileDraftChange(d:EnqDraft,mobile:string,shot?:{mobile:string;first:string;last:string}){if(normMobile(d.mobile)===normMobile(mobile))return {...d,mobile};const restore=shot&&normMobile(shot.mobile)===normMobile(mobile);return {...d,mobile,first:restore?shot.first:'',last:restore?shot.last:'',email:'',addr:'',propId:'',propText:'',listingId:''}}
