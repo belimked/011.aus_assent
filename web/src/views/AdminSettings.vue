@@ -25,7 +25,10 @@
         <div class="card-h"><h3>{{ t('Rex 连接') }}</h3></div>
         <div class="card-b">
           <p>{{ t('账户 ID') }}: {{ rex.accountId || '—' }} · {{ t('地址') }}: {{ rex.baseUrl || '—' }} · App ID: {{ rex.appId || '—' }}</p>
+          <p>{{ t('已验证账户') }}: <strong>{{ rex.verifiedAccount || '—' }}</strong> <el-tag v-if="String(rex.verifiedAccount) === '2057'" type="success" size="small">{{ t('沙箱') }}</el-tag></p>
+          <p><el-tag :type="rex.writeBlocked ? 'warning' : String(rex.verifiedAccount) === '2057' ? 'success' : 'info'">{{ rex.writeBlocked ? t('写入被拦截') : t('写入未拦截') }}</el-tag> <span v-if="rex.writeBlocked">{{ rex.writeBlockReason || '—' }}</span></p>
           <p>{{ t('读取') }}: {{ rex.read ? t('已开启') : t('已关闭') }} · {{ t('写入') }}: {{ rex.write ? t('已开启') : t('已关闭') }}</p>
+          <p>{{ t('自动拉取') }}: {{ rex.pollEnabled ? t('已开启') : t('已关闭') }} · {{ t('上次拉取') }}: {{ rex.lastPollAt ? fmtDate(rex.lastPollAt) : '—' }} · {{ rex.lastPollAt ? (rex.lastPollOK ? t('成功') : t('失败')) : '—' }}</p>
           <p v-if="rex.readReason" class="muted">{{ t('读取原因') }}: {{ rex.readReason }}</p>
           <p v-if="rex.writeReason" class="muted">{{ t('写入原因') }}: {{ rex.writeReason }}</p>
           <p>{{ t('最近登录') }}: {{ rex.lastLoginAt ? fmtDate(rex.lastLoginAt) : '—' }} · {{ rex.lastLoginAt ? (rex.lastLoginOK ? t('成功') : t('失败')) : '—' }}</p>

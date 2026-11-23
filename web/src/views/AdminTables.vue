@@ -69,6 +69,7 @@
         :data="items"
         height="calc(100vh - 290px)"
         row-class-name="record-row"
+        @row-click="page === 'data' && detail($event)"
       >
         <el-table-column
           v-for="column in columns[page]"
@@ -132,7 +133,7 @@
                 )
               "
               link
-              @click="detail(row)"
+              @click.stop="detail(row)"
               >{{ t("查看") }}</el-button
             >
             <span v-else>{{ row[column.key] ?? "—" }}</span>
@@ -175,7 +176,18 @@
           <el-table-column prop="kind" :label="t('类型')" />
         </el-table>
       </template>
-      <pre v-else class="json">{{ JSON.stringify(detailData, null, 2) }}</pre>
+      <template v-else>
+        <pre class="json">{{ JSON.stringify(detailData, null, 2) }}</pre>
+        <section v-if="page === 'data' && filter === 'contacts' && detailData?.source === 'rex_import'">
+          <h3>{{ t('Rex 同步') }}</h3>
+          <router-link :to="{ path: '/rex-log', query: { entity: 'contacts', local_id: detailData.id } }">{{ t('查看全部调用日志') }}</router-link>
+          <p v-if="eventsLoading" class="muted">{{ t('加载中') }}</p>
+          <template v-else>
+            <p v-if="!contactEvents.length" class="muted">{{ t('暂无同步事件') }}</p>
+            <RexEventsTable v-else :items="contactEvents" />
+          </template>
+        </section>
+      </template>
     </el-drawer>
   </div>
 </template>
@@ -188,6 +200,7 @@ import { api } from "../api";
 import { approvalKind, fmtDate, fmtDateTime } from "../admin-format";
 import { t } from "../i18n";
 import StatusPill from "../components/StatusPill.vue";
+import RexEventsTable from "../components/RexEventsTable.vue";
 
 const props = defineProps({ page: String });
 const titles = {
@@ -324,6 +337,8 @@ const items = ref([]);
 const cursor = ref("");
 const drawer = ref(false);
 const detailData = ref(null);
+const contactEvents = ref([]);
+const eventsLoading = ref(false);
 const file = ref(null);
 const kind = ref("auto");
 const dry = ref(false);
@@ -397,6 +412,16 @@ async function detail(row) {
         ? await api(`admin/market/imports/${encodeURIComponent(row.id)}`)
         : row;
     drawer.value = true;
+    contactEvents.value = [];
+    if (props.page === 'data' && filter.value === 'contacts' && detailData.value?.source === 'rex_import') {
+      eventsLoading.value = true;
+      try {
+        const query = new URLSearchParams({ entity: 'contacts', local_id: detailData.value.id, limit: '10', offset: '0' });
+        const events = await api(`admin/rex/events?${query}`);
+        if (detailData.value?.id === row.id) contactEvents.value = events.items || [];
+      } catch (error) { ElMessage.error(error.message); }
+      finally { if (detailData.value?.id === row.id) eventsLoading.value = false; }
+    }
   } catch (error) {
     ElMessage.error(error.message);
   }
