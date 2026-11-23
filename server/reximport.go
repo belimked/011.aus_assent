@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -20,6 +21,10 @@ func imap(v any) importRow { m, _ := v.(map[string]any); return m }
 func istring(v any) string {
 	if v == nil {
 		return ""
+	}
+	// Rex returns ids as JSON numbers from read but strings from search; never format as 2.8e+07.
+	if f, ok := v.(float64); ok && f == math.Trunc(f) && math.Abs(f) < 1e15 {
+		return strconv.FormatInt(int64(f), 10)
 	}
 	return fmt.Sprint(v)
 }

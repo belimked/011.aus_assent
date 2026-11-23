@@ -161,9 +161,12 @@ func pollRex(ctx context.Context, db *sql.DB, c *rexClient, account string) erro
 				if pending > 0 {
 					continue
 				}
-				_, e = db.Exec(`UPDATE `+kind+` SET deleted_at=?,updated_at=?,version=version+1 WHERE id=? AND deleted_at IS NULL`, now(), now(), p.local)
+				res, e := db.Exec(`UPDATE `+kind+` SET deleted_at=?,updated_at=?,version=version+1 WHERE id=? AND deleted_at IS NULL`, now(), now(), p.local)
 				if e != nil {
 					return e
+				}
+				if n, _ := res.RowsAffected(); n == 0 {
+					continue
 				}
 				_, _ = db.Exec(`INSERT INTO rex_sync_events(at,direction,entity,local_id,rex_id,changes,result) VALUES(?,?,?,?,?,?,?)`, now(), "rex_to_app", kind, p.local, p.rex, ijson(map[string]any{"deleted_at": map[string]any{"old": nil, "new": now()}}), "ok")
 			}

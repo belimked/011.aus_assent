@@ -48,3 +48,15 @@ func TestImportPages(t *testing.T) {
 		t.Fatalf("got %d rows in %d requests", count, calls)
 	}
 }
+
+func TestIstringNumericRexID(t *testing.T) {
+	if got := istring(float64(28734913)); got != "28734913" {
+		t.Fatalf("istring(float) = %q", got)
+	}
+	if got := istring("28734913"); got != "28734913" {
+		t.Fatalf("istring(string) = %q", got)
+	}
+	if got := istring(1.5); got != "1.5" {
+		t.Fatalf("istring(1.5) = %q", got)
+	}
+}
