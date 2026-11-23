@@ -24,9 +24,12 @@
       <div class="card">
         <div class="card-h"><h3>{{ t('Rex 连接') }}</h3></div>
         <div class="card-b">
-          <p>{{ t(data.rexConfigured ? '已配置' : '未配置') }}</p>
-          <p>{{ t('待投递') }}: {{ data.rexPending }} · {{ t('失败') }}: {{ data.rexFailed }}</p>
-          <p v-if="data.rexError" class="muted">{{ data.rexError }}</p>
+          <p>{{ t('账户 ID') }}: {{ rex.accountId || '—' }} · {{ t('地址') }}: {{ rex.baseUrl || '—' }} · App ID: {{ rex.appId || '—' }}</p>
+          <p>{{ t('读取') }}: {{ rex.read ? t('已开启') : t('已关闭') }} · {{ t('写入') }}: {{ rex.write ? t('已开启') : t('已关闭') }}</p>
+          <p v-if="rex.readReason" class="muted">{{ t('读取原因') }}: {{ rex.readReason }}</p>
+          <p v-if="rex.writeReason" class="muted">{{ t('写入原因') }}: {{ rex.writeReason }}</p>
+          <p>{{ t('最近登录') }}: {{ rex.lastLoginAt ? fmtDate(rex.lastLoginAt) : '—' }} · {{ rex.lastLoginAt ? (rex.lastLoginOK ? t('成功') : t('失败')) : '—' }}</p>
+          <p>{{ t('最近一小时调用') }}: {{ rex.callsHour || 0 }} · {{ t('失败') }}: {{ rex.failuresHour || 0 }}</p>
         </div>
       </div>
     </div>
@@ -40,9 +43,10 @@ import { api } from '../api';
 import { fmtDate } from '../admin-format';
 import { t } from '../i18n';
 const data = ref({});
+const rex = ref({});
 const hours = ref(720);
 async function load() {
-  try { data.value = await api('admin/settings'); hours.value = Number(data.value.sessionHours); }
+  try { [data.value, rex.value] = await Promise.all([api('admin/settings'), api('admin/rex/status')]); hours.value = Number(data.value.sessionHours); }
   catch (error) { ElMessage.error(error.message); }
 }
 async function save() {

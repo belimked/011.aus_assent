@@ -223,12 +223,12 @@ func (p *probeRun) save(check, key string, request, raw any, err error) string {
 	case []byte:
 		_ = json.Unmarshal(b, &v)
 	}
-	doc := map[string]any{"method": key, "request": probeMask(request, p.c.Token, os.Getenv("REX_PASSWORD")), "response": probeMask(v, p.c.Token, os.Getenv("REX_PASSWORD")), "key_tree": probeTree(v)}
+	doc := map[string]any{"method": key, "request": probeMask(request, p.c.Token, p.c.Password), "response": probeMask(v, p.c.Token, p.c.Password), "key_tree": probeTree(v)}
 	if err != nil {
 		doc["outcome"] = "ERROR: " + err.Error()
 		// Rex error objects describe the API, not records; keep them readable (secrets still redacted).
 		if m, ok := v.(map[string]any); ok && m["error"] != nil {
-			doc["error"] = probeRedact(m["error"], p.c.Token, os.Getenv("REX_PASSWORD"), os.Getenv("REX_EMAIL"))
+			doc["error"] = probeRedact(m["error"], p.c.Token, p.c.Password)
 		}
 	}
 	b, _ := json.MarshalIndent(doc, "", "  ")
@@ -468,7 +468,7 @@ func probeError(err error, c *rexClient) string {
 		return "无"
 	}
 	s := err.Error()
-	for _, secret := range []string{c.Token, os.Getenv("REX_PASSWORD"), os.Getenv("REX_EMAIL")} {
+	for _, secret := range []string{c.Token, c.Password} {
 		if secret != "" {
 			s = strings.ReplaceAll(s, secret, "[REDACTED]")
 		}
@@ -518,12 +518,18 @@ func probeCleanup(ctx context.Context, c *rexClient, file string) error {
 func rexProbe(args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
 	defer cancel()
-	base := env("REX_BASE_URL", "https://api.rexsoftware.com")
-	c := newRexClient(base, env("REX_APP_ID", "Integration:PlaceSunnybank:Portal"))
+	cfg := loadRexConfig()
+	if len(cfg.Missing) > 0 {
+		return fmt.Errorf("Rex disabled: %s", cfg.ReadReason)
+	}
+	c := newRexClient(cfg.BaseURL, cfg.AppID)
+	c.AccountID = cfg.AccountID
+	c.Caller = "probe"
+	c.Password = cfg.Password
 	if ms, err := strconv.Atoi(os.Getenv("REX_INTERVAL_MS")); err == nil && ms >= 0 {
 		c.Interval = time.Duration(ms) * time.Millisecond
 	}
-	email, password, account := os.Getenv("REX_EMAIL"), os.Getenv("REX_PASSWORD"), os.Getenv("REX_ACCOUNT_ID")
+	email, password, account := cfg.Email, cfg.Password, cfg.AccountID
 	if len(args) > 0 && args[0] == "cleanup" {
 		f := flag.NewFlagSet("rex-probe cleanup", flag.ContinueOnError)
 		state := f.String("state", "", "state.json path")
@@ -536,6 +542,7 @@ func rexProbe(args []string) error {
 		if email == "" || password == "" {
 			return errors.New("REX_EMAIL and REX_PASSWORD required")
 		}
+		attachProbeLog(c, filepath.Dir(*state))
 		if _, err := c.Login(ctx, email, password, account); err != nil {
 			return err
 		}
@@ -557,20 +564,8 @@ func rexProbe(args []string) error {
 	if email == "" || password == "" {
 		return errors.New("REX_EMAIL and REX_PASSWORD required")
 	}
-	// First login without selecting an account, to inspect accessible accounts on mismatch.
-	if *confirmed == "" || account == "" || *confirmed != account {
-		if _, err := c.Login(ctx, email, password, ""); err != nil {
-			return err
-		}
-		raw, _, err := c.Call(ctx, "UserProfile", "getAccessibleAccounts", map[string]any{})
-		if err == nil {
-			var v any
-			_ = json.Unmarshal(raw, &v)
-			fmt.Fprintln(os.Stderr, "Accessible accounts (IDs only):", probeAccountIDs(v))
-		} else {
-			fmt.Fprintln(os.Stderr, "Accessible accounts unavailable:", probeError(err, c))
-		}
-		return errors.New("--account must match REX_ACCOUNT_ID; no checks or writes performed")
+	if *confirmed == "" || *confirmed != account {
+		return errors.New("--account must match REX_ACCOUNT_ID; no Rex calls performed")
 	}
 	if *out == "" {
 		*out = fmt.Sprintf("rex-probe-%s", time.Now().UTC().Format("20060102-150405"))
@@ -578,6 +573,7 @@ func rexProbe(args []string) error {
 	if err := os.MkdirAll(filepath.Join(*out, "raw"), 0700); err != nil {
 		return err
 	}
+	attachProbeLog(c, *out)
 	p := &probeRun{c: c, dir: *out, counts: map[string]int{}, vars: map[string]string{"name": "AXLEO TEST - " + time.Now().UTC().Format("20060102-150405"), "remindee": *remindee}, write: *write}
 	p.vars["tag"] = "AXLEO TEST - tag-" + time.Now().UTC().Format("20060102-150405")
 	defer func() { _ = p.report() }()

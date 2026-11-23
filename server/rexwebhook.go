@@ -27,7 +27,9 @@ func (a *app) rexWebhook(w http.ResponseWriter, r *http.Request) {
 		problem(w, 400, "bad body")
 		return
 	}
-	log.Printf("rex webhook: %s", rexWebhookSummary(body))
+	summary := rexWebhookSummary(body)
+	log.Printf("rex webhook: %s", summary)
+	rexDBLogger(a.db)(rexLog{At: rexLogAt(), AccountID: loadRexConfig().AccountID, Direction: "in", Kind: "read", Service: "AdminWebhooks", Method: "deliver", Path: "/api/v1/rex/webhook/[REDACTED]", Caller: "webhook", Attempt: 1, RequestJSON: rexRedact(json.RawMessage(body), got, os.Getenv("REX_PASSWORD")), HTTPStatus: 202, OK: true, ResultSummary: summary})
 	w.WriteHeader(http.StatusAccepted)
 }
 

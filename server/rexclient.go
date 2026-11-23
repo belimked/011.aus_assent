@@ -23,12 +23,14 @@ type rexEnvelope struct {
 	Error  json.RawMessage `json:"error"`
 }
 type rexClient struct {
-	BaseURL, AppID, Token string
-	HTTP                  *http.Client
-	Interval              time.Duration
-	Retries               int
-	mu                    sync.Mutex
-	next                  time.Time
+	BaseURL, AppID, Token       string
+	HTTP                        *http.Client
+	Interval                    time.Duration
+	Retries                     int
+	mu                          sync.Mutex
+	next                        time.Time
+	AccountID, Caller, Password string
+	Log                         func(rexLog)
 }
 
 func rexPath(s string) string {
@@ -86,6 +88,29 @@ func (c *rexClient) callPath(ctx context.Context, service, method string, body a
 		method = rexPath(method)
 	}
 	url := c.BaseURL + "/v1/rex/" + service + "/" + method
+	path := "/v1/rex/" + service + "/" + method
+	// Log each transport attempt, including rate limits and malformed responses.
+	record := func(attempt, status int, started time.Time, raw []byte, callErr error) {
+		if c.Log == nil {
+			return
+		}
+		var response any
+		if json.Unmarshal(raw, &response) != nil {
+			response = string(raw)
+		}
+		if rexKind(service, method) == "auth" {
+			response = map[string]any{"result": "[REDACTED]"}
+		}
+		excerpt := rexRedact(response, c.Password, c.Token)
+		if len(excerpt) > 4096 {
+			excerpt = excerpt[:4096]
+		}
+		reason := ""
+		if callErr != nil {
+			reason = rexRedact(callErr.Error(), c.Password, c.Token)
+		}
+		c.Log(rexLog{At: rexLogAt(), AccountID: c.AccountID, Direction: "out", Kind: rexKind(service, method), Service: service, Method: method, Path: path, Caller: c.Caller, Attempt: attempt + 1, RequestJSON: rexRedact(body, c.Password, c.Token), HTTPStatus: status, OK: callErr == nil && status < 400 && status > 0, Error: reason, DurationMS: time.Since(started).Milliseconds(), ResultSummary: rexSummary(raw, callErr), ResponseExcerpt: excerpt})
+	}
 	for attempt := 0; attempt <= c.Retries; attempt++ {
 		if err = c.wait(ctx); err != nil {
 			return nil, e, err
@@ -99,15 +124,29 @@ func (c *rexClient) callPath(ctx context.Context, service, method string, body a
 		if c.Token != "" {
 			req.Header.Set("Authorization", "Bearer "+c.Token)
 		}
+		started := time.Now()
 		resp, err := c.HTTP.Do(req)
 		if err != nil {
+			record(attempt, 0, started, nil, err)
 			return nil, e, err
 		}
 		raw, readErr := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 		resp.Body.Close()
 		if readErr != nil {
+			record(attempt, resp.StatusCode, started, raw, readErr)
 			return nil, e, readErr
 		}
+		var callErr error
+		if resp.StatusCode == 429 {
+			callErr = rexRateError{time.Second}
+		} else if json.Unmarshal(raw, &e) != nil {
+			callErr = fmt.Errorf("Rex HTTP %d: invalid envelope", resp.StatusCode)
+		} else if resp.StatusCode >= 400 {
+			callErr = fmt.Errorf("Rex HTTP %d: %s", resp.StatusCode, safeRexError(e.Error))
+		} else if len(e.Error) > 0 && string(e.Error) != "null" {
+			callErr = fmt.Errorf("Rex: %s", safeRexError(e.Error))
+		}
+		record(attempt, resp.StatusCode, started, raw, callErr)
 		if resp.StatusCode == 429 && attempt < c.Retries {
 			delay := time.Duration(attempt+1) * time.Second
 			if n, err := strconv.Atoi(resp.Header.Get("Retry-After")); err == nil {

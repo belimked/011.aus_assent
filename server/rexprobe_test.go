@@ -75,6 +75,7 @@ func fakeRex(t *testing.T) (*httptest.Server, *[]string) {
 func setupProbe(t *testing.T, srv *httptest.Server) string {
 	t.Helper()
 	t.Setenv("REX_BASE_URL", srv.URL)
+	t.Setenv("REX_APP_ID", "Integration:PlaceSunnybank:Portal")
 	t.Setenv("REX_EMAIL", "login@example.com")
 	t.Setenv("REX_PASSWORD", "my-password")
 	t.Setenv("REX_ACCOUNT_ID", "sandbox")
@@ -146,7 +147,7 @@ func TestRexProbeGuardsAndFullRun(t *testing.T) {
 		if e != nil {
 			return e
 		}
-		if info.IsDir() {
+		if info.IsDir() || filepath.Base(path) == "rex-request-log.jsonl" { // Audit log retains non-secret parameters; probe reports mask record values.
 			return nil
 		}
 		b, e := os.ReadFile(path)

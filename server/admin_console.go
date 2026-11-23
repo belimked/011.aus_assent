@@ -148,7 +148,7 @@ func (a *app) consoleSettings(w http.ResponseWriter, r *http.Request, p principa
 		_ = a.db.QueryRow(`SELECT count(*) FROM rex_outbox WHERE status='failed'`).Scan(&failed)
 		var lastError string
 		_ = a.db.QueryRow(`SELECT COALESCE(last_error,'') FROM rex_outbox WHERE last_error IS NOT NULL ORDER BY id DESC LIMIT 1`).Scan(&lastError)
-		respond(w, 200, map[string]any{"sessionHours": hours, "provider": "Pricefinder", "lastImport": imported.String, "importRows": count.Int64, "rexConfigured": env("AXLEO_REX_ENABLED", "") == "1" && env("REX_EMAIL", "") != "" && env("REX_PASSWORD", "") != "" && env("REX_ACCOUNT_ID", "") != "", "rexPending": pending, "rexFailed": failed, "rexError": lastError})
+		respond(w, 200, map[string]any{"sessionHours": hours, "provider": "Pricefinder", "lastImport": imported.String, "importRows": count.Int64, "rexConfigured": loadRexConfig().canWrite(), "rexPending": pending, "rexFailed": failed, "rexError": lastError})
 		return
 	}
 	if r.Method != "PATCH" {
