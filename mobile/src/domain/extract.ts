@@ -1,6 +1,7 @@
-import {seed, TODAY} from '../data/seed';
+import {seed} from '../data/seed';
+import {addLocalDays} from '../lib/today';
 import type {AppState} from '../data/types';
-function addDays(n:number){const d=new Date(TODAY);d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)}
+function addDays(n:number){return addLocalDays(new Date(),n)}
 export function extract(text: string, ctx: string, state: AppState = seed()){
   const r: any = {first:"",last:"",mobile:"",email:"",relation:ctx==="oh"?"buyer":"owner",note:text.trim(),intent:"",timing:"",followup:"",tags:[],req:{},ps:false,address:"",reason:"",unsure:[],type:"",source:"",need:""};
   const m = text.match(/0[45]\d{2}[\s-]?\d{3}[\s-]?\d{3}|0[45]\d{8}/); if(m) r.mobile = m[0].replace(/\D/g,"").replace(/(\d{4})(\d{3})(\d{3})/,"$1 $2 $3");

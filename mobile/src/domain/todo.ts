@@ -1,9 +1,9 @@
 import type {AppState,Contact} from '../data/types';
-import {TODAY} from '../data/seed';
+import {today} from '../lib/today';
 import {audit,byId} from './index';
 
 // Prototype tdreto / tdtick / tdbulkdone: changes apply immediately, note the linked contact, and offer Undo.
-const sysNote=(c:Contact,t:string)=>{c.notes.unshift({d:TODAY,a:'AxleoCollect',t});};
+const sysNote=(c:Contact,t:string)=>{c.notes.unshift({d:today(),a:'AxleoCollect',t});};
 
 export function reassignTodos(s:AppState,ids:string[],who:string,whoId?:string):number{
   const me=s.auth?.name||'Owen Chen';let n=0;
@@ -21,7 +21,7 @@ export function setTodosDone(s:AppState,ids:string[],done:boolean):number{
   for(const x of s.todos.filter(t=>ids.includes(t.id))){
     if(!!x.done===done)continue;
     x.done=done;n++;
-    if(done){x.doneAt=TODAY;audit(s,'To-do done',x.t);const c=x.cid?byId(s.contacts,x.cid):undefined;if(c)sysNote(c,`To-do done: ${x.t}`);}
+    if(done){x.doneAt=today();audit(s,'To-do done',x.t);const c=x.cid?byId(s.contacts,x.cid):undefined;if(c)sysNote(c,`To-do done: ${x.t}`);}
     else delete x.doneAt;
   }
   return n;
