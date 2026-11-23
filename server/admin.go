@@ -608,12 +608,25 @@ func main() {
 			fmt.Println(err)
 		}
 		return
+	case "import-parcels":
+		if len(os.Args) < 3 || len(os.Args) > 4 || len(os.Args) == 4 && os.Args[3] != "--dry-run" {
+			fatal(fmt.Errorf("usage: axleo import-parcels <geojson-dir> [--dry-run]"))
+		}
+		added, skipped, err := importParcels(db, os.Args[2], len(os.Args) == 4)
+		fatal(err)
+		fmt.Printf("added=%d skipped=%d dry=%v\n", added, skipped, len(os.Args) == 4)
+	case "market-zone":
+		if len(os.Args) != 3 {
+			fatal(fmt.Errorf("usage: axleo market-zone <email>"))
+		}
+		fatal(createMarketZone(db, os.Args[2]))
 	case "market-import":
 		if len(os.Args) < 3 {
-			fatal(fmt.Errorf("CSV file required"))
+			fatal(fmt.Errorf("usage: axleo market-import [--provider pricefinder] [--kind ownership] [--dry-run] file..."))
 		}
 		provider, kind, dry := "pricefinder", "auto", false
-		for i := 3; i < len(os.Args); i++ {
+		files := []string{}
+		for i := 2; i < len(os.Args); i++ {
 			switch os.Args[i] {
 			case "--provider", "--kind":
 				if i+1 >= len(os.Args) {
@@ -628,22 +641,30 @@ func main() {
 			case "--dry-run":
 				dry = true
 			default:
-				fatal(fmt.Errorf("unknown flag %s", os.Args[i]))
+				if strings.HasPrefix(os.Args[i], "-") {
+					fatal(fmt.Errorf("unknown flag %s", os.Args[i]))
+				}
+				files = append(files, os.Args[i])
 			}
 		}
-		info, err := os.Stat(os.Args[2])
-		fatal(err)
-		if info.Size() > 20<<20 {
-			fatal(fmt.Errorf("file exceeds 20MB"))
+		if len(files) == 0 {
+			fatal(fmt.Errorf("file required"))
 		}
-		b, err := os.ReadFile(os.Args[2])
-		fatal(err)
 		var id string
 		fatal(db.QueryRow(`SELECT id FROM users WHERE role='admin' ORDER BY created_at LIMIT 1`).Scan(&id))
-		report, err := (&app{db: db}).importMarket(b, os.Args[2], provider, kind, dry, principal{id: id, role: "admin", device: "CLI"})
-		fatal(err)
-		out, _ := json.MarshalIndent(report, "", "  ")
-		fmt.Println(string(out))
+		for _, file := range files {
+			info, err := os.Stat(file)
+			fatal(err)
+			if info.Size() > 20<<20 {
+				fatal(fmt.Errorf("file exceeds 20MB"))
+			}
+			b, err := os.ReadFile(file)
+			fatal(err)
+			report, err := (&app{db: db}).importMarket(b, file, provider, kind, dry, principal{id: id, role: "admin", device: "CLI"})
+			fatal(err)
+			out, _ := json.MarshalIndent(report, "", "  ")
+			fmt.Printf("%s: %s\n", file, out)
+		}
 	case "serve":
 		a := &app{db: db, failures: map[string][]time.Time{}}
 		loadRexConfig().logStartup()

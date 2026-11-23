@@ -277,6 +277,17 @@ func (a *app) covered(id, user string) bool {
 	}
 	return false
 }
+func (a *app) marketCovered(m map[string]any, p principal) bool {
+	if p.zones != nil {
+		for _, z := range p.zones {
+			if zoneCovers(z, m) {
+				return true
+			}
+		}
+		return false
+	}
+	return a.covered(str(m, "id"), p.id)
+}
 func (a *app) marketProperty(m map[string]any, p principal) {
 	id := str(m, "id")
 	var names, source, stamp string
@@ -290,7 +301,8 @@ func (a *app) marketProperty(m map[string]any, p principal) {
 	if price.Valid {
 		market["lastSalePrice"] = price.Int64
 	}
-	if p.role == "admin" || a.covered(id, p.id) {
+	visible := p.role == "admin" || a.marketCovered(m, p)
+	if visible {
 		market["owners"] = names
 		market["absenteeOwner"] = absentee
 	}
@@ -304,6 +316,9 @@ type importReport struct {
 	Skipped            int                 `json:"skipped"`
 	Errors             int                 `json:"errors"`
 	Unmatched          int                 `json:"unmatched"`
+	MatchedLot         int                 `json:"matchedLot"`
+	MatchedAddress     int                 `json:"matchedAddress"`
+	Misaligned         int                 `json:"misaligned"`
 	Ignored            int                 `json:"ignored"`
 	OwnershipUpdated   int                 `json:"ownershipUpdated"`
 	SalesRecorded      int                 `json:"salesRecorded"`
@@ -355,9 +370,15 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 			}
 		}
 	}
-	if _, ok := cols["address"]; !ok {
+	pf := provider == "pricefinder" && hasColumn(cols, "lot_plan") && hasColumn(cols, "suburb") && hasHeader(head, "Street Name")
+	if _, ok := cols["address"]; !ok && !pf {
 		return r, errors.New("Address column required")
 	}
+	index, err := loadMarketIndex(a.db)
+	if err != nil {
+		return r, err
+	}
+	allowed := map[string]bool{"sunnybank": true, "sunnybankhills": true, "calamvale": true, "parkinson": true}
 	var tx *sql.Tx
 	if !dry {
 		tx, err = a.db.Begin()
@@ -382,6 +403,13 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 			return ""
 		}
 		address := get("address")
+		if pf {
+			if !allowed[key(get("suburb"))] {
+				r.Misaligned++
+				continue
+			}
+			address = pfAddress(head, line)
+		}
 		if (ignoredMarketRow(line) && (address == "" || footerOnlyMarketRow(line))) || (address == "" && footerOnlyMarketRow(line) && len(line) > 0 && strings.TrimSpace(line[0]) != "" && cols["address"] != 0) {
 			r.Ignored++
 			continue
@@ -428,16 +456,22 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 			r.Details = append(r.Details, fmt.Sprintf("row %d: date must be YYYY-MM-DD or DD/MM/YYYY", rowNum))
 			continue
 		}
-		event := MarketEvent{Kind: eventKind, Address: address, LotPlan: get("lot_plan"), Suburb: get("suburb"), Postcode: get("postcode"), ProviderID: get("provider_id")}
-		var prop string
-		if dry {
-			prop = a.matchProperty(event)
-		} else {
-			prop = matchProperty(tx, event)
+		lotPlan := get("lot_plan")
+		if pf {
+			lotPlan = pfLotDescription(lotPlan)
+		}
+		event := MarketEvent{Kind: eventKind, Address: address, LotPlan: lotPlan, Suburb: get("suburb"), Postcode: get("postcode"), ProviderID: get("provider_id")}
+		prop, method := index.match(event, pf && pfColumn(head, line, "Unit") != "")
+		if method == "lot" {
+			r.MatchedLot++
+		} else if method == "address" {
+			r.MatchedAddress++
 		}
 		if prop == "" {
 			r.Unmatched++
-			r.UnmatchedAddresses = append(r.UnmatchedAddresses, map[string]string{"address": address, "suburb": event.Suburb, "postcode": event.Postcode, "kind": eventKind})
+			if len(r.UnmatchedAddresses) < 30 {
+				r.UnmatchedAddresses = append(r.UnmatchedAddresses, map[string]string{"address": address, "lotplan": event.LotPlan, "suburb": event.Suburb, "postcode": event.Postcode, "kind": eventKind})
+			}
 		}
 		if snapshot && date != "" {
 			event.ProviderID += ":" + date
@@ -498,15 +532,27 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 			}
 		}
 		if e == nil && prop != "" && (eventKind == "sale" || eventKind == "ownership" || eventKind == "snapshot") {
-			e = applyMarketOwnership(tx, prop, get("owners"), price, date, provider,
-				r.ID, absenteeMarket(getOwnerAddress(head, line), address))
+			owners := get("owners")
+			if strings.EqualFold(owners, "N/A") {
+				owners = ""
+			}
+			absentee := absenteeMarket(getOwnerAddress(head, line), address)
+			if pf && strings.EqualFold(pfColumn(head, line, "Owner Occupier"), "true") {
+				absentee = false
+			} else if pf && strings.EqualFold(pfColumn(head, line, "Owner Occupier"), "false") {
+				absentee = true
+			}
+			e = applyMarketOwnership(tx, prop, owners, price, date, provider, r.ID, absentee)
+			if e == nil && pf {
+				e = storePFAttributes(tx, prop, head, line)
+			}
 		}
 		if e != nil {
 			return r, e
 		}
 		r.Success++
 	}
-	r.Skipped = r.Errors + r.Ignored
+	r.Skipped = r.Errors + r.Ignored + r.Misaligned
 	if dry {
 		return r, nil
 	}
@@ -528,7 +574,7 @@ func applyMarketOwnership(tx *sql.Tx, prop, owners string, price int64, date, pr
 	_, err := tx.Exec(`INSERT INTO property_ownership
 		(property_id,owner_names,last_sale_price,last_sale_date,source,import_id,updated_at,absentee_owner)
 		VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(property_id) DO UPDATE SET
-		owner_names=CASE WHEN excluded.owner_names='' THEN property_ownership.owner_names
+		owner_names=CASE WHEN excluded.owner_names='' OR (excluded.last_sale_date!='' AND property_ownership.last_sale_date > excluded.last_sale_date) THEN property_ownership.owner_names
 			ELSE excluded.owner_names END,
 		last_sale_price=CASE WHEN excluded.last_sale_price IS NULL OR
 			(property_ownership.last_sale_date > excluded.last_sale_date AND excluded.last_sale_date != '')
@@ -537,7 +583,7 @@ func applyMarketOwnership(tx *sql.Tx, prop, owners string, price int64, date, pr
 			property_ownership.last_sale_date > excluded.last_sale_date
 			THEN property_ownership.last_sale_date ELSE excluded.last_sale_date END,
 		source=excluded.source,import_id=excluded.import_id,updated_at=excluded.updated_at,
-		absentee_owner=CASE WHEN excluded.owner_names='' THEN property_ownership.absentee_owner
+		absentee_owner=CASE WHEN excluded.owner_names='' OR (excluded.last_sale_date!='' AND property_ownership.last_sale_date > excluded.last_sale_date) THEN property_ownership.absentee_owner
 			ELSE excluded.absentee_owner END`,
 		prop, owners, sql.NullInt64{Int64: price, Valid: price > 0},
 		date, provider, importID, now(), absentee,

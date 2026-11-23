@@ -66,6 +66,25 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 			since = ""
 		}
 	}
+	// Resolve coverage once per pull, not once for each of thousands of properties.
+	if p.role != "admin" {
+		p.zones = []map[string]any{}
+		zones, err := a.db.Query(`SELECT data FROM zones WHERE owner_id=? AND deleted_at IS NULL`, p.id)
+		if err != nil {
+			problem(w, 500, "database error")
+			return
+		}
+		for zones.Next() {
+			var raw string
+			if zones.Scan(&raw) == nil {
+				var z map[string]any
+				if json.Unmarshal([]byte(raw), &z) == nil {
+					p.zones = append(p.zones, z)
+				}
+			}
+		}
+		zones.Close()
+	}
 	out := map[string]any{"cursor": base64.RawURLEncoding.EncodeToString([]byte(strconv.FormatInt(high, 10))), "full": since == ""}
 	deleted := map[string][]string{}
 	for _, kind := range syncKinds {

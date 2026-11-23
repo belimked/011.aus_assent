@@ -179,7 +179,10 @@ type app struct {
 	failures map[string][]time.Time
 	calls    map[string][]time.Time
 }
-type principal struct{ id, role, device, name, email string }
+type principal struct {
+	id, role, device, name, email string
+	zones                         []map[string]any
+}
 
 func respond(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -499,7 +502,7 @@ func (a *app) get(kind, id string, p principal, deleted bool) (map[string]any, e
 	if kind == "properties" {
 		a.owners(m, p)
 		a.marketProperty(m, p)
-		if p.role != "admin" && !a.covered(str(m, "id"), p.id) {
+		if p.role != "admin" && !a.marketCovered(m, p) {
 			delete(m, "pfOwner")
 		}
 	}
