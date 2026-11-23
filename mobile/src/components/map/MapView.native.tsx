@@ -17,7 +17,8 @@ const tint:Record<string,string>={green:colors.green,orange:colors.accent,red:co
 const Web=WebView as unknown as React.ComponentType<WebViewProps&{ref?:React.Ref<WebView>}>;
 type View_={s:number;n:number;w:number;e:number;z:number};
 
-export function MapView({properties,selected,onSelect,satellite=false,height=400,onTap}:{properties:Property[];selected?:string;onSelect:(id:string)=>void;satellite?:boolean;height?:number;onTap?:(lat:number,lng:number)=>void}){
+// follow: with no selection, keep re-centring on the phone as it moves (about every 25 m) instead of only on the first fix.
+export function MapView({properties,selected,onSelect,satellite=false,height=400,onTap,follow=false}:{properties:Property[];selected?:string;onSelect:(id:string)=>void;satellite?:boolean;height?:number;onTap?:(lat:number,lng:number)=>void;follow?:boolean}){
   const live=useLivePosition().position;const listings=useStore(s=>s.listings);
   const web=useRef<WebView>(null);const [ready,setReady]=useState(false);const [view,setView]=useState<View_|null>(null);
   const sel=properties.find(p=>p.id===selected&&p.ll?.length===2);
@@ -32,10 +33,10 @@ export function MapView({properties,selected,onSelect,satellite=false,height=400
     const taken=new Set(placed.map(p=>`${p.ll![0].toFixed(5)},${p.ll![1].toFixed(5)}`));
     const bg:[number,number][]=b&&zoom>=15?visibleProperties(b,250).filter(q=>!taken.has(`${q.lat.toFixed(5)},${q.lng.toFixed(5)}`)).map(q=>[q.lat,q.lng]):[];
     const parcels=b&&zoom>=17?visibleParcels(b).map(p=>p.ring.map(x=>[x.lat,x.lng] as [number,number])):[];
-    return {sat:satellite,selected,center,centerKey:selected||(live?'me':'init'),zoom:17,marks,bg,parcels,me:live?[live.lat,live.lng]:null,labels:marks.length<=120};
+    return {sat:satellite,selected,center,centerKey:selected||(live?(follow?`me:${Math.round(live.lat*4000)},${Math.round(live.lng*4000)}`:'me'):'init'),zoom:17,marks,bg,parcels,me:live?[live.lat,live.lng]:null,labels:marks.length<=120};
   // center is derived from selected/properties
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[properties,listings,selected,satellite,view,live?.lat,live?.lng]);
+  },[properties,listings,selected,satellite,view,live?.lat,live?.lng,follow]);
   const lastSent=useRef('');
   useEffect(()=>{if(!ready)return;const js=JSON.stringify(state);if(js!==lastSent.current){lastSent.current=js;web.current?.injectJavaScript(`window.axUpdate(${js});true;`)}},[ready,state]);
   const onMessage=(e:WebViewMessageEvent)=>{let m:MapMsg;try{m=JSON.parse(e.nativeEvent.data)}catch{return}
