@@ -23,3 +23,34 @@
 ## Rex 账户与调用日志
 
 在 65 的 `/etc/axleo/env` 中配置 `REX_BASE_URL`、`REX_APP_ID`、`REX_EMAIL`、`REX_PASSWORD`、`REX_ACCOUNT_ID`（2057 共享沙箱 / 758 Place Sunnybank 正式）。缺任一项绝不调用。`AXLEO_REX_READ=1` 允许后续读取；仅 `AXLEO_REX_WRITE=1` 且 `REX_WRITE_ACCOUNT_ID` 与目标账户完全一致时启动写入 worker。删除旧 `AXLEO_REX_ENABLED`（被忽略）；可选 `REX_INTERVAL_MS` 和 `AXLEO_REX_WEBHOOK_TOKEN`。修改后重启 `axleo`，检查 `journalctl -u axleo` 中禁用原因。管理员 `/admin/#/settings` 查看连接状态，`/admin/#/rex-log` 查看分页调用日志；`rex_request_log` 每次 HTTP 尝试和 webhook 留痕，启动时清理 180 天前日志。探测 CLI 仅使用配置账户，需显式 `--account` 匹配；如数据库不可用，日志落到 `--out/rex-request-log.jsonl`。切勿在正式账户运行沙箱探测。
+
+## Rex 2057 沙箱一次性导入（维护窗口）
+
+先确认 `/etc/axleo/env` 中 `REX_ACCOUNT_ID=2057`、`AXLEO_REX_READ=1`、凭证完整、`REX_INTERVAL_MS>=1000`，Mary/John 均已创建。**停止服务以免并发写库；不要设置 `AXLEO_REX_WRITE`。** 65 上 root 执行：
+
+```sh
+systemctl stop axleo
+sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; /opt/axleo/current/axleo backup /data/axleo/backup'
+sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; /opt/axleo/current/axleo rex-import --account 2057 --dry-run --assign mary@axleo.local,john@axleo.local'
+# 人工核对新增/更新/跳过数量和 rex_request_log 错误后：
+sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; /opt/axleo/current/axleo rex-import --account 2057 --assign mary@axleo.local,john@axleo.local'
+systemctl start axleo
+```
+
+只试少量数据：两条导入命令均可加 `--limit 100`（每种实体 100 条；关联联系人不一定落在首 100 条）。重跑相同正式命令，etag 未变跳过且不改本地负责人。**不要在正式账户执行。** 导入并非全局事务，出错可修好后重跑；呼叫日志 `caller=import` 可核对。移动端已有旧快照的用户建议重新登录。
+
+删除全部导入数据：优先在停服后用上述备份执行 `axleo restore <快照路径>`，但这也会回滚备份后其他写入。只删导入数据时，先停服并备份，核对以下 SQL 只会命中 `source=rex_import` 的 id；以 `sudo -u axleo sqlite3 /data/axleo/db/axleo.db` 运行（需要安装 sqlite3），**不要删除演示数据**：
+
+```sql
+PRAGMA foreign_keys=ON;
+BEGIN IMMEDIATE;
+INSERT INTO settings(key,value) VALUES('sync_reset_seq',(SELECT COALESCE(max(seq),0) FROM sync_changes)) ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+DELETE FROM contact_notes WHERE contact_id IN (SELECT id FROM contacts WHERE json_extract(data,'$.source')='rex_import');
+DELETE FROM property_owners WHERE property_id IN (SELECT id FROM properties WHERE json_extract(data,'$.source')='rex_import') OR contact_id IN (SELECT id FROM contacts WHERE json_extract(data,'$.source')='rex_import');
+DELETE FROM rex_links WHERE account_id='2057' AND ((entity='properties' AND local_id IN (SELECT id FROM properties WHERE json_extract(data,'$.source')='rex_import')) OR (entity='contacts' AND local_id IN (SELECT id FROM contacts WHERE json_extract(data,'$.source')='rex_import')));
+DELETE FROM properties WHERE json_extract(data,'$.source')='rex_import';
+DELETE FROM contacts WHERE json_extract(data,'$.source')='rex_import';
+COMMIT;
+```
+
+之后启动服务，客户端须重新全量同步。SQL 未清理手工添加且指向导入实体的其他业务记录（待逐一核对）；若出现 FK 错误事务将失败，请回滚并使用快照恢复。`/api/v1/sync` 目前未分页，约每人 4,000 联系人 + 1,700 房产，完整 `data.rex` 会增加传输和逐行查询开销；上线前压测首次同步和低端手机内存，若超时先停用导入数据的手机全量同步并实现分页，切勿无监控放量。

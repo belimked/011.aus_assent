@@ -92,7 +92,7 @@
             <div class="row">
               <span class="dot" :style="{ background: color(row) }" />
               <div>
-                <b>{{ row.address }}</b>
+                <b>{{ row.address }}</b> <el-tag v-if="row.source === 'rex_import'" size="small" effect="plain">{{ t('Rex 沙箱') }}</el-tag>
                 <div class="small muted">{{ row.suburb }}</div>
               </div>
             </div>

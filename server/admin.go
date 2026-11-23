@@ -511,12 +511,16 @@ func sliceMaps(v any) []map[string]any {
 	return out
 }
 func main() {
+	if len(os.Args) >= 2 && os.Args[1] == "rex-import" {
+		fatal(rexImportCLI(os.Args[2:]))
+		return
+	}
 	if len(os.Args) >= 2 && os.Args[1] == "rex-probe" {
 		fatal(rexProbe(os.Args[2:]))
 		return
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed|reset-data [--yes]|passwd <email>|backup <dir>|verify <file>|restore <file>|rex-probe")
+		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed|reset-data [--yes]|passwd <email>|backup <dir>|verify <file>|restore <file>|rex-probe|rex-import")
 		os.Exit(2)
 	}
 	path := env("AXLEO_DB", "./axleo.db")

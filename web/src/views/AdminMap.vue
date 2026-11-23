@@ -374,7 +374,17 @@ async function refreshParcels() {
     for (const feature of status.features) {
       const info = feature.properties;
       const cadastral = rings?.get(info.lotplan);
-      if (!cadastral) continue;
+      if (!cadastral) {
+        const point = feature.geometry?.type === 'Point' && feature.geometry.coordinates;
+        if (point && point.length === 2) {
+          const parcel = { ...info, address: info.id, suburb: '' };
+          visible.push(parcel);
+          L.circleMarker([point[1], point[0]], { radius: 6, color: statusColor(parcel), fillOpacity: .8 })
+            .on('click', () => { if (!editorOpen.value) openParcel(parcel.id); })
+            .addTo(parcelLayer);
+        }
+        continue;
+      }
       const coordinates = cadastral.rings;
       if (
         !coordinates.some((ring) =>

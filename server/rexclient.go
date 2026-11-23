@@ -31,6 +31,7 @@ type rexClient struct {
 	next                        time.Time
 	AccountID, Caller, Password string
 	Log                         func(rexLog)
+	ReadOnly                    bool
 }
 
 func rexPath(s string) string {
@@ -110,6 +111,11 @@ func (c *rexClient) callPath(ctx context.Context, service, method string, body a
 			reason = rexRedact(callErr.Error(), c.Password, c.Token)
 		}
 		c.Log(rexLog{At: rexLogAt(), AccountID: c.AccountID, Direction: "out", Kind: rexKind(service, method), Service: service, Method: method, Path: path, Caller: c.Caller, Attempt: attempt + 1, RequestJSON: rexRedact(body, c.Password, c.Token), HTTPStatus: status, OK: callErr == nil && status < 400 && status > 0, Error: reason, DurationMS: time.Since(started).Milliseconds(), ResultSummary: rexSummary(raw, callErr), ResponseExcerpt: excerpt})
+	}
+	if c.ReadOnly && rexKind(service, method) == "write" {
+		err := fmt.Errorf("Rex write blocked by read-only mode")
+		record(0, 0, time.Now(), nil, err)
+		return nil, e, err
 	}
 	for attempt := 0; attempt <= c.Retries; attempt++ {
 		if err = c.wait(ctx); err != nil {
