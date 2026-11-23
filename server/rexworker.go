@@ -361,7 +361,11 @@ func (w *rexWorker) step(ctx context.Context) error {
 		data["id"] = entityLink
 	}
 	if data != nil {
-		body = map[string]any{"data": data, "return_id": true}
+		// Contacts::update only accepts data/fields/extra_fields (verified against sandbox 2057).
+		body = map[string]any{"data": data}
+		if method != "update" {
+			body["return_id"] = true
+		}
 	}
 	w.client.Entity, w.client.LocalID, w.client.RexID = "contacts", linkID, linked
 	if w.client.Token == "" {

@@ -60,7 +60,7 @@ func rexPath(s string) string {
 	return b.String()
 }
 func newRexClient(base, appID string) *rexClient {
-	return &rexClient{BaseURL: strings.TrimRight(base, "/"), AppID: appID, HTTP: &http.Client{Timeout: 15 * time.Second}, Interval: time.Second, Retries: 2}
+	return &rexClient{BaseURL: strings.TrimRight(base, "/"), AppID: appID, HTTP: &http.Client{Timeout: 60 * time.Second}, Interval: time.Second, Retries: 2}
 }
 func (c *rexClient) wait(ctx context.Context) error {
 	c.mu.Lock()
