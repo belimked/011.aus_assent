@@ -1,5 +1,5 @@
 import type {AppState, Contact, Property} from '../data/types';
-import {TODAY} from '../data/seed';
+import {today} from '../lib/today';
 import {addTodo, audit, byId, linkOwner, matchContacts, normMobile, noteOn} from './index';
 
 export const isLongHold=(durationMs:number)=>durationMs>=260;
@@ -12,21 +12,21 @@ export function applyTags(s:AppState,c:Contact,p:Property|undefined,tags:string[
   if(c.flags.dnc)c.consent={...c.consent,email:0,sms:0,phone:0,letter:0};
   if(c.tags.includes('No junk mail'))c.consent={...c.consent,junk:0};
   const reason=c.tags.find(t=>['Downsizing','Upsizing','Moving for school','Relocating','Investor'].includes(t));if(reason)c.reason=reason;
-  if(p&&c.tags.some(t=>['Not at home','Left card','Friendly','Not interested'].includes(t))){p.visits=[...(p.visits||[]),{d:TODAY,o:c.tags.includes('Not at home')?'not_home':c.tags.includes('Left card')?'left_card':c.tags.includes('Not interested')?'not_int':'spoke'}];}
-  c.updated={by:s.auth?.name||'Owen Chen',d:TODAY};audit(s,'Tags',`${c.first} ${c.last}`.trim()+' · '+c.tags.join(', '));
+  if(p&&c.tags.some(t=>['Not at home','Left card','Friendly','Not interested'].includes(t))){p.visits=[...(p.visits||[]),{d:today(),o:c.tags.includes('Not at home')?'not_home':c.tags.includes('Left card')?'left_card':c.tags.includes('Not interested')?'not_int':'spoke'}];}
+  c.updated={by:s.auth?.name||'Owen Chen',d:today()};audit(s,'Tags',`${c.first} ${c.last}`.trim()+' · '+c.tags.join(', '));
 }
 export function applyPreference(s:AppState,c:Contact,k:string,val:number,reason=''){
   c.consent={...c.consent,[k]:val};c.optedOut=c.consent.sms===0;
   if(k==='junk')c.tags=val?c.tags.filter(t=>t!=='No junk mail'):[...new Set([...c.tags,'No junk mail'])];
   const label=({sms:'Text',phone:'Call',email:'Email',letter:'Letter',junk:'Junk mail'} as Record<string,string>)[k]||k;
-  c.prefLog={d:TODAY,by:s.auth?.name||'Owen Chen',t:`${label}: ${val?'opted in':'opted out'}${reason?' · “'+reason+'”':''}`};
+  c.prefLog={d:today(),by:s.auth?.name||'Owen Chen',t:`${label}: ${val?'opted in':'opted out'}${reason?' · “'+reason+'”':''}`};
   noteOn(s,c,`Preferences · ${label} ${val?'opted in':'opted out'}${reason?' · '+reason:''}`);audit(s,'Preferences',`${c.first} ${c.last}`.trim()+` · ${label}=${val}`);
 }
 export function filePropertyNote(s:AppState,propId:string,txt:string){
   const p=byId(s.properties,propId);if(!p)throw new Error('Property not found');
   let c=byId(s.contacts,p.ownerIds[0]);
   if(!c){c={id:'c'+Date.now(),first:p.pfOwner||'Owner',last:'',mobile:'',email:'',owner:s.auth?.name||'Owen Chen',roles:['owner'],tags:[],flags:{},notes:[],rels:[]};s.contacts.push(c);linkOwner(s,c,p);}
-  noteOn(s,c,txt);p.visits=[...(p.visits||[]),{d:TODAY,o:'spoke'}];audit(s,'Note',`${p.no} ${p.street}`);return c;
+  noteOn(s,c,txt);p.visits=[...(p.visits||[]),{d:today(),o:'spoke'}];audit(s,'Note',`${p.no} ${p.street}`);return c;
 }
 export function commitDK(s:AppState, propId:string, r:DKFields, pick?:string) {
   const p=byId(s.properties,propId);
@@ -34,7 +34,7 @@ export function commitDK(s:AppState, propId:string, r:DKFields, pick?:string) {
   if(matches.status==='multiple'&&!pick) throw new Error('Choose a matching contact before approving');
   let c=pick==='new'?undefined:pick?byId(s.contacts,pick):matches.status==='unique'?matches.list[0].c:undefined;
   if(!c){
-    c={id:'c'+Date.now(),first:r.first,last:r.last,mobile:r.mobile,email:r.email,owner:s.auth?.name||'Owen Chen',roles:[],tags:[],flags:{},notes:[],rels:[],updated:{by:s.auth?.name||'Owen Chen',d:TODAY}};
+    c={id:'c'+Date.now(),first:r.first,last:r.last,mobile:r.mobile,email:r.email,owner:s.auth?.name||'Owen Chen',roles:[],tags:[],flags:{},notes:[],rels:[],updated:{by:s.auth?.name||'Owen Chen',d:today()}};
     s.contacts.push(c);
   } else {
     if(r.first)c.first=r.first;
@@ -48,13 +48,13 @@ export function commitDK(s:AppState, propId:string, r:DKFields, pick?:string) {
   if(r.consent)c.consent={...c.consent,...r.consent};
   if(c.flags.dnc)c.consent={...c.consent,email:0,sms:0,phone:0,letter:0};
   c.optedOut=c.consent?.sms===0;
-  if(r.consent)c.consentRec={d:TODAY,how:'At the door'};
+  if(r.consent)c.consentRec={d:today(),how:'At the door'};
   if(r.linked){c.rels=c.rels||[];c.rels.push({type:'Partner of',name:r.linked});}
   if(r.note)noteOn(s,c,r.note);
   if(p&&['owner','landlord'].includes(r.relation))linkOwner(s,c,p);
-  if(p)p.visits=[...(p.visits||[]),{d:TODAY,o:'spoke'}];
+  if(p)p.visits=[...(p.visits||[]),{d:today(),o:'spoke'}];
   if(r.followup)addTodo(s,{t:`Follow up with ${c.first} ${c.last}`.trim(),d:r.followup,cid:c.id,propId:p?.id});
-  if(/market update/i.test(r.note))addTodo(s,{t:`Send market update to ${c.first} ${c.last}`.trim(),d:TODAY,cid:c.id,propId:p?.id});
+  if(/market update/i.test(r.note))addTodo(s,{t:`Send market update to ${c.first} ${c.last}`.trim(),d:today(),cid:c.id,propId:p?.id});
   audit(s,'DK',`${c.first} ${c.last} · ${p?.street||'new contact'}`);
   return c;
 }

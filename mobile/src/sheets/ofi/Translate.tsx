@@ -3,7 +3,7 @@ import {ActivityIndicator,Platform,Pressable,Text,TextInput,View} from 'react-na
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import NativeRecorder,{type RecorderPhase} from '../../components/Recorder';
-import {TODAY} from '../../data/seed';
+import {today} from '../../lib/today';
 import {byId,noteOn} from '../../domain';
 import {useT} from '../../i18n';
 import {speak,stopSpeaking,translate,voiceLang,voiceErrorText,type SheetLang} from '../../lib/voice';
@@ -120,8 +120,8 @@ export function TranslateSheet(){
     if(!content)return;
     let filed=false;
     update(s=>{
-      const l=s.listings.find(x=>x.ofi.some(o=>o.d===TODAY));
-      const attendee=l?.ofi.find(o=>o.d===TODAY)?.attendees[0];
+      const l=s.listings.find(x=>x.ofi.some(o=>o.d===today()));
+      const attendee=l?.ofi.find(o=>o.d===today())?.attendees[0];
       const c=attendee&&byId(s.contacts,attendee.contactId);
       if(c){noteOn(s,c,'Talk to me: '+content);filed=true}
     });
