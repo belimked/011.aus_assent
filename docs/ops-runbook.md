@@ -10,7 +10,16 @@
 
 恢复（**会覆盖当前库**）：先确认要恢复的文件、维护窗口及程序版本。root 执行 `systemctl stop axleo`；确认无其他进程使用数据库；再以 `axleo` 用户、加载 `/etc/axleo/env` 的环境运行 `/opt/axleo/current/axleo restore <快照绝对路径>`。命令校验快照和 schema，将当前库另存于数据库同级 `backup/` 并输出文件名，然后替换数据库。恢复失败不要启动服务，先检查日志与备份。最后 `systemctl start axleo` 并检查健康、账号和业务数量。不要恢复比当前程序更新的 schema；不要在服务运行时替换 WAL 文件。
 
-重置测试数据（**清空业务数据并恢复 Mary/John 演示数据**）：root 执行 `systemctl stop axleo`；以 `axleo` 用户运行 `sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; exec /opt/axleo/current/axleo reset-data'` 查看各表行数（只读，不做任何修改）；确认后同样方式运行 `reset-data --yes`：先在 `AXLEO_BACKUP_DIR` 生成并校验快照（失败则中止），再在单个事务内清空业务表、删除手机端新建的房产、把 demo.json 中的 4,461 处房产恢复为种子值，并重新写入演示数据；保留账号、团队、设置、管理员绘制的区域和 Pricefinder 导入。所有会话被注销，手机须退出后重新登录。最后 `systemctl start axleo`。回滚：用输出的快照执行 `restore`。
+重置测试数据（**清空业务数据并恢复 Mary/John 演示数据**）：root 执行 `systemctl stop axleo`；以 `axleo` 用户运行 `sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; exec /opt/axleo/current/axleo reset-data'` 查看各表行数（只读，不做任何修改）；确认后同样方式运行 `reset-data --yes`：先在 `AXLEO_BACKUP_DIR` 生成并校验快照（失败则中止），再在单个事务内清空业务表（包括 Rex 导入联系人、关系、`rex_links` 和 `rex_outbox`）、删除不在 demo.json 中的 Rex 导入房产（即使含 lotplan）、删除手机端新建的房产、把 demo.json 中的 4,461 处房产恢复为种子值，并重新写入演示数据；保留账号、团队、设置、管理员绘制的区域、Pricefinder 导入和 `rex_request_log` 调用审计。预览会列出 Rex 导入房产/联系人、链接、outbox、关系和保留的日志数量。所有会话被注销，手机须退出后重新登录。最后 `systemctl start axleo`。回滚：用输出的快照执行 `restore`。重置不会调用 Rex；需要重置后重导入时使用 `reset-data --yes --rex-import`（账户取 `REX_ACCOUNT_ID`，默认分配 Mary/John）。它先完成重置，随后检查 `AXLEO_REX_READ=1`、账户和凭证并执行只读导入；检查或导入失败会输出 `未导入：原因`、以非零状态退出，**已提交的重置不会回滚**。此模式仅用于沙箱 2057。
+
+本地运维机可用单条命令远程执行（先部署包含此脚本和新服务版本的 release；需要 `sshpass`，**不会自动部署二进制**）：
+
+```sh
+SSHPASS=1 bash server/deploy/reset-test.sh                 # 演示数据
+SSHPASS=1 bash server/deploy/reset-test.sh --rex-import    # 演示数据 + 重新导入 2057
+```
+
+脚本对 `--rex-import` 先验证远端 `REX_ACCOUNT_ID=2057`，然后停服务、以 axleo 用户重置、重新启动并检查 `/api/v1/health`。重置命令打印 `Verified backup: /data/axleo/backup/axleo-*.db`、before/after 各表行数和（若请求导入）`properties: added=… updated=… skipped=…`、`contacts: ...`。任何步骤失败均尝试启动服务，打印快照恢复命令；如果连备份都没取得，会提示先查备份目录。失败时不要盲目重复导入或恢复，先检查 `journalctl -u axleo` 和本次输出。
 
 ## 只读演练
 
@@ -53,4 +62,4 @@ DELETE FROM contacts WHERE json_extract(data,'$.source')='rex_import';
 COMMIT;
 ```
 
-之后启动服务，客户端须重新全量同步。SQL 未清理手工添加且指向导入实体的其他业务记录（待逐一核对）；若出现 FK 错误事务将失败，请回滚并使用快照恢复。`/api/v1/sync` 目前未分页，约每人 4,000 联系人 + 1,700 房产，完整 `data.rex` 会增加传输和逐行查询开销；上线前压测首次同步和低端手机内存，若超时先停用导入数据的手机全量同步并实现分页，切勿无监控放量。
+之后启动服务，客户端须重新全量同步。SQL 未清理手工添加且指向导入实体的其他业务记录（待逐一核对）；若出现 FK 错误事务将失败，请回滚并使用快照恢复。`/api/v1/sync` 仍未分页，约每人 4,000 联系人 + 1,700 房产。同步 JSON 已剔除联系人/房产的 `data.rex`，以及房产的 `data.geometry`（手机使用本地地块图层和 `ll` 点坐标），后台详情保留；支持请求 `Accept-Encoding: gzip` 时对 >=1 KiB JSON API 响应压缩，流式响应与静态资源不压缩。gzip 降低网络流量，但不减少逐行查询与手机解压后内存；上线前仍应压测真实 2057 数据。

@@ -348,7 +348,7 @@ func (a *app) routes() http.Handler {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		m.ServeHTTP(w, r)
+		gzipAPI(w, r, m)
 	})
 }
 func (a *app) login(w http.ResponseWriter, r *http.Request) {

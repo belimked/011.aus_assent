@@ -110,6 +110,15 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 			if item["deleted_at"] != nil {
 				gone = append(gone, id)
 			} else {
+				// Rex's complete search row is server-side provenance, not mobile sync data.
+				if kind == "contacts" || kind == "properties" {
+					delete(item, "rex")
+				}
+				if kind == "properties" {
+					// The phone draws its parcels from its own parcel layer and needs
+					// only ll for property points, not the database's lot geometry.
+					delete(item, "geometry")
+				}
 				items = append(items, item)
 			}
 		}
