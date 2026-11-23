@@ -2,7 +2,7 @@
   <div class="page">
     <div class="page-head"><h1>{{ t('Rex 调用日志') }}</h1></div>
     <div class="card bar">
-      <label v-for="key in ['service','method','caller']" :key="key" class="field">{{ t(labels[key]) }}<el-input v-model="filter[key]" clearable /></label>
+      <label v-for="key in ['service','method','caller','entity','local_id','rex_id']" :key="key" class="field">{{ t(labels[key]) }}<el-input v-model="filter[key]" clearable /></label>
       <label class="field">{{ t('类型') }}<el-select v-model="filter.kind" clearable style="width: 120px"><el-option v-for="k in ['auth','read','write']" :key="k" :label="k" :value="k" /></el-select></label>
       <label class="field">{{ t('结果') }}<el-select v-model="filter.ok" clearable style="width: 110px"><el-option :label="t('成功')" value="1" /><el-option :label="t('失败')" value="0" /></el-select></label>
       <label class="field">{{ t('开始') }}<input v-model="filter.from" type="datetime-local" /></label>
@@ -12,6 +12,8 @@
     <div class="card">
       <el-table :data="rows" @row-click="open">
         <el-table-column prop="at" :label="t('时间')" min-width="180" />
+        <el-table-column :label="t('记录')" min-width="180"><template #default="{row}"><el-button v-if="row.entity || row.localId" link @click.stop="selectRecord(row)">{{ row.entity || '—' }} · {{ row.localId || '—' }}</el-button><span v-else>—</span></template></el-table-column>
+        <el-table-column prop="rexId" :label="t('Rex ID')" min-width="110" />
         <el-table-column prop="accountId" :label="t('账户 ID')" width="110" />
         <el-table-column prop="direction" :label="t('方向')" width="90" />
         <el-table-column prop="kind" :label="t('类型')" width="90" />
@@ -33,12 +35,14 @@
   </div>
 </template>
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { api } from '../api';
 import { t } from '../i18n';
-const labels = { service: '服务', method: '方法', caller: '调用方' };
-const filter = ref({ service: '', method: '', caller: '', kind: '', ok: '', from: '', to: '' });
+const labels = { service: '服务', method: '方法', caller: '调用方', entity: '实体', local_id: '本地 ID', rex_id: 'Rex ID' };
+const route = useRoute();
+const filter = ref({ service: '', method: '', caller: '', entity: '', local_id: '', rex_id: '', kind: '', ok: '', from: '', to: '' });
 const rows = ref([]), detail = ref({}), visible = ref(false), hasMore = ref(false);
 function pretty(s) { try { return JSON.stringify(JSON.parse(s), null, 2) } catch { return s || '' } }
 async function load(reset) {
@@ -51,7 +55,11 @@ async function load(reset) {
   hasMore.value = data.items.length === 50;
  } catch (e) { ElMessage.error(e.message) }
 }
+function selectRecord(row) { filter.value.entity = row.entity || ''; filter.value.local_id = row.localId || ''; load(true); }
 async function open(row) { try { detail.value = await api(`admin/rex/log/${row.id}`); visible.value = true } catch (e) { ElMessage.error(e.message) } }
-onMounted(() => load(true));
+watch(() => route.query, (query) => {
+ for (const key of Object.keys(filter.value)) filter.value[key] = typeof query[key] === 'string' ? query[key] : '';
+ load(true);
+}, { immediate: true });
 </script>
 <style scoped>pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 270px; overflow: auto; background: #f5f6f7; padding: 12px; }</style>
