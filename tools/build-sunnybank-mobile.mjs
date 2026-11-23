@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { resolve, dirname } from 'node:path'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const input = await readFile(resolve(root, 'prototype/sunnybank-data.js'), 'utf8')
+const input = await readFile(process.argv[2] || resolve(root, 'prototype/sunnybank-data.js'), 'utf8')
 const match = input.match(/(?:^|\n)window\.SUNNYBANK\s*=\s*(\{[\s\S]*\})\s*;?\s*$/)
 if (!match) throw new Error('Could not find window.SUNNYBANK JSON assignment')
 const data = JSON.parse(match[1])
