@@ -1,7 +1,10 @@
 // Prototype seed() and migrate() snapshot. Regenerate with node tools/extract-i18n.mjs.
 import type { AppState } from './types';
-export const TODAY = '2026-11-07';
-export const seed = (): AppState => JSON.parse(JSON.stringify({
+import {today} from '../lib/today';
+// Legacy snapshot for callers that do not need a midnight refresh.
+export const TODAY = today();
+export const seed = (): AppState => {
+  const data = JSON.parse(JSON.stringify({
   "v": 8,
   "auth": null,
   "audit": [],
@@ -1187,3 +1190,9 @@ export const seed = (): AppState => JSON.parse(JSON.stringify({
     }
   ]
 })) as AppState;
+  // Demo open homes follow today's date; historical records remain unchanged.
+  for (const listing of data.listings) {
+    for (const open of listing.ofi) if (open.d === '2026-11-07') open.d = today();
+  }
+  return data;
+};

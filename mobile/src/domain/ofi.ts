@@ -1,5 +1,5 @@
 import type {AppState, Contact, Listing, Property} from '../data/types';
-import {TODAY} from '../data/seed';
+import {today,addLocalDays} from '../lib/today';
 import {addTodo, audit, byId, cname, matchContacts, normMobile, noteOn, propAddr, shortAddr} from './index';
 
 export const REQS = [
@@ -10,7 +10,17 @@ export const REQS = [
 ] as const;
 export type Requests = Partial<Record<(typeof REQS)[number][0], boolean>>;
 export type Registration = {first:string;last:string;mobile:string;email:string;address?:string;note?:string;req?:Requests;ps?:boolean;nb?:boolean;consent?:boolean;tags?:string[]};
-const days = (n:number) => {const d=new Date(TODAY+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+const days = (n:number) => addLocalDays(new Date(),n);
+export type OpenHomeStatus = 'later'|'live'|'finished';
+export function openHomeStatus(date:string, time:string, now:Date):OpenHomeStatus {
+  const [startText,endText] = time.split('–');
+  const minutes = (value:string) => {const [hour,minute]=value.split(':').map(Number);return hour*60+minute};
+  const start = new Date(`${date}T00:00:00`);
+  start.setMinutes(minutes(startText));
+  const end = new Date(`${date}T00:00:00`);
+  end.setMinutes(minutes(endText)+(minutes(endText)<=minutes(startText)?1440:0));
+  return now<start?'later':now>=end?'finished':'live';
+}
 const id = (prefix:string) => prefix+Date.now()+Math.random().toString(36).slice(2,7);
 export function buyerMatches(state:AppState, mobile:string, email:string){
   const number=normMobile(mobile);
@@ -19,13 +29,13 @@ export function buyerMatches(state:AppState, mobile:string, email:string){
 }
 export function ohRequests(state:AppState, l:Listing, c:Contact, p:Property, rq:Requests){
   const task=(d:string,t:string,who=l.agent,kind='call')=>addTodo(state,{d,t,who,kind,cid:c.id,propId:p.id});
-  if(rq.form2){if(l.form2) noteOn(state,c,`Form 2 emailed ${TODAY}.`);else task(TODAY,`Send Form 2 to ${cname(c)}`);}
-  if(rq.bp){if(l.bpReport) noteOn(state,c,'Building & pest report emailed.');else task(TODAY,`Send B&P report to ${cname(c)}`);}
-  if(rq.private) task(TODAY,`Book private inspection · ${cname(c)} · ${shortAddr(p)} (within 2 h)`,l.agent,'appt');
+  if(rq.form2){if(l.form2) noteOn(state,c,`Form 2 emailed ${today()}.`);else task(today(),`Send Form 2 to ${cname(c)}`);}
+  if(rq.bp){if(l.bpReport) noteOn(state,c,'Building & pest report emailed.');else task(today(),`Send B&P report to ${cname(c)}`);}
+  if(rq.private) task(today(),`Book private inspection · ${cname(c)} · ${shortAddr(p)} (within 2 h)`,l.agent,'appt');
   for(const type of ['broker','conv','rental'] as const) if(rq[type]){
     const partner=state.partners[type]?.[0]||l.agent;
-    state.referrals.unshift({id:id('rf'),type,to:partner,contactId:c.id,propertyId:p.id,d:TODAY,status:'sent'});
-    noteOn(state,c,`${type==='broker'?'Mortgage broker':type==='conv'?'Conveyancer':'Rental appraisal'} referral sent to ${partner}, ${TODAY} · consent recorded`);
+    state.referrals.unshift({id:id('rf'),type,to:partner,contactId:c.id,propertyId:p.id,d:today(),status:'sent'});
+    noteOn(state,c,`${type==='broker'?'Mortgage broker':type==='conv'?'Conveyancer':'Rental appraisal'} referral sent to ${partner}, ${today()} · consent recorded`);
     if(type==='broker') task(days(1),`Broker follow-up · ${cname(c)}`,partner);
     if(type==='rental') task(days(2),`Rental appraisal · ${cname(c)}`,partner,'appt');
   }
@@ -35,7 +45,7 @@ export function ohRequests(state:AppState, l:Listing, c:Contact, p:Property, rq:
 export function commitOH(state:AppState, listingId:string, r:Registration):Contact {
   const l=byId(state.listings,listingId);if(!l) throw new Error('Listing not found');
   const p=byId(state.properties,l.propertyId);if(!p) throw new Error('Property not found');
-  const o=l.ofi.find(x=>x.d===TODAY);if(!o) throw new Error('No open home today');
+  const o=l.ofi.find(x=>x.d===today());if(!o) throw new Error('No open home today');
   const matches=buyerMatches(state,r.mobile,r.email);
   // The prototype falls back to the first match when several contacts match.
   let c=matches.list[0]?.c;
@@ -43,15 +53,15 @@ export function commitOH(state:AppState, listingId:string, r:Registration):Conta
   else {c.first=r.first||c.first;c.last=r.last||c.last;c.mobile=r.mobile||c.mobile;c.email=r.email||c.email;}
   if(!c.roles.includes('buyer')) c.roles.push('buyer');
   c.history??=[];
-  if(!c.history.some((h:{d:string;t:string})=>h.d===TODAY&&h.t.includes(p.no))) c.history.unshift({d:TODAY,t:'OFI '+propAddr(p)});
+  if(!c.history.some((h:{d:string;t:string})=>h.d===today()&&h.t.includes(p.no))) c.history.unshift({d:today(),t:'OFI '+propAddr(p)});
   for(const tag of r.tags||[]) if(!c.tags.includes(tag)) c.tags.push(tag);
   if(r.nb&&!c.tags.includes('Neighbour')) c.tags.push('Neighbour');
   if(r.nb===false) c.tags=c.tags.filter(x=>x!=='Neighbour');
   const existing=o.attendees.find((a:{contactId:string})=>a.contactId===c.id);
-  if(!existing){o.attendees.push({contactId:c.id,d:TODAY,req:r.req||{},ps:!!r.ps,note:r.note||''});ohRequests(state,l,c,p,r.req||{});
-    addTodo(state,{d:TODAY,time:'15:00',t:`Call for feedback · ${cname(c)} · ${shortAddr(p)}`,who:l.agent,kind:'call',cid:c.id,propId:p.id});}
-  if(existing&&!state.todos.some(x=>x.cid===c.id&&x.t.startsWith('Call for feedback')&&x.propId===p.id)) addTodo(state,{d:TODAY,time:'15:00',t:`Call for feedback · ${cname(c)} · ${shortAddr(p)}`,who:l.agent,kind:'call',cid:c.id,propId:p.id});
-  if(r.consent) c.consentRec={d:TODAY,how:'Ticked at open home check-in'};
+  if(!existing){o.attendees.push({contactId:c.id,d:today(),req:r.req||{},ps:!!r.ps,note:r.note||''});ohRequests(state,l,c,p,r.req||{});
+    addTodo(state,{d:today(),time:'15:00',t:`Call for feedback · ${cname(c)} · ${shortAddr(p)}`,who:l.agent,kind:'call',cid:c.id,propId:p.id});}
+  if(existing&&!state.todos.some(x=>x.cid===c.id&&x.t.startsWith('Call for feedback')&&x.propId===p.id)) addTodo(state,{d:today(),time:'15:00',t:`Call for feedback · ${cname(c)} · ${shortAddr(p)}`,who:l.agent,kind:'call',cid:c.id,propId:p.id});
+  if(r.consent) c.consentRec={d:today(),how:'Ticked at open home check-in'};
   if(r.ps){if(!c.tags.includes('Seller lead')) c.tags.push('Seller lead');if(!existing) addTodo(state,{d:days(7),t:`Appraisal follow-up ${cname(c)}`,who:l.agent,kind:'hot',cid:c.id});
     if(r.address){const home=state.properties.find(x=>r.address!.toLowerCase().includes(`${x.no} ${x.street}`.toLowerCase()));if(home&&!home.ownerIds.includes(c.id)) home.ownerIds.push(c.id);}}
   if(r.note) noteOn(state,c,r.note);
