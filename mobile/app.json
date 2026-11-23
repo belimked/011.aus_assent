@@ -29,6 +29,7 @@
     },
     "plugins": [
       "expo-router",
+      ["expo-share-intent", {"disableIOS": true, "androidIntentFilters": ["text/plain", "image/*"]}],
       "expo-secure-store",
       [
         "expo-splash-screen",
