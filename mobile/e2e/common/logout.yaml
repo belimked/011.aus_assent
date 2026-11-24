@@ -9,6 +9,18 @@ appId: com.placesunnybank.agentcollect
     id: open-me
 - extendedWaitUntil:
     visible: Language
+    timeout: 5000
+    optional: true
+# The first tap can land during the Home transition without navigating.
+- runFlow:
+    when:
+      visible:
+        id: open-me
+    commands:
+      - tapOn:
+          id: open-me
+- extendedWaitUntil:
+    visible: Language
     timeout: 15000
 - scrollUntilVisible:
     element:

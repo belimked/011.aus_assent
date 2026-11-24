@@ -55,6 +55,12 @@ name: 02 door knock
 # A tap while the sheet is still sliding in is ignored.
 - waitForAnimationToEnd
 - tapOn: Dismiss
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: Dismiss
+    commands:
+      - tapOn: Dismiss
 - extendedWaitUntil:
     notVisible: Dismiss
     timeout: 10000

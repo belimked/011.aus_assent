@@ -35,7 +35,17 @@ name: 04 to-dos
 - scrollUntilVisible:
     element: 'E2E follow-up task.*'
     direction: DOWN
+- waitForAnimationToEnd
 - tapOn: 'E2E follow-up task.*'
+- extendedWaitUntil:
+    visible: Complete 1
+    timeout: 5000
+    optional: true
+- runFlow:
+    when:
+      notVisible: Complete 1
+    commands:
+      - tapOn: 'E2E follow-up task.*'
 - tapOn: Complete 1
 - assertVisible: 1 done · moved to Completed
 - tapOn: Undo
