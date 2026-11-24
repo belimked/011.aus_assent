@@ -20,7 +20,14 @@ name: 02 door knock
 - tapOn:
     id: dk-description
 - inputText: Spoke to Mary Chen at the door. Mobile 0412 555 019. Kids moved out.
-- hideKeyboard
+# Multiline fields use the iOS input accessory Done button; Maestro's hideKeyboard
+# swipe can land on the sheet instead of dismissing this keyboard.
+- tapOn: Done
+- scrollUntilVisible:
+    element:
+      id: dk-record
+    direction: DOWN
+- waitForAnimationToEnd
 - tapOn:
     id: dk-record
 # AI extraction is not configured on the CI server: the offline parser is used.

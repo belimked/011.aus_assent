@@ -13,7 +13,8 @@ name: 04 to-dos
 - tapOn:
     id: todo-title
 - inputText: E2E follow-up task
-- hideKeyboard
+# Return dismisses the single-line keyboard before scrolling to the save action.
+- pressKey: Enter
 - scrollUntilVisible:
     element: Save to-do
     direction: DOWN

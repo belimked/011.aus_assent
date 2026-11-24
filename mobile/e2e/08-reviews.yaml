@@ -9,14 +9,25 @@ name: 08 review queue
     visible:
       id: capture-v1
     timeout: 15000
+# Candidate cards now precede the action buttons; bring Approve into view first.
+- scrollUntilVisible:
+    element:
+      id: capture-approve-v1
+    direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd
 - tapOn:
     id: capture-approve-v1
-# The seed has two Mary Chen records with 0412 555 019, so approving opens the review sheet
-# and asks which contact to use.
+# With multiple matching contacts, Approve opens the full review sheet.
 - extendedWaitUntil:
-    visible: Choose a matching contact
+    visible: Review voice capture
     timeout: 10000
-- tapOn: 'Mary Chen · 0412 555 .* · ma.*@example\.com.*'
+- scrollUntilVisible:
+    element: Use contact
+    direction: DOWN
+- tapOn:
+    text: Use contact
+    index: 0
 - scrollUntilVisible:
     element: Approve
     direction: DOWN

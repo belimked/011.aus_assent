@@ -29,7 +29,8 @@ name: 03 contacts
 - tapOn:
     id: quickadd-last
 - inputText: Contact
-- hideKeyboard
+# Single-line field: Return ends editing without Maestro's unreliable keyboard swipe.
+- pressKey: Enter
 - scrollUntilVisible:
     element:
       id: quickadd-role-owner
