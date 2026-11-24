@@ -612,9 +612,16 @@ func main() {
 		if len(os.Args) < 3 || len(os.Args) > 4 || len(os.Args) == 4 && os.Args[3] != "--dry-run" {
 			fatal(fmt.Errorf("usage: axleo import-parcels <geojson-dir> [--dry-run]"))
 		}
-		added, skipped, err := importParcels(db, os.Args[2], len(os.Args) == 4)
+		counts, err := importParcels(db, os.Args[2], len(os.Args) == 4)
 		fatal(err)
-		fmt.Printf("added=%d skipped=%d dry=%v\n", added, skipped, len(os.Args) == 4)
+		fmt.Printf("added=%d promoted=%d linkedToExisting=%d ambiguous=%d skipped=%d dry=%v\n", counts.Added, counts.Promoted, counts.LinkedToExisting, counts.Ambiguous, counts.Skipped, len(os.Args) == 4)
+	case "dedupe-parcels":
+		if len(os.Args) > 3 || len(os.Args) == 3 && os.Args[2] != "--dry-run" {
+			fatal(fmt.Errorf("usage: axleo dedupe-parcels [--dry-run]"))
+		}
+		counts, err := dedupeParcels(db, len(os.Args) == 3)
+		fatal(err)
+		fmt.Printf("moved=%d ambiguous=%d skipped=%d dry=%v\n", counts.Moved, counts.Ambiguous, counts.Skipped, len(os.Args) == 3)
 	case "market-zone":
 		if len(os.Args) != 3 {
 			fatal(fmt.Errorf("usage: axleo market-zone <email>"))

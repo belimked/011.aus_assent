@@ -360,7 +360,7 @@ func mergeImportData(tx *sql.Tx, table, id string, data importRow) error {
 	owned := map[string]bool{"id": true, "rex": true, "source": true}
 	keys := []string{"first", "last", "mobile", "email", "address", "consent"}
 	if table == "properties" {
-		keys = []string{"no", "street", "suburb", "address", "state", "postcode", "unit", "lat", "lng", "beds", "baths", "cars", "ll"}
+		keys = []string{"no", "street", "suburb", "address", "state", "postcode", "unit", "lat", "lng", "beds", "baths", "cars"}
 	}
 	for _, k := range keys {
 		owned[k] = true
@@ -375,6 +375,9 @@ func mergeImportData(tx *sql.Tx, table, id string, data importRow) error {
 				merged[fk] = fv
 			}
 			data["flags"] = merged
+			continue
+		}
+		if k == "ll" && data[k] != nil { // Rex coordinates take precedence when present.
 			continue
 		}
 		if !owned[k] {
