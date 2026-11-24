@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -39,7 +40,7 @@ func (a *app) extractAI(w http.ResponseWriter, r *http.Request, p principal) {
 	defer func() { meta["latencyMs"] = time.Since(started).Milliseconds(); a.auditCall(p, "ai_extract", meta) }()
 	key := os.Getenv("AXLEO_BEDROCK_API_KEY")
 	model := env("AXLEO_BEDROCK_MODEL", "au.anthropic.claude-haiku-4-5-20251001-v1:0")
-	if key == "" || !strings.HasPrefix(model, "au.") {
+	if key == "" || !auBedrockModel(model) {
 		problem(w, 503, "ai not configured")
 		return
 	}
@@ -162,4 +163,13 @@ func (a *app) converseContact(w http.ResponseWriter, r *http.Request, key, model
 		return
 	}
 	problem(w, 502, "ai upstream error")
+}
+
+// auBedrockModel keeps AI calls inside Australia: either an "au." cross-region
+// inference profile, or an application inference profile created in Sydney or
+// Melbourne (used to track Axleo's Bedrock usage separately; it must wrap the au. profile).
+var auAppProfile = regexp.MustCompile(`^arn:aws:bedrock:ap-southeast-[24]:[0-9]{12}:application-inference-profile/[a-z0-9]+$`)
+
+func auBedrockModel(model string) bool {
+	return strings.HasPrefix(model, "au.") || auAppProfile.MatchString(model)
 }
