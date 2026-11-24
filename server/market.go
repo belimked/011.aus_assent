@@ -134,14 +134,25 @@ var punctuation = regexp.MustCompile(`[^a-z0-9]+`)
 
 func addressKey(s string) string {
 	s = strings.ToLower(s)
-	s = regexp.MustCompile(`\bunit\s+(\d+)\s+`).ReplaceAllString(s, "$1/")
+	s = regexp.MustCompile(`\b(?:unit|u)\s+(\d+)\s*[,/]\s*(\d+)\b|\b(?:unit|u)\s+(\d+)\s+(\d+)\b`).ReplaceAllStringFunc(s, func(part string) string {
+		n := regexp.MustCompile(`\d+`).FindAllString(part, -1)
+		return n[0] + "/" + n[1]
+	})
 	s = strings.ReplaceAll(s, "/", " ")
 	s = punctuation.ReplaceAllString(s, " ")
 	words := strings.Fields(s)
 	for i, w := range words {
-		switch w {
-		case "st":
+		// St is a street type only at the end; St Albans is a name.
+		// Mt is a name prefix only (Mount Gravatt), never a street type.
+		if w == "st" && i == len(words)-1 {
 			words[i] = "street"
+			continue
+		}
+		if w == "mt" && i > 0 && i < len(words)-1 {
+			words[i] = "mount"
+			continue
+		}
+		switch w {
 		case "rd":
 			words[i] = "road"
 		case "ave", "av":
@@ -158,6 +169,36 @@ func addressKey(s string) string {
 			words[i] = "parade"
 		case "tce":
 			words[i] = "terrace"
+		case "cl":
+			words[i] = "close"
+		case "cct":
+			words[i] = "circuit"
+		case "cir":
+			words[i] = "circle"
+		case "gr", "gve":
+			words[i] = "grove"
+		case "hwy":
+			words[i] = "highway"
+		case "la", "ln":
+			words[i] = "lane"
+		case "bvd", "blvd":
+			words[i] = "boulevard"
+		case "esp":
+			words[i] = "esplanade"
+		case "pkwy", "pwy":
+			words[i] = "parkway"
+		case "sq":
+			words[i] = "square"
+		case "crt":
+			words[i] = "court"
+		case "gdns":
+			words[i] = "gardens"
+		case "cr", "crs":
+			words[i] = "crescent"
+		case "wy":
+			words[i] = "way"
+		case "rdg":
+			words[i] = "ridge"
 		}
 	}
 	return strings.Join(words, " ")
@@ -461,7 +502,7 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 			lotPlan = pfLotDescription(lotPlan)
 		}
 		event := MarketEvent{Kind: eventKind, Address: address, LotPlan: lotPlan, Suburb: get("suburb"), Postcode: get("postcode"), ProviderID: get("provider_id")}
-		prop, method := index.match(event, pf && pfColumn(head, line, "Unit") != "")
+		prop, method := index.match(event, pf && (pfColumn(head, line, "Unit") != "" || strings.Contains(event.Address, "/")))
 		if method == "lot" {
 			r.MatchedLot++
 		} else if method == "address" {

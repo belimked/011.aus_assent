@@ -50,7 +50,7 @@ func pfAddress(head, line []string) string {
 	return strings.TrimSpace(number + " " + street)
 }
 
-type marketEntry struct{ id, unit, suburb, postcode, addr string }
+type marketEntry struct{ id, unit, suburb, postcode, addr, source string }
 type marketIndex struct {
 	lots  map[string][]marketEntry
 	addrs map[string][]marketEntry
@@ -70,7 +70,7 @@ func loadMarketIndex(db *sql.DB) (marketIndex, error) {
 		}
 		var d map[string]any
 		_ = json.Unmarshal([]byte(raw), &d)
-		e := marketEntry{id: id, unit: str(d, "unit"), suburb: key(sub), postcode: str(d, "postcode"), addr: addressKey(no + " " + street)}
+		e := marketEntry{id: id, unit: str(d, "unit"), suburb: key(sub), postcode: str(d, "postcode"), addr: addressKey(no + " " + street), source: str(d, "source")}
 		lp := lotKey(str(d, "lotplan"))
 		if lp == "" {
 			lp = lotKey(str(d, "lot"))
@@ -88,6 +88,34 @@ func loadMarketIndex(db *sql.DB) (marketIndex, error) {
 }
 func (idx marketIndex) match(e MarketEvent, hasUnit bool) (string, string) {
 	candidates := idx.lots[lotKey(e.LotPlan)]
+	// A historical parcel may share its lot with a linked Rex property.
+	// Prefer exactly one Rex dwelling at the same unit-specific address.
+	hasParcel := false
+	for _, candidate := range candidates {
+		if candidate.source == "qld_parcels" {
+			hasParcel = true
+		}
+	}
+	if hasParcel {
+		var rex string
+		ambiguous := false
+		for _, p := range idx.addrs[key(e.Suburb)+"|"+addressKey(e.Address)] {
+			if p.source != "rex_import" || e.Postcode != "" && p.postcode != "" && p.postcode != e.Postcode {
+				continue
+			}
+			if !hasUnit && p.unit != "" || hasUnit && (p.unit == "" || addressKey(strings.SplitN(e.Address, "/", 2)[0]) != addressKey(p.unit)) {
+				continue
+			}
+			if rex != "" && rex != p.id {
+				ambiguous = true
+				break
+			}
+			rex = p.id
+		}
+		if rex != "" && !ambiguous {
+			return rex, "address"
+		}
+	}
 	if len(candidates) == 1 && candidates[0].suburb == key(e.Suburb) && (e.Postcode == "" || candidates[0].postcode == "" || candidates[0].postcode == e.Postcode) {
 		unit := strings.SplitN(e.Address, "/", 2)[0]
 		if !hasUnit && candidates[0].unit == "" || hasUnit && candidates[0].unit != "" && addressKey(unit) == addressKey(candidates[0].unit) {

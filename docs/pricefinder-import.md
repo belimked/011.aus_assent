@@ -18,6 +18,8 @@ sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; /opt/ax
 # 若原始 GeoJSON 尚未传上来，在仓库/工具目录运行 node tools/download-qld-parcels.mjs /data/axleo/.tmp/qld-raw
 sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; /opt/axleo/current/axleo import-parcels /data/axleo/.tmp/qld-raw --dry-run'
 sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; /opt/axleo/current/axleo import-parcels /data/axleo/.tmp/qld-raw'
+sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; /opt/axleo/current/axleo dedupe-parcels --dry-run'
+sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; /opt/axleo/current/axleo dedupe-parcels'
 sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; /opt/axleo/current/axleo market-import --provider pricefinder --kind ownership --dry-run /data/axleo/.tmp/pf-in/*.xls'
 # 核对逐文件 matchedLot/matchedAddress/unmatched/misaligned/errors 和样例，再批准正式导入：
 sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; /opt/axleo/current/axleo market-import --provider pricefinder --kind ownership /data/axleo/.tmp/pf-in/*.xls'
@@ -25,7 +27,7 @@ sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; /opt/ax
 systemctl start axleo
 ```
 
-`market-zone` 为指定账号幂等创建这四区的私有 zone，admin 本身有权限；不改其他账号权限。**先确认真实邮箱及 zone 归属**。非 Rex 地块按 lotplan 幂等插入；仅提升未注册且非 Rex 的旧地块记录；已有 Rex/人工房产不覆盖属性。业主导入只写 `property_ownership` 与房产的 `pricefinderAttributes`（估值、卧浴车位等独立保存），不创建联系人、不写 `rex_outbox`。单元只在 QLD 单元号相同或唯一地址匹配时写入，不把整栋业主错配给单元。`Current Owners` 未获 zone 授权不出现在手机同步数据。注意即使 dry-run 的未匹配样例只有地址，也要作为内部运维数据处理。
+`market-zone` 为指定账号幂等创建这四区的私有 zone，admin 本身有权限；不改其他账号权限。**先确认真实邮箱及 zone 归属**。顺序：import-parcels → dedupe-parcels → market-import。地块优先按 lotplan，再按区、规范化门牌街道和单元精确匹配唯一 Rex/已注册房产；只补空缺的地块号、坐标、面积、多边形，不改 Rex 字段。St 仅作街道末尾 Street，Mt 仅作前缀 Mount；单元与整栋不混配。重复地址跳过。import-parcels 输出 added、linkedToExisting、ambiguous、skipped（dry-run 同口径）；dedupe-parcels 输出 moved、ambiguous、skipped，迁移历史地块的 PF 资料和引用并软删除重复地块。先核对 dry-run 计数和样例。非 Rex 地块按 lotplan 幂等插入；仅提升未注册且非 Rex 的旧地块记录；已有 Rex/人工房产不覆盖属性。业主导入只写 `property_ownership` 与房产的 `pricefinderAttributes`（估值、卧浴车位等独立保存），不创建联系人、不写 `rex_outbox`。单元只在 QLD 单元号相同或唯一地址匹配时写入，不把整栋业主错配给单元。`Current Owners` 未获 zone 授权不出现在手机同步数据。注意即使 dry-run 的未匹配样例只有地址，也要作为内部运维数据处理。
 
 本地 2026-11-23 的四个真实导出在演示 seed + QLD 全量 21168 个新增/提升房产上 dry-run：Calamvale 5003 行匹配 909；Parkinson 3913 行匹配 845；Sunnybank Hills 5003 行匹配 953；Sunnybank 3792 行匹配 746（此处计数随版本/数据变化，以上为导入策略的粗略基线）。大量导出行并非规范的 lotplan/地址，**不要强行模糊匹配**；正式导入前核验样例及覆盖率，特别是重复门牌、多单位楼盘。App 新版内置地块由 756 KiB 增至约 4.5 MiB，手机需重新打包；服务器同步仍只传点坐标，不传 `geometry`。本地 Mary 演示库加入地块后的首次同步约 **954 KiB gzip / 6.7 MiB 原始 JSON**（旧基线约 120 KiB gzip），须在上线前压测手机内存/耗时。
 
