@@ -22,7 +22,7 @@ export function Patch(){
  const all=[...new Set(s.properties.map(p=>p.suburb).concat(['Calamvale','Eight Mile Plains','Sunnybank Hills']))].filter(v=>!subs.includes(v));
  const pts=areaPoints(corners,center,radius),count=canFinish(corners,center)?propertiesInArea(s,pts).length:0;
  const reset=()=>{setMode('idle');setCenter(null);setCorners([]);setLocked(false);setNaming(false)};
- const save=()=>{const name=zoneName.trim();if(!validAreaName(name)){showToast(l2('Enter an area name with letters (not numbers only)','请输入非空且不能只有数字的区域名称'));nameRef.current?.focus();return}
+ const save=()=>{const name=zoneName.trim();if(!validAreaName(name)){showToast(l2('Area name needs at least one letter (not just numbers or emoji)','区域名称至少要包含一个字母或汉字，不能只有数字或表情'));nameRef.current?.focus();return}
   const commit=()=>{let tagged=0;update(d=>{d.zones.push({id:'z'+Date.now(),name,pts});tagged=tagArea(d,name,pts)});reset();setZoneName('');showToast(l2(`Area saved · ${name} · ${tagged} tagged`,`区域已保存 · ${name} · 已标记 ${tagged}`))};
   if(count===0)Alert.alert(l2('No properties in this area','区域内没有房产'),l2('Save this area with 0 properties?','仍要保存这个 0 套房产的区域吗？'),[{text:l2('Cancel','取消'),style:'cancel'},{text:l2('Save anyway','仍要保存'),onPress:commit}]);else commit();
  };
