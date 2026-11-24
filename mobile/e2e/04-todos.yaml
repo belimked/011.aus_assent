@@ -30,11 +30,11 @@ name: 04 to-dos
     direction: DOWN
 # Done (multi-select → Complete), then Undo from the toast.
 - tapOn: Select
-# Select mode adds an action bar at the bottom that can cover the row.
+# Select mode adds a dock. The row is fully visible above it; asking Maestro to
+# center it loops forever when this short list cannot scroll any farther.
 - scrollUntilVisible:
     element: 'E2E follow-up task.*'
     direction: DOWN
-    centerElement: true
 - tapOn: 'E2E follow-up task.*'
 - tapOn: Complete 1
 - assertVisible: 1 done · moved to Completed
@@ -47,7 +47,6 @@ name: 04 to-dos
 - scrollUntilVisible:
     element: 'E2E follow-up task.*'
     direction: DOWN
-    centerElement: true
 - tapOn: 'E2E follow-up task.*'
 - tapOn: Reassign
 - extendedWaitUntil:
