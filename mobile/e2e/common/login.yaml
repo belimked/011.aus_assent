@@ -30,43 +30,18 @@ appId: com.placesunnybank.agentcollect
 - tapOn:
     text: Not Now
     optional: true
-# The iOS password prompt or a keyboard can consume the submit tap. Retry only if
-# still on the sign-in form; do not clear app data or retype into an already-signed-in app.
+# A failed assertion screenshot showed Home already rendered behind the iOS
+# "Save Password?" alert. An accessibility tap during its animation can leave
+# the alert in place: dismiss it and verify the alert, not just Home's text.
 - runFlow:
     when:
-      visible:
-        id: login-email
+      visible: 'Save Password\?'
     commands:
       - tapOn:
-          id: login-submit
-      - tapOn:
           text: Not Now
-          optional: true
 - extendedWaitUntil:
-    visible: MY ACTIVITY
-    timeout: 20000
-    optional: true
-# A failed sign-in leaves the form in place (e.g. transient network error or a
-# delayed iOS password prompt). Re-enter credentials only in that case.
-- runFlow:
-    when:
-      visible:
-        id: login-email
-    commands:
-      - tapOn:
-          id: login-email
-      - eraseText: 100
-      - inputText: mary@axleo.local
-      - tapOn:
-          id: login-password
-      - eraseText: 100
-      - inputText: ${E2E_PASSWORD}
-      - pressKey: Enter
-      - tapOn:
-          id: login-submit
-      - tapOn:
-          text: Not Now
-          optional: true
+    notVisible: 'Save Password\?'
+    timeout: 15000
 - extendedWaitUntil:
     visible: MY ACTIVITY
     timeout: 60000
