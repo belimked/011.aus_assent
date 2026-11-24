@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -14,7 +13,7 @@ func (a *app) imageAI(w http.ResponseWriter, r *http.Request, p principal) {
 	defer func() { meta["latencyMs"] = time.Since(started).Milliseconds(); a.auditCall(p, "ai_image", meta) }()
 	key := os.Getenv("AXLEO_BEDROCK_API_KEY")
 	model := env("AXLEO_BEDROCK_MODEL", "au.anthropic.claude-haiku-4-5-20251001-v1:0")
-	if key == "" || !strings.HasPrefix(model, "au.") {
+	if key == "" || !auBedrockModel(model) {
 		problem(w, 503, "ai not configured")
 		return
 	}
