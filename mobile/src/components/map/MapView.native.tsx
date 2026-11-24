@@ -20,7 +20,7 @@ type View_={s:number;n:number;w:number;e:number;z:number};
 
 // follow: with no selection, keep re-centring on the phone as it moves (about every 25 m) instead of only on the first fix.
 // locate: bump it to jump back to the phone's position once (full-screen "My location" button).
-export function MapView({properties,selected,onSelect,satellite=false,height=400,onTap,follow=false,locate=0,drawing}:{ properties:Property[];selected?:string;onSelect:(id:string)=>void;satellite?:boolean;height?:number;onTap?:(lat:number,lng:number)=>void;follow?:boolean;locate?:number;drawing?:MapDrawing}){
+export function MapView({properties,selected,onSelect,satellite=false,height=400,square=false,onTap,follow=false,locate=0,drawing}:{ properties:Property[];selected?:string;onSelect:(id:string)=>void;satellite?:boolean;height?:number;square?:boolean;onTap?:(lat:number,lng:number)=>void;follow?:boolean;locate?:number;drawing?:MapDrawing}){
   const live=useLivePosition().position;const listings=useStore(s=>s.listings);
   const web=useRef<WebView>(null);const [ready,setReady]=useState(false);const [view,setView]=useState<View_|null>(null);
   const sel=properties.find(p=>p.id===selected&&p.ll?.length===2);
@@ -49,7 +49,7 @@ export function MapView({properties,selected,onSelect,satellite=false,height=400
     else if(m.t==='move')setView(v=>v&&v.s===m.s&&v.n===m.n&&v.w===m.w&&v.e===m.e&&v.z===m.z?v:{s:m.s,n:m.n,w:m.w,e:m.e,z:m.z});
     else if(m.t==='sel')onSelect(m.id);
     else if(m.t==='tap')onTap?.(m.lat,m.lng);};
-  return <View style={{height,overflow:'hidden',borderRadius:12,backgroundColor:'#E9EEF3'}}>
+  return <View style={{height,overflow:'hidden',borderRadius:square?0:12,backgroundColor:'#E9EEF3'}}>
     <Web ref={web} source={{html:MAP_HTML,baseUrl:BASE_URL}} originWhitelist={['*']} onMessage={onMessage} scrollEnabled={false} bounces={false} overScrollMode="never" setSupportMultipleWindows={false} javaScriptEnabled style={{flex:1,backgroundColor:'transparent'}}/>
   </View>;
 }
