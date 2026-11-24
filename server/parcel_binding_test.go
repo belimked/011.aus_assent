@@ -145,3 +145,22 @@ func TestMarketUnitAndAmbiguity(t *testing.T) {
 		t.Fatal(id)
 	}
 }
+
+// Two QLD address records at the same street address on different lots (e.g. a re-subdivided
+// lot) must not treat the freshly inserted parcel as an existing agent property.
+func TestParcelImportSameAddressTwoLots(t *testing.T) {
+	a, _ := setup(t)
+	dir := t.TempDir()
+	addr := `{"features":[
+{"properties":{"lotplan":"1RP900","street_number":"5","street_name":"Lister","street_type":"Street","locality":"Sunnybank","latitude":-27.57,"longitude":153.06}},
+{"properties":{"lotplan":"2RP900","street_number":"5","street_name":"Lister","street_type":"Street","locality":"Sunnybank","latitude":-27.57,"longitude":153.06}}]}`
+	if err := os.WriteFile(filepath.Join(dir, "addr_0.json"), []byte(addr), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, dry := range []bool{true, false} {
+		c, err := importParcels(a.db, dir, dry)
+		if err != nil || c.Added != 2 || c.Skipped != 0 || c.LinkedToExisting != 0 {
+			t.Fatalf("dry=%v: %+v %v", dry, c, err)
+		}
+	}
+}

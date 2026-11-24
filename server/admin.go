@@ -614,7 +614,7 @@ func main() {
 		}
 		counts, err := importParcels(db, os.Args[2], len(os.Args) == 4)
 		fatal(err)
-		fmt.Printf("added=%d linkedToExisting=%d ambiguous=%d skipped=%d dry=%v\n", counts.Added, counts.LinkedToExisting, counts.Ambiguous, counts.Skipped, len(os.Args) == 4)
+		fmt.Printf("added=%d promoted=%d linkedToExisting=%d ambiguous=%d skipped=%d dry=%v\n", counts.Added, counts.Promoted, counts.LinkedToExisting, counts.Ambiguous, counts.Skipped, len(os.Args) == 4)
 	case "dedupe-parcels":
 		if len(os.Args) > 3 || len(os.Args) == 3 && os.Args[2] != "--dry-run" {
 			fatal(fmt.Errorf("usage: axleo dedupe-parcels [--dry-run]"))

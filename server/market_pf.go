@@ -50,7 +50,10 @@ func pfAddress(head, line []string) string {
 	return strings.TrimSpace(number + " " + street)
 }
 
-type marketEntry struct{ id, unit, suburb, postcode, addr, source string }
+type marketEntry struct {
+	id, unit, suburb, postcode, addr, source string
+	parcelLike                               bool
+}
 type marketIndex struct {
 	lots  map[string][]marketEntry
 	addrs map[string][]marketEntry
@@ -70,7 +73,7 @@ func loadMarketIndex(db *sql.DB) (marketIndex, error) {
 		}
 		var d map[string]any
 		_ = json.Unmarshal([]byte(raw), &d)
-		e := marketEntry{id: id, unit: str(d, "unit"), suburb: key(sub), postcode: str(d, "postcode"), addr: addressKey(no + " " + street), source: str(d, "source")}
+		e := marketEntry{id: id, unit: str(d, "unit"), suburb: key(sub), postcode: str(d, "postcode"), addr: addressKey(no + " " + street), source: str(d, "source"), parcelLike: parcelLike(d)}
 		lp := lotKey(str(d, "lotplan"))
 		if lp == "" {
 			lp = lotKey(str(d, "lot"))
@@ -92,7 +95,7 @@ func (idx marketIndex) match(e MarketEvent, hasUnit bool) (string, string) {
 	// Prefer exactly one Rex dwelling at the same unit-specific address.
 	hasParcel := false
 	for _, candidate := range candidates {
-		if candidate.source == "qld_parcels" {
+		if candidate.parcelLike || candidate.source == "qld_parcels" {
 			hasParcel = true
 		}
 	}

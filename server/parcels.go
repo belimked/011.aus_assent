@@ -25,11 +25,18 @@ type qldFeature struct {
 	Geometry json.RawMessage `json:"geometry"`
 }
 
-type parcelCounts struct{ Added, LinkedToExisting, Ambiguous, Skipped int }
+type parcelCounts struct{ Added, Promoted, LinkedToExisting, Ambiguous, Skipped int }
 type parcelPrior struct {
 	id, geometry string
 	data         map[string]any
 	registered   bool
+}
+
+// Legacy seed parcels have a lot but no source. They must not masquerade as
+// owner records merely because they share an address with a Rex property.
+func parcelLike(data map[string]any) bool {
+	source := str(data, "source")
+	return source == "qld_parcels" || source == "" && (lotKey(str(data, "lotplan")) != "" || lotKey(str(data, "lot")) != "")
 }
 
 // propertyAddressKey keeps units separate from whole-building addresses.
@@ -151,33 +158,54 @@ func importParcels(db *sql.DB, dir string, dry bool) (parcelCounts, error) {
 			counts.Skipped++
 			continue
 		}
-		matches := byLot[lp]
-		if len(matches) > 1 {
-			counts.Ambiguous++
-			continue
-		}
-		if len(matches) == 1 && (matches[0].registered || str(matches[0].data, "source") == "rex_import") {
-			counts.Skipped++
-			continue
-		}
 		street := strings.TrimSpace(p.StreetName + " " + p.StreetType)
 		addr := propertyAddressKey(p.Locality, p.StreetNumber, street, p.UnitNumber)
-		candidates := byAddress[addr]
-		if len(candidates) > 1 {
+		var owners []parcelPrior
+		for _, candidate := range byAddress[addr] {
+			if !parcelLike(candidate.data) {
+				owners = append(owners, candidate)
+			}
+		}
+		if len(owners) > 1 {
 			counts.Ambiguous++
 			continue
 		}
-		if len(candidates) == 1 && (str(candidates[0].data, "source") == "rex_import" || candidates[0].registered && str(candidates[0].data, "source") != "qld_parcels" || candidates[0].data["source"] == "agent") {
-			prior := candidates[0]
+		if len(owners) == 1 {
+			prior := owners[0]
+			ownedLot := lotKey(str(prior.data, "lotplan"))
+			if ownedLot == "" {
+				ownedLot = lotKey(str(prior.data, "lot"))
+			}
+			if ownedLot != "" && ownedLot != lp {
+				counts.Skipped++
+				continue
+			}
 			if err = enrichParcel(tx, prior, lp, p.Latitude, p.Longitude, lots[lp].area, lots[lp].geometry, dry); err != nil {
 				return counts, err
 			}
-			byLot[lp] = append(byLot[lp], prior)
+			// Keep the in-memory lot index in sync for later address records.
+			if ownedLot == "" {
+				byLot[lp] = append(byLot[lp], prior)
+			}
 			counts.LinkedToExisting++
 			continue
 		}
-		if len(matches) == 1 { // Legacy unregistered parcel: retain its identity.
-			prior := matches[0]
+		var parcelMatches []parcelPrior
+		for _, candidate := range byLot[lp] {
+			if parcelLike(candidate.data) {
+				parcelMatches = append(parcelMatches, candidate)
+			}
+		}
+		if len(parcelMatches) > 1 {
+			counts.Skipped++
+			continue
+		}
+		if len(parcelMatches) == 1 {
+			prior := parcelMatches[0]
+			if prior.registered {
+				counts.Skipped++
+				continue
+			}
 			if err = enrichParcel(tx, prior, lp, p.Latitude, p.Longitude, lots[lp].area, lots[lp].geometry, dry); err != nil {
 				return counts, err
 			}
@@ -186,12 +214,9 @@ func importParcels(db *sql.DB, dir string, dry bool) (parcelCounts, error) {
 					return counts, err
 				}
 			}
-			counts.Added++
-			byLot[lp] = []parcelPrior{{id: prior.id, registered: true, data: prior.data}}
-			continue
-		}
-		if len(candidates) == 1 {
-			counts.Skipped++
+			prior.registered = true
+			byLot[lp] = []parcelPrior{prior}
+			counts.Promoted++
 			continue
 		}
 		geometry := lots[lp].geometry
@@ -207,8 +232,11 @@ func importParcels(db *sql.DB, dir string, dry bool) (parcelCounts, error) {
 				return counts, err
 			}
 		}
-		byLot[lp] = append(byLot[lp], parcelPrior{registered: true})
-		byAddress[addr] = append(byAddress[addr], parcelPrior{registered: true})
+		// Index the new parcel with its real data so later records at the same lot/address
+		// see a qld_parcels row (skipped), not an empty placeholder that looks like an agent property.
+		added := parcelPrior{id: str(data, "id"), geometry: string(geometry), data: data, registered: true}
+		byLot[lp] = append(byLot[lp], added)
+		byAddress[addr] = append(byAddress[addr], added)
 		counts.Added++
 	}
 	if !dry {

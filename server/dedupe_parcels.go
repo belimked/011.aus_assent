@@ -27,7 +27,7 @@ func dedupeParcels(db *sql.DB, dry bool) (dedupeCounts, error) {
 			break
 		}
 		_ = json.Unmarshal([]byte(raw), &r.data)
-		if str(r.data, "source") != "rex_import" && str(r.data, "source") != "qld_parcels" {
+		if str(r.data, "source") != "rex_import" && !parcelLike(r.data) {
 			continue
 		}
 		r.address = propertyAddressKey(sub, no, street, str(r.data, "unit"))
@@ -50,7 +50,7 @@ func dedupeParcels(db *sql.DB, dry bool) (dedupeCounts, error) {
 		for _, r := range group {
 			if str(r.data, "source") == "rex_import" {
 				rex = append(rex, r)
-			} else {
+			} else if parcelLike(r.data) {
 				parcel = append(parcel, r)
 			}
 		}
@@ -127,6 +127,20 @@ func dedupeParcels(db *sql.DB, dry bool) (dedupeCounts, error) {
 			if _, err = tx.Exec(fmt.Sprintf(`UPDATE %s SET property_id=? WHERE property_id=?`, table), to.id, from.id); err != nil {
 				return counts, err
 			}
+		}
+		// Activity has JSON-only property references; migrate them before retiring
+		// the legacy parcel. The property_owners/contact links were moved above.
+		if _, err = tx.Exec(`UPDATE activity SET data=json_set(data,
+			'$.propId',CASE WHEN json_extract(data,'$.propId')=? THEN ? ELSE json_extract(data,'$.propId') END,
+			'$.propertyId',CASE WHEN json_extract(data,'$.propertyId')=? THEN ? ELSE json_extract(data,'$.propertyId') END),
+			updated_at=?,version=version+1
+			WHERE json_valid(data) AND (json_extract(data,'$.propId')=? OR json_extract(data,'$.propertyId')=?)`,
+			from.id, to.id, from.id, to.id, now(), from.id, from.id); err != nil {
+			return counts, err
+		}
+		// Market alerts also embed the property id in their JSON payload.
+		if _, err = tx.Exec(`UPDATE market_items SET data=json_set(data,'$.propId',?) WHERE json_valid(data) AND json_extract(data,'$.propId')=?`, to.id, from.id); err != nil {
+			return counts, err
 		}
 		stamp := now()
 		if _, err = tx.Exec(`UPDATE properties SET deleted_at=?,updated_at=?,version=version+1 WHERE id=?`, stamp, stamp, from.id); err != nil {
