@@ -164,3 +164,32 @@ func TestParcelImportSameAddressTwoLots(t *testing.T) {
 		}
 	}
 }
+
+// A corner lot has one legacy row per street address; each QLD address record promotes its own row.
+func TestParcelImportCornerLotPromotesEachAddress(t *testing.T) {
+	a, _ := setup(t)
+	for _, r := range [][2]string{{"690", "Beenleigh Rd"}, {"1", "Ardargie St"}} {
+		raw := `{"lotplan":"18RP188288","ll":null}`
+		if _, err := a.db.Exec(`INSERT INTO properties(id,no,street,suburb,data,created_at,updated_at,registered) VALUES(?,?,?,'Sunnybank',?,'now','now',0)`, "legacy-"+r[0], r[0], r[1], raw); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dir := t.TempDir()
+	addr := `{"features":[
+{"properties":{"lotplan":"18RP188288","street_number":"1","street_name":"Ardargie","street_type":"Street","locality":"Sunnybank","latitude":-27.58,"longitude":153.06}},
+{"properties":{"lotplan":"18RP188288","street_number":"690","street_name":"Beenleigh","street_type":"Road","locality":"Sunnybank","latitude":-27.58,"longitude":153.06}}]}`
+	if err := os.WriteFile(filepath.Join(dir, "addr_0.json"), []byte(addr), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, dry := range []bool{true, false} {
+		c, err := importParcels(a.db, dir, dry)
+		if err != nil || c.Promoted != 2 || c.Added != 0 || c.Skipped != 0 {
+			t.Fatalf("dry=%v: %+v %v", dry, c, err)
+		}
+	}
+	var n int
+	_ = a.db.QueryRow(`SELECT count(*) FROM properties WHERE registered=1 AND id LIKE 'legacy-%'`).Scan(&n)
+	if n != 2 {
+		t.Fatal(n)
+	}
+}

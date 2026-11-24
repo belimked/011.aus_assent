@@ -28,6 +28,7 @@ type qldFeature struct {
 type parcelCounts struct{ Added, Promoted, LinkedToExisting, Ambiguous, Skipped int }
 type parcelPrior struct {
 	id, geometry string
+	addr         string // propertyAddressKey of the row, used to pick one row of a multi-address lot
 	data         map[string]any
 	registered   bool
 }
@@ -130,6 +131,7 @@ func importParcels(db *sql.DB, dir string, dry bool) (parcelCounts, error) {
 		if p.data == nil {
 			p.data = map[string]any{}
 		}
+		p.addr = propertyAddressKey(sub, no, street, str(p.data, "unit"))
 		lp := lotKey(str(p.data, "lotplan"))
 		if lp == "" {
 			lp = lotKey(str(p.data, "lot"))
@@ -137,7 +139,7 @@ func importParcels(db *sql.DB, dir string, dry bool) (parcelCounts, error) {
 		if lp != "" {
 			byLot[lp] = append(byLot[lp], p)
 		}
-		byAddress[propertyAddressKey(sub, no, street, str(p.data, "unit"))] = append(byAddress[propertyAddressKey(sub, no, street, str(p.data, "unit"))], p)
+		byAddress[p.addr] = append(byAddress[p.addr], p)
 	}
 	if err == nil {
 		err = rows.Err()
@@ -196,9 +198,20 @@ func importParcels(db *sql.DB, dir string, dry bool) (parcelCounts, error) {
 				parcelMatches = append(parcelMatches, candidate)
 			}
 		}
+		// A corner lot carries one row per street address (e.g. 690 Beenleigh Rd and 1 Ardargie St).
+		// Pick the row at this record's address; only skip when that is still not unique.
 		if len(parcelMatches) > 1 {
-			counts.Skipped++
-			continue
+			var same []parcelPrior
+			for _, candidate := range parcelMatches {
+				if candidate.addr == addr {
+					same = append(same, candidate)
+				}
+			}
+			parcelMatches = same
+			if len(parcelMatches) != 1 {
+				counts.Skipped++
+				continue
+			}
 		}
 		if len(parcelMatches) == 1 {
 			prior := parcelMatches[0]
@@ -215,7 +228,11 @@ func importParcels(db *sql.DB, dir string, dry bool) (parcelCounts, error) {
 				}
 			}
 			prior.registered = true
-			byLot[lp] = []parcelPrior{prior}
+			for i := range byLot[lp] { // update in place: other rows on the same lot stay promotable
+				if byLot[lp][i].id == prior.id {
+					byLot[lp][i].registered = true
+				}
+			}
 			counts.Promoted++
 			continue
 		}
@@ -234,7 +251,7 @@ func importParcels(db *sql.DB, dir string, dry bool) (parcelCounts, error) {
 		}
 		// Index the new parcel with its real data so later records at the same lot/address
 		// see a qld_parcels row (skipped), not an empty placeholder that looks like an agent property.
-		added := parcelPrior{id: str(data, "id"), geometry: string(geometry), data: data, registered: true}
+		added := parcelPrior{id: str(data, "id"), addr: addr, geometry: string(geometry), data: data, registered: true}
 		byLot[lp] = append(byLot[lp], added)
 		byAddress[addr] = append(byAddress[addr], added)
 		counts.Added++
