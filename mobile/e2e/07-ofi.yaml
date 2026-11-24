@@ -2,6 +2,7 @@
 appId: com.placesunnybank.agentcollect
 name: 07 OFI check-in
 ---
+- runScript: common/seed-today-ofi.js
 - runFlow: common/reset.yaml
 - tapOn: OFI
 # Outside the live window the first tap only unlocks check-in; tap again in that case.

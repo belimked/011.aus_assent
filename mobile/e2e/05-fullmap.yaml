@@ -16,8 +16,26 @@ name: 05 full-screen map
     id: dk-fullmap
 - tapOn:
     id: map-search
+- waitForAnimationToEnd
 - inputText: 12 Gager
 - pressKey: Enter
+# Map rerenders can interrupt Maestro's typing (e.g. "1ager" instead of
+# "12 Gager"). Retry the query once if no matching preview was selected.
+- extendedWaitUntil:
+    visible:
+      id: map-preview
+    timeout: 5000
+    optional: true
+- runFlow:
+    when:
+      notVisible:
+        id: map-preview
+    commands:
+      - tapOn:
+          id: map-search
+      - eraseText: 30
+      - inputText: 12 Gager
+      - pressKey: Enter
 - extendedWaitUntil:
     visible:
       id: map-preview
