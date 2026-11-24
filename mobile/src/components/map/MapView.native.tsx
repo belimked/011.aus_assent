@@ -13,7 +13,7 @@ import {MAP_HTML,type MapMark,type MapMsg,type MapState,type MapDrawing} from '.
 // OpenStreetMap (Leaflet in a WebView) instead of Apple/Google Maps, matching the prototype's map and markers.
 // baseUrl gives tile requests a Referer, which the OSM tile policy requires.
 const BASE_URL='https://axleo-api.saulxj.ggff.net/';
-const tint:Record<string,string>={green:colors.green,orange:colors.accent,red:colors.red,sky:colors.sky,pending:colors.steel};
+const tint:Record<string,string>={green:colors.green,orange:colors.red,red:colors.red,sky:colors.sky,pending:colors.steel};
 // react-native-webview 14 class typings resolve to never under React 19 types; the runtime component is fine.
 const Web=WebView as unknown as React.ComponentType<WebViewProps&{ref?:React.Ref<WebView>}>;
 type View_={s:number;n:number;w:number;e:number;z:number};
