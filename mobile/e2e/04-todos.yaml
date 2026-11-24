@@ -18,9 +18,12 @@ name: 04 to-dos
 - scrollUntilVisible:
     element: Save to-do
     direction: DOWN
+    centerElement: true
+- waitForAnimationToEnd
 - tapOn: Save to-do
+# The toast lasts only 2.5 s; verify the sheet closes and the row exists instead.
 - extendedWaitUntil:
-    visible: To-do saved
+    notVisible: New to-do
     timeout: 10000
 - scrollUntilVisible:
     element: 'E2E follow-up task.*'

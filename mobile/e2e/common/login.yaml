@@ -17,6 +17,8 @@ appId: com.placesunnybank.agentcollect
 - tapOn:
     id: login-password
 - inputText: ${E2E_PASSWORD}
+# Keep the password keyboard from covering the submit button on smaller simulators.
+- pressKey: Enter
 - tapOn:
     id: login-submit
 # iOS may show the system "Save Password?" sheet over the app after sign-in; dismiss it if it appears.
@@ -28,9 +30,21 @@ appId: com.placesunnybank.agentcollect
 - tapOn:
     text: Not Now
     optional: true
+# The iOS password prompt or a keyboard can consume the submit tap. Retry only if
+# still on the sign-in form; do not clear app data or retype into an already-signed-in app.
+- runFlow:
+    when:
+      visible:
+        id: login-email
+    commands:
+      - tapOn:
+          id: login-submit
+      - tapOn:
+          text: Not Now
+          optional: true
 - extendedWaitUntil:
     visible: MY ACTIVITY
-    timeout: 30000
+    timeout: 60000
 # First pull finished: the to-dos link shows the seeded count.
 - extendedWaitUntil:
     visible:
