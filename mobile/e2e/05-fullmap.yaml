@@ -4,12 +4,13 @@ name: 05 full-screen map
 ---
 - runFlow: common/reset.yaml
 - tapOn: DK
-# The map card sits half under the tab bar; its centre is not tappable until scrolled into view.
+# Bring the map entry above the tab bar. Centering can loop if the DK list
+# cannot scroll far enough (as with short seeded lists).
 - scrollUntilVisible:
     element:
       id: dk-fullmap
     direction: DOWN
-    centerElement: true
+    visibilityPercentage: 60
 - waitForAnimationToEnd
 - tapOn:
     id: dk-fullmap

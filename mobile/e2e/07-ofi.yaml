@@ -7,10 +7,16 @@ name: 07 OFI check-in
 # Outside the live window the first tap only unlocks check-in; tap again in that case.
 - tapOn: Start check-in
 - waitForAnimationToEnd
+# Navigation and check-in form can load after the first tap; don't tap the
+# vanished button a second time while the form is still appearing.
+- extendedWaitUntil:
+    visible:
+      id: ofi-mobile
+    timeout: 6000
+    optional: true
 - runFlow:
     when:
-      notVisible:
-        id: ofi-mobile
+      visible: Start check-in
     commands:
       - tapOn: Start check-in
 - extendedWaitUntil:

@@ -7,10 +7,15 @@ appId: com.placesunnybank.agentcollect
     optional: true
 - tapOn:
     id: open-me
+- extendedWaitUntil:
+    visible: Language
+    timeout: 15000
 - scrollUntilVisible:
     element:
       id: logout
     direction: DOWN
+    visibilityPercentage: 50
+- waitForAnimationToEnd
 - tapOn:
     id: logout
 - extendedWaitUntil:
