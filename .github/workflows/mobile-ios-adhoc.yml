@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'mobile/**'
+      - '!mobile/e2e/**'
       - '!mobile/docs/**'
       - '.github/workflows/mobile-ios-adhoc.yml'
   workflow_dispatch:
