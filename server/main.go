@@ -303,6 +303,8 @@ func (a *app) routes() http.Handler {
 			respond(w, 200, map[string]any{"id": p.id, "name": p.name, "email": p.email, "role": p.role})
 		case r.Method == "GET" && r.URL.Path == "/api/v1/team":
 			a.team(w, p)
+		case r.Method == "POST" && r.URL.Path == "/api/v1/properties/within":
+			a.propertiesWithin(w, r, p)
 		case r.Method == "GET" && r.URL.Path == "/api/v1/sync":
 			a.syncPull(w, r, p)
 		case r.Method == "POST" && r.URL.Path == "/api/v1/sync/push":
