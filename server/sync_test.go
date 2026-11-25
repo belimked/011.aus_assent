@@ -16,6 +16,70 @@ func TestCORS(t *testing.T) {
 		t.Fatal("preflight", w.Code, w.Header())
 	}
 }
+func TestSyncPropertyRexLink(t *testing.T) {
+	t.Setenv("REX_ACCOUNT_ID", "2057")
+	a, tok := setup(t)
+	for _, id := range []string{"linked", "other", "unlinked"} {
+		if w := request(a, "POST", "/api/v1/properties", tok["mary"], map[string]any{"id": id, "rex": map[string]any{"secret": "server-only"}}); w.Code != 201 {
+			t.Fatal(w.Code, w.Body)
+		}
+	}
+	for _, link := range [][3]string{{"linked", "42", "2057"}, {"other", "99", "758"}} {
+		if _, err := a.db.Exec(`INSERT INTO rex_links(entity,local_id,rex_id,rex_service,created_at,account_id) VALUES('properties',?,?,'Properties',?,?)`, link[0], link[1], now(), link[2]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	items := obj(t, request(a, "GET", "/api/v1/sync", tok["mary"], nil))["properties"].([]any)
+	if len(items) != 3 {
+		t.Fatal(items)
+	}
+	for _, raw := range items {
+		p := raw.(map[string]any)
+		want := ""
+		if p["id"] == "linked" {
+			want = "42"
+		}
+		if p["rexId"] != want || p["rex"] != nil {
+			t.Fatalf("unexpected Rex data: %v", p)
+		}
+	}
+}
+
+func TestSyncPushEscapedPropertyIDAndRecovery(t *testing.T) {
+	a, tok := setup(t)
+	id := "51-Boorman St-10RP910198"
+	if w := request(a, "POST", "/api/v1/properties", tok["mary"], map[string]any{"id": id}); w.Code != 201 {
+		t.Fatal(w.Code, w.Body)
+	}
+	w := request(a, "POST", "/api/v1/sync/push", tok["mary"], map[string]any{"ops": []any{
+		map[string]any{"opId": "space", "kind": "properties", "op": "upsert", "id": id, "baseVersion": 1, "data": map[string]any{"street": "Boorman St"}},
+		map[string]any{"opId": "next", "kind": "contacts", "op": "upsert", "id": "next", "data": map[string]any{"first": "Next"}},
+	}})
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body)
+	}
+	results := obj(t, w)["results"].([]any)
+	for _, raw := range results {
+		if raw.(map[string]any)["status"] != "ok" {
+			t.Fatal(results)
+		}
+	}
+	// Exercise the same per-op guard with a deliberately panicking operation.
+	ops := []syncOp{{OpID: "bad"}, {OpID: "good"}}
+	var statuses []any
+	for _, op := range ops {
+		statuses = append(statuses, safeSyncOp(op, func() map[string]any {
+			if op.OpID == "bad" {
+				panic("bad op")
+			}
+			return map[string]any{"opId": op.OpID, "status": "ok"}
+		})["status"])
+	}
+	if statuses[0] != "invalid" || statuses[1] != "ok" {
+		t.Fatal(statuses)
+	}
+}
+
 func TestSyncPullAndPush(t *testing.T) {
 	a, tok := setup(t)
 	mary, john := tok["mary"], tok["john"]

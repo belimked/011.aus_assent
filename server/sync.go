@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -87,6 +90,30 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 	}
 	out := map[string]any{"cursor": base64.RawURLEncoding.EncodeToString([]byte(strconv.FormatInt(high, 10))), "full": since == ""}
 	deleted := map[string][]string{}
+	// Rex links are server-owned metadata: load once for the configured account.
+	rexIDs := map[string]string{}
+	if account := os.Getenv("REX_ACCOUNT_ID"); account != "" {
+		links, err := a.db.Query(`SELECT local_id,rex_id FROM rex_links WHERE entity='properties' AND account_id=?`, account)
+		if err != nil {
+			problem(w, 500, "database error")
+			return
+		}
+		for links.Next() {
+			var id, rexID string
+			if err := links.Scan(&id, &rexID); err != nil {
+				links.Close()
+				problem(w, 500, "database error")
+				return
+			}
+			rexIDs[id] = rexID
+		}
+		err = links.Err()
+		links.Close()
+		if err != nil {
+			problem(w, 500, "database error")
+			return
+		}
+	}
 	for _, kind := range syncKinds {
 		items := []any{}
 		gone := []string{}
@@ -134,6 +161,8 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 					delete(item, "rex")
 				}
 				if kind == "properties" {
+					// Always overwrite stale client metadata, including when a link is removed.
+					item["rexId"] = rexIDs[id]
 					// The phone draws its parcels from its own parcel layer and needs
 					// only ll for property points, not the database's lot geometry.
 					delete(item, "geometry")
@@ -198,9 +227,8 @@ func (a *app) syncPush(w http.ResponseWriter, r *http.Request, p principal) {
 	_, _ = a.db.Exec(`DELETE FROM sync_ops WHERE created_at<?`, time.Now().UTC().Add(-7*24*time.Hour).Format(layout))
 	results := []any{}
 	for _, op := range input.Ops {
-		result := map[string]any{"opId": op.OpID, "status": "invalid"}
 		if op.OpID == "" || len(op.OpID) > 128 {
-			results = append(results, result)
+			results = append(results, map[string]any{"opId": op.OpID, "status": "invalid"})
 			continue
 		}
 		var raw string
@@ -210,65 +238,69 @@ func (a *app) syncPush(w http.ResponseWriter, r *http.Request, p principal) {
 			results = append(results, saved)
 			continue
 		}
-		if allowedKind(op.Kind) && op.ID != "" && len(op.ID) <= 128 && (op.Op == "upsert" || op.Op == "delete") {
-			method := "POST"
-			path := "/api/v1/" + op.Kind
-			existing, err := a.get(op.Kind, op.ID, p, false)
-			if op.Op == "delete" || (op.BaseVersion != nil && *op.BaseVersion > 0) {
-				method = "PATCH"
-				if op.Op == "delete" {
-					method = "DELETE"
-				}
-				path += "/" + op.ID
-			}
-			if method != "POST" && err != nil {
-				result["status"] = "notfound"
-			} else if method == "DELETE" && op.BaseVersion != nil && existing["version"] != *op.BaseVersion {
-				result["status"] = "conflict"
-				result["record"] = existing
-			} else if method == "POST" && err == nil {
-				result["status"] = "conflict"
-				result["record"] = existing
-			} else if method == "POST" && op.Data == nil {
-				result["status"] = "invalid"
-			} else {
-				data := map[string]any{}
-				for k, v := range op.Data {
-					data[k] = v
-				}
-				data["id"] = op.ID
-				if method == "PATCH" {
-					data["version"] = float64(*op.BaseVersion)
-				}
-				payload, _ := json.Marshal(data)
-				req := httptest.NewRequest(method, path, bytes.NewReader(payload))
-				recorder := httptest.NewRecorder()
-				a.mutate(recorder, req, p, op.Kind, func() string {
-					if method == "POST" {
-						return ""
+		result := safeSyncOp(op, func() map[string]any {
+			result := map[string]any{"opId": op.OpID, "status": "invalid"}
+			if allowedKind(op.Kind) && op.ID != "" && len(op.ID) <= 128 && (op.Op == "upsert" || op.Op == "delete") {
+				method := "POST"
+				path := "/api/v1/" + op.Kind
+				existing, err := a.get(op.Kind, op.ID, p, false)
+				if op.Op == "delete" || (op.BaseVersion != nil && *op.BaseVersion > 0) {
+					method = "PATCH"
+					if op.Op == "delete" {
+						method = "DELETE"
 					}
-					return op.ID
-				}(), data)
-				switch recorder.Code {
-				case 200, 201:
-					result["status"] = "ok"
-					if method != "DELETE" {
-						var record map[string]any
-						_ = json.Unmarshal(recorder.Body.Bytes(), &record)
-						result["record"] = record
-					}
-				case 409:
-					result["status"] = "conflict"
-					var conflict map[string]any
-					_ = json.Unmarshal(recorder.Body.Bytes(), &conflict)
-					result["record"] = conflict["current"]
-				case 404:
+					path += "/" + url.PathEscape(op.ID)
+				}
+				if method != "POST" && err != nil {
 					result["status"] = "notfound"
-				default:
+				} else if method == "DELETE" && op.BaseVersion != nil && existing["version"] != *op.BaseVersion {
+					result["status"] = "conflict"
+					result["record"] = existing
+				} else if method == "POST" && err == nil {
+					result["status"] = "conflict"
+					result["record"] = existing
+				} else if method == "POST" && op.Data == nil {
 					result["status"] = "invalid"
+				} else {
+					data := map[string]any{}
+					for k, v := range op.Data {
+						data[k] = v
+					}
+					data["id"] = op.ID
+					if method == "PATCH" {
+						data["version"] = float64(*op.BaseVersion)
+					}
+					payload, _ := json.Marshal(data)
+					req := httptest.NewRequest(method, path, bytes.NewReader(payload))
+					recorder := httptest.NewRecorder()
+					a.mutate(recorder, req, p, op.Kind, func() string {
+						if method == "POST" {
+							return ""
+						}
+						return op.ID
+					}(), data)
+					switch recorder.Code {
+					case 200, 201:
+						result["status"] = "ok"
+						if method != "DELETE" {
+							var record map[string]any
+							_ = json.Unmarshal(recorder.Body.Bytes(), &record)
+							result["record"] = record
+						}
+					case 409:
+						result["status"] = "conflict"
+						var conflict map[string]any
+						_ = json.Unmarshal(recorder.Body.Bytes(), &conflict)
+						result["record"] = conflict["current"]
+					case 404:
+						result["status"] = "notfound"
+					default:
+						result["status"] = "invalid"
+					}
 				}
 			}
-		}
+			return result
+		})
 		encoded, _ := json.Marshal(result)
 		if _, err := a.db.Exec(`INSERT INTO sync_ops(user_id,op_id,result,created_at) VALUES(?,?,?,?)`, p.id, op.OpID, string(encoded), now()); err != nil {
 			problem(w, 500, "database error")
@@ -277,4 +309,16 @@ func (a *app) syncPush(w http.ResponseWriter, r *http.Request, p principal) {
 		results = append(results, result)
 	}
 	respond(w, 200, map[string]any{"results": results})
+}
+
+// Keep a malformed operation from aborting the entire sync batch.
+func safeSyncOp(op syncOp, run func() map[string]any) (result map[string]any) {
+	result = map[string]any{"opId": op.OpID, "status": "invalid"}
+	defer func() {
+		if v := recover(); v != nil {
+			log.Printf("sync push op panic kind=%q opId=%q: %v", op.Kind, op.OpID, v)
+			result = map[string]any{"opId": op.OpID, "status": "invalid"}
+		}
+	}()
+	return run()
 }
