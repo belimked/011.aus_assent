@@ -1,5 +1,13 @@
 import {seed} from '../data/seed';
-import {pointInPolygon,propertiesInArea,suggestAreaName,tagArea} from './patch';
+import {areaProperties,pointInPolygon,propertiesInArea,suggestAreaName,tagArea} from './patch';
+import {properties as mapProperties} from '../data/properties';
 test('suggests dominant suburb and increments matching zone names',()=>{const s=seed();const p=s.properties.find(x=>x.ll&&x.suburb)!;const [a,b]=p.ll!;const pts=[[a-.000001,b-.000001],[a+.000001,b-.000001],[a+.000001,b+.000001],[a-.000001,b+.000001]];const name=suggestAreaName(s,pts);const suburb=propertiesInArea(s,pts)[0]?.suburb||p.suburb;expect(name).toBe(`${suburb} 1`);s.zones.push({id:'new',name,pts});expect(suggestAreaName(s,pts)).toBe(`${suburb} 2`)});
-test('falls back to nearest suburb or Patch when empty',()=>{const s=seed();const p=s.properties.find(x=>x.ll)!;const [a,b]=p.ll!;const pts=[[a+.0001,b+.0001],[a+.0002,b+.0001],[a+.0001,b+.0002]];expect(suggestAreaName(s,pts)).toMatch(/ 1$/);s.properties=[];expect(suggestAreaName(s,pts)).toBe('Patch 1')});
+test('falls back to nearest suburb or Patch when empty',()=>{const s=seed();const p=s.properties.find(x=>x.ll)!;const [a,b]=p.ll!;const pts=[[a+.0001,b+.0001],[a+.0002,b+.0001],[a+.0001,b+.0002]];expect(suggestAreaName(s,pts)).toMatch(/ 1$/);s.properties=[];expect(suggestAreaName(s,pts)).toMatch(/ 1$/)});
+test('map points merge with synced records by lotplan and count offline',()=>{const s=seed();s.properties=[];const p=mapProperties[0];const pts=[[p.lat-.0001,p.lng-.0001],[p.lat-.0001,p.lng+.0001],[p.lat+.0001,p.lng+.0001],[p.lat+.0001,p.lng-.0001]];
+ const before=areaProperties(s,pts);expect(before.some(x=>x.lotplan===p.lotplan)).toBe(true);
+ s.properties.push({id:'synced',no:p.number,street:p.street,suburb:p.suburb,lotplan:p.lotplan,ll:[p.lat,p.lng],ownerIds:['owner']} as any);
+ const after=areaProperties(s,pts);expect(after.length).toBe(before.length);expect(after.find(x=>x.id==='synced')?.hasContact).toBe(true);
+ s.properties[0].lotplan=undefined;expect(areaProperties(s,pts).length).toBe(before.length);
+ const start=Date.now();for(let i=0;i<20;i++)areaProperties(s,pts);expect(Date.now()-start).toBeLessThan(5000);
+});
 test('area bounds and owner tags only apply to properties inside',()=>{const s=seed();const p=s.properties.find(x=>x.ll&&x.ownerIds.length)!;const [a,b]=p.ll!;const pts=[[a-.001,b-.001],[a+.001,b-.001],[a+.001,b+.001],[a-.001,b+.001]];expect(pointInPolygon(p.ll!,pts)).toBe(true);const inside=propertiesInArea(s,pts);expect(inside).toContain(p);const count=tagArea(s,'Test',pts);expect(count).toBeGreaterThan(0);expect(tagArea(s,'Test',pts)).toBe(0);expect(s.contacts.find(c=>c.id===p.ownerIds[0])?.tags).toContain('Area: Test');expect(s.properties.filter(x=>!inside.includes(x)).every(x=>x.ownerIds.every(id=>!s.contacts.find(c=>c.id===id)?.tags.includes('Area: Test')))).toBe(true)});
