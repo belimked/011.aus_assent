@@ -10,8 +10,9 @@ name: 02 door knock
 - inputText: 12 Gager
 - tapOn:
     id: change-p6
+# Typed capture now has its own keyboard button; the mic starts/stops on taps.
 - tapOn:
-    id: dk-capture
+    id: dk-keyboard
 - extendedWaitUntil:
     visible:
       id: dk-description

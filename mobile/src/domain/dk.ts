@@ -24,9 +24,9 @@ export function applyPreference(s:AppState,c:Contact,k:string,val:number,reason=
 }
 export function filePropertyNote(s:AppState,propId:string,txt:string){
   const p=byId(s.properties,propId);if(!p)throw new Error('Property not found');
-  let c=byId(s.contacts,p.ownerIds[0]);
-  if(!c){c={id:'c'+Date.now(),first:p.pfOwner||'Owner',last:'',mobile:'',email:'',owner:s.auth?.name||'Owen Chen',roles:['owner'],tags:[],flags:{},notes:[],rels:[]};s.contacts.push(c);linkOwner(s,c,p);}
-  noteOn(s,c,txt);p.visits=[...(p.visits||[]),{d:today(),o:'spoke'}];audit(s,'Note',`${p.no} ${p.street}`);return c;
+  // TODO(Rex): property-linked Notes::create relation field is unverified; do not attach this to an unrelated contact.
+  p.notes=[{d:today(),at:new Date().toISOString(),a:s.auth?.name||'Owen Chen',t:txt},...(p.notes||[])];
+  p.visits=[...(p.visits||[]),{d:today(),o:'spoke'}];audit(s,'Note',`${p.no} ${p.street}`);return p;
 }
 export function commitDK(s:AppState, propId:string, r:DKFields, pick?:string) {
   const p=byId(s.properties,propId);
