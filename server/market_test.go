@@ -150,6 +150,7 @@ func TestMarketAdminUpload(t *testing.T) {
 	post := func(dry bool) int {
 		var buf bytes.Buffer
 		mw := multipart.NewWriter(&buf)
+		_ = mw.WriteField("provider", "pricefinder")
 		f, _ := mw.CreateFormFile("file", "upload.csv")
 		_, _ = f.Write(data)
 		if dry {

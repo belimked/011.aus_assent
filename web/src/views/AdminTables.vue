@@ -15,6 +15,12 @@
           accept=".csv,.xls,.xlsx"
           @change="file = $event.target.files[0]"
       /></label>
+      <label class="field">{{ t("数据商") }}
+        <el-select v-model="provider" style="width: 200px">
+          <el-option value="rpdata" label="RP Data (CoreLogic)" />
+          <el-option value="pricefinder" label="Pricefinder" />
+        </el-select>
+      </label>
       <label class="field"
         >{{ t("导入类型") }}
         <el-select v-model="kind" style="width: 160px">
@@ -341,6 +347,7 @@ const contactEvents = ref([]);
 const eventsLoading = ref(false);
 const file = ref(null);
 const kind = ref("auto");
+const provider = ref("rpdata");
 const dry = ref(false);
 const audit = reactive({ user: "", entity: "", action: "", from: "", to: "" });
 
@@ -431,6 +438,7 @@ async function upload() {
   const body = new FormData();
   body.set("file", file.value);
   body.set("kind", kind.value);
+  body.set("provider", provider.value);
   body.set("dryRun", String(dry.value));
   try {
     detailData.value = await api("admin/market/imports", {

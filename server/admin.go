@@ -629,9 +629,9 @@ func main() {
 		fatal(createMarketZone(db, os.Args[2]))
 	case "market-import":
 		if len(os.Args) < 3 {
-			fatal(fmt.Errorf("usage: axleo market-import [--provider pricefinder] [--kind ownership] [--dry-run] file..."))
+			fatal(fmt.Errorf("usage: axleo market-import [--provider rpdata] [--kind ownership] [--dry-run] file..."))
 		}
-		provider, kind, dry := "pricefinder", "auto", false
+		provider, kind, dry := "rpdata", "auto", false
 		files := []string{}
 		for i := 2; i < len(os.Args); i++ {
 			switch os.Args[i] {
@@ -662,8 +662,8 @@ func main() {
 		for _, file := range files {
 			info, err := os.Stat(file)
 			fatal(err)
-			if info.Size() > 20<<20 {
-				fatal(fmt.Errorf("file exceeds 20MB"))
+			if info.Size() > 100<<20 {
+				fatal(fmt.Errorf("file exceeds 100MB"))
 			}
 			b, err := os.ReadFile(file)
 			fatal(err)

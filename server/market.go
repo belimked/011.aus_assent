@@ -331,6 +331,11 @@ func (a *app) marketCovered(m map[string]any, p principal) bool {
 }
 func (a *app) marketProperty(m map[string]any, p principal) {
 	id := str(m, "id")
+	visible := p.role == "admin" || a.marketCovered(m, p)
+	if attrs, ok := m["rpdataAttributes"].(map[string]any); ok && !visible {
+		delete(attrs, "owners")
+		delete(attrs, "vendors")
+	}
 	var names, source, stamp string
 	var absentee bool
 	var price sql.NullInt64
@@ -342,7 +347,6 @@ func (a *app) marketProperty(m map[string]any, p principal) {
 	if price.Valid {
 		market["lastSalePrice"] = price.Int64
 	}
-	visible := p.role == "admin" || a.marketCovered(m, p)
 	if visible {
 		market["owners"] = names
 		market["absenteeOwner"] = absentee
@@ -368,18 +372,22 @@ type importReport struct {
 	Details            []string            `json:"errorDetails"`
 	Agents             map[string]int      `json:"agentCounts"`
 	DryRun             bool                `json:"dryRun"`
+	HeaderRow          int                 `json:"headerRow"`
+	WithParcel         int                 `json:"withParcel"`
+	WithOwners         int                 `json:"withOwners"`
+	WithCorelogicID    int                 `json:"withCorelogicId"`
 }
 
 func (a *app) importMarket(data []byte, filename, provider, kind string, dry bool, p principal) (importReport, error) {
 	r := importReport{ID: ulid(), Details: []string{}, Agents: map[string]int{}, DryRun: dry}
-	if provider != "pricefinder" && provider != "other" {
+	if provider != "pricefinder" && provider != "rpdata" && provider != "other" {
 		return r, errors.New("invalid provider")
 	}
 	if kind != "auto" && kind != "sale" && kind != "listing" && kind != "ownership" {
 		return r, errors.New("invalid kind")
 	}
-	if len(data) > 20<<20 {
-		return r, errors.New("file exceeds 20MB")
+	if len(data) > 100<<20 {
+		return r, errors.New("file exceeds 100MB")
 	}
 	hash := sha256.Sum256(data)
 	digest := hex.EncodeToString(hash[:])
@@ -399,18 +407,35 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 	if len(rows) == 0 {
 		return r, io.EOF
 	}
-	head := rows[0]
+	headerIndex := -1
+	var head []string
 	cols := map[string]int{}
-	for field, names := range mapping {
-		for i, h := range head {
-			for _, name := range names {
-				if key(h) == key(name) {
-					cols[field] = i
-					break
+	for i, candidate := range rows {
+		if i >= 20 {
+			break
+		}
+		found := map[string]int{}
+		for field, names := range mapping {
+			for j, h := range candidate {
+				for _, name := range names {
+					if key(h) == key(name) {
+						found[field] = j
+						break
+					}
 				}
 			}
 		}
+		if hasColumn(found, "address") && (provider != "rpdata" || hasColumn(found, "lot_plan") && hasHeader(candidate, "Parcel Details")) {
+			headerIndex, head, cols = i, candidate, found
+			break
+		}
 	}
+	if headerIndex < 0 {
+		return r, errors.New("Address column required in first 20 rows")
+	}
+	r.Ignored = headerIndex
+	r.Rows = headerIndex
+	r.HeaderRow = headerIndex + 1
 	pf := provider == "pricefinder" && hasColumn(cols, "lot_plan") && hasColumn(cols, "suburb") && hasHeader(head, "Street Name")
 	if _, ok := cols["address"]; !ok && !pf {
 		return r, errors.New("Address column required")
@@ -432,18 +457,33 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 			return r, err
 		}
 	}
-	snapshot := kind == "auto" && !hasColumn(cols, "kind") && hasColumn(cols, "owners") && hasColumn(cols, "date") && key(head[cols["date"]]) == "lastsaledate"
-	for rowIndex, line := range rows[1:] {
+	snapshot := kind == "auto" && (provider == "rpdata" || !hasColumn(cols, "kind") && hasColumn(cols, "owners") && hasColumn(cols, "date") && key(head[cols["date"]]) == "lastsaledate")
+	for rowIndex, line := range rows[headerIndex+1:] {
 		var e error
-		rowNum := rowIndex + 2
+		rowNum := rowIndex + headerIndex + 2
 		r.Rows++
 		get := func(k string) string {
 			if i, ok := cols[k]; ok && i < len(line) {
-				return strings.TrimSpace(line[i])
+				v := strings.TrimSpace(line[i])
+				if provider == "rpdata" && v == "-" {
+					return ""
+				}
+				return v
 			}
 			return ""
 		}
 		address := get("address")
+		if provider == "rpdata" && address != "" {
+			if get("lot_plan") != "" {
+				r.WithParcel++
+			}
+			if rpNames(head, line, "Owner") != "" {
+				r.WithOwners++
+			}
+			if corelogicID(rpColumn(head, line, "Open in RPData")) != "" {
+				r.WithCorelogicID++
+			}
+		}
 		if pf {
 			if !allowed[key(get("suburb"))] {
 				r.Misaligned++
@@ -501,7 +541,11 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 		if pf {
 			lotPlan = pfLotDescription(lotPlan)
 		}
-		event := MarketEvent{Kind: eventKind, Address: address, LotPlan: lotPlan, Suburb: get("suburb"), Postcode: get("postcode"), ProviderID: get("provider_id")}
+		providerID := get("provider_id")
+		if provider == "rpdata" {
+			providerID = corelogicID(rpColumn(head, line, "Open in RPData"))
+		}
+		event := MarketEvent{Kind: eventKind, Address: address, LotPlan: lotPlan, Suburb: get("suburb"), Postcode: get("postcode"), ProviderID: providerID}
 		prop, method := index.match(event, pf && (pfColumn(head, line, "Unit") != "" || strings.Contains(event.Address, "/")))
 		if method == "lot" {
 			r.MatchedLot++
@@ -514,12 +558,12 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 				r.UnmatchedAddresses = append(r.UnmatchedAddresses, map[string]string{"address": address, "lotplan": event.LotPlan, "suburb": event.Suburb, "postcode": event.Postcode, "kind": eventKind})
 			}
 		}
-		if snapshot && date != "" {
-			event.ProviderID += ":" + date
-		}
 		if event.ProviderID == "" {
 			h := sha256.Sum256([]byte(eventKind + "|" + addressKey(address) + "|" + date))
 			event.ProviderID = hex.EncodeToString(h[:])
+		}
+		if snapshot && date != "" {
+			event.ProviderID += ":" + date
 		}
 		raw := map[string]string{}
 		for i, h := range head {
@@ -574,6 +618,9 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 		}
 		if e == nil && prop != "" && (eventKind == "sale" || eventKind == "ownership" || eventKind == "snapshot") {
 			owners := get("owners")
+			if provider == "rpdata" {
+				owners = rpNames(head, line, "Owner")
+			}
 			if strings.EqualFold(owners, "N/A") {
 				owners = ""
 			}
@@ -586,6 +633,8 @@ func (a *app) importMarket(data []byte, filename, provider, kind string, dry boo
 			e = applyMarketOwnership(tx, prop, owners, price, date, provider, r.ID, absentee)
 			if e == nil && pf {
 				e = storePFAttributes(tx, prop, head, line)
+			} else if e == nil && provider == "rpdata" {
+				e = storeRPAttributes(tx, prop, head, line, providerID, filename, date, previous)
 			}
 		}
 		if e != nil {
@@ -673,8 +722,8 @@ func (a *app) notifyMarket(tx *sql.Tx, eventID, prop, kind, address, agency, dat
 func (a *app) marketAdmin(w http.ResponseWriter, r *http.Request, p principal) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/admin/market/")
 	if path == "imports" && r.Method == "POST" {
-		r.Body = http.MaxBytesReader(w, r.Body, 21<<20)
-		if err := r.ParseMultipartForm(20 << 20); err != nil {
+		r.Body = http.MaxBytesReader(w, r.Body, (100<<20)+(1<<20))
+		if err := r.ParseMultipartForm(8 << 20); err != nil {
 			problem(w, 400, "invalid upload")
 			return
 		}
@@ -684,14 +733,14 @@ func (a *app) marketAdmin(w http.ResponseWriter, r *http.Request, p principal) {
 			return
 		}
 		defer f.Close()
-		b, err := io.ReadAll(io.LimitReader(f, (20<<20)+1))
-		if err != nil || len(b) > 20<<20 {
-			problem(w, 400, "file exceeds 20MB")
+		b, err := io.ReadAll(io.LimitReader(f, (100<<20)+1))
+		if err != nil || len(b) > 100<<20 {
+			problem(w, 400, "file exceeds 100MB")
 			return
 		}
 		provider := r.FormValue("provider")
 		if provider == "" {
-			provider = "pricefinder"
+			provider = "rpdata"
 		}
 		kind := r.FormValue("kind")
 		if kind == "" {

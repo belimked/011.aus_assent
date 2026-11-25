@@ -143,12 +143,15 @@ func (a *app) consoleSettings(w http.ResponseWriter, r *http.Request, p principa
 		var imported sql.NullString
 		var count sql.NullInt64
 		_ = a.db.QueryRow(`SELECT provider,created_at,success FROM market_imports WHERE status='completed' ORDER BY created_at DESC LIMIT 1`).Scan(&provider, &imported, &count)
+		if provider == "" {
+			provider = "rpdata"
+		}
 		var pending, failed int
 		_ = a.db.QueryRow(`SELECT count(*) FROM rex_outbox WHERE status IN ('pending','waiting_auth')`).Scan(&pending)
 		_ = a.db.QueryRow(`SELECT count(*) FROM rex_outbox WHERE status='failed'`).Scan(&failed)
 		var lastError string
 		_ = a.db.QueryRow(`SELECT COALESCE(last_error,'') FROM rex_outbox WHERE last_error IS NOT NULL ORDER BY id DESC LIMIT 1`).Scan(&lastError)
-		respond(w, 200, map[string]any{"sessionHours": hours, "provider": "Pricefinder", "lastImport": imported.String, "importRows": count.Int64, "rexConfigured": loadRexConfig().canWrite(), "rexPending": pending, "rexFailed": failed, "rexError": lastError})
+		respond(w, 200, map[string]any{"sessionHours": hours, "provider": provider, "lastImport": imported.String, "importRows": count.Int64, "rexConfigured": loadRexConfig().canWrite(), "rexPending": pending, "rexFailed": failed, "rexError": lastError})
 		return
 	}
 	if r.Method != "PATCH" {
