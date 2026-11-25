@@ -6,7 +6,7 @@ Rex 不提供市场成交和登记业主数据。默认来源为 RP Data 文件�
 
 ## 导入
 
-支持首个工作表的 xlsx、xls 和 UTF-8 CSV（含 BOM）；上限 100 MB（上传和 CLI），不导入嵌入的缩略图。自动在前 20 行寻找表头，前言计入 ignored。缺值 `-` 视为空。价格可含 `$`、逗号；日期接受 `YYYY-MM-DD`、`DD/MM/YYYY`、`10 Jul 2016` 和 Excel 日期序列号。RP Data 列映射位于 `server/market-mappings/rpdata.json`，可由 `/etc/axleo/market-mappings/rpdata.json` 覆盖：
+支持首个工作表的 xlsx、xls 和 UTF-8 CSV（含 BOM）；上限 100 MB（上传和 CLI），不导入嵌入的缩略图。自动在前 20 行寻找表头，前言计入 ignored。缺值 `-` 视为空。价格可含 `$`、逗号；日期接受 `YYYY-MM-DD`、`DD/MM/YYYY`、`10 Jul 2016` 和 Excel 日期序列号。RP Data 列映射随构建从 `server/market-mappings/rpdata.json` **嵌入可执行文件**，运行时不依赖当前工作目录，也无需在服务器部署该目录。Pricefinder 的 `server/market-mappings/pricefinder.json` 同样内嵌。需要定制时，可用 `/etc/axleo/market-mappings/<provider>.json` 按字段覆盖内置映射：
 
 | 标准字段 | RP Data 列 |
 |---|---|

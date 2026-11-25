@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"embed"
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
@@ -91,6 +92,9 @@ func (pricefinderAPISource) Fetch(context.Context, time.Time) ([]MarketEvent, er
 	return nil, errors.New("Pricefinder API 尚未实现：待提供接口文档")
 }
 
+//go:embed market-mappings/*.json
+var builtInMarketMappings embed.FS
+
 var aliases = map[string][]string{
 	"address": {"Address", "Street Address", "Property Address", "Street"}, "lot_plan": {"Lot/Plan", "Lot Plan", "Legal Description"}, "suburb": {"Suburb", "Locality"}, "postcode": {"Postcode", "Post Code"}, "price": {"Sale Price", "Price", "Last Sale"}, "date": {"Sale Date", "Contract Date", "Listed Date", "Event Date", "Last Sale Date"}, "agency": {"Agency", "Listing Agency"}, "agent": {"Agent", "Listing Agent"}, "owners": {"Owner Name(s)", "Owner Names", "Owner Name", "Current Owners"}, "beds": {"Beds", "Bedrooms"}, "baths": {"Baths", "Bathrooms"}, "cars": {"Car", "Cars", "Parking", "Car Parks"}, "land": {"Land Size", "Land", "Area"}, "kind": {"Kind", "Event Type", "Type"}, "provider_id": {"Property ID", "Listing ID", "Sale ID", "Record ID", "Provider ID", "PDS ID"},
 }
@@ -108,8 +112,15 @@ func mapping(provider string) (map[string][]string, error) {
 	for k, v := range aliases {
 		m[k] = append([]string{}, v...)
 	}
-	for _, base := range []string{"market-mappings", "/etc/axleo/market-mappings"} {
-		b, err := os.ReadFile(filepath.Join(base, provider+".json"))
+	// Built-in defaults are independent of the process working directory. Only
+	// the explicit server configuration can override them.
+	for _, read := range []func() ([]byte, error){
+		func() ([]byte, error) { return builtInMarketMappings.ReadFile("market-mappings/" + provider + ".json") },
+		func() ([]byte, error) {
+			return os.ReadFile(filepath.Join("/etc/axleo/market-mappings", provider+".json"))
+		},
+	} {
+		b, err := read()
 		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}

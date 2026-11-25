@@ -122,6 +122,38 @@ func TestZones(t *testing.T) {
 		}
 	}
 }
+func TestEmbeddedMarketMappingsOutsideServerDirectory(t *testing.T) {
+	original, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(t.TempDir()); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(original); err != nil {
+			t.Errorf("restore cwd: %v", err)
+		}
+	})
+
+	if _, err := builtInMarketMappings.ReadFile("market-mappings/pricefinder.json"); err != nil {
+		t.Fatal("Pricefinder mapping not embedded:", err)
+	}
+	for _, tc := range []struct{ provider, field, column string }{
+		{"rpdata", "lot_plan", "Parcel Details"},
+		{"rpdata", "address", "Street Address"},
+		{"pricefinder", "address", "Street Address"},
+	} {
+		m, err := mapping(tc.provider)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(strings.Join(m[tc.field], ","), tc.column) {
+			t.Errorf("%s %s: expected %q, got %v", tc.provider, tc.field, tc.column, m[tc.field])
+		}
+	}
+}
+
 func TestMappingAndBOM(t *testing.T) {
 	m, err := mapping("pricefinder")
 	if err != nil {
