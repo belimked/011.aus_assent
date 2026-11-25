@@ -36,22 +36,72 @@ func (a *app) team(w http.ResponseWriter, p principal) {
 	respond(w, 200, out)
 }
 
+// syncScopeVersion is the first segment of a pull cursor. Bump it whenever the
+// set of records sent to phones changes: a cursor from another version gets a
+// full snapshot, which the client uses to replace its local tables.
+const syncScopeVersion = "2"
+
+// propertySyncSQL restricts properties (table alias t) to the ones a phone
+// needs: Rex properties, properties with Pricefinder / RP Data market data, and
+// properties with app content. Public QLD parcels (source=qld_parcels, and the
+// legacy seed parcels from seed/demo.json: no source, a lotplan, not a phone
+// "parcel-*" id) stay on the server for market matching only.
+// It is shared by the initial and incremental pull and by /properties/within.
+// The to-do and photo tests are uncorrelated IN lists, built once per query;
+// the remaining subqueries use primary keys, so 40k parcels stay cheap.
+func propertySyncSQL(t string) string {
+	return ` AND ` + t + `.registered=1 AND (
+ EXISTS(SELECT 1 FROM rex_links rl WHERE rl.entity='properties' AND rl.local_id=` + t + `.id)
+ OR EXISTS(SELECT 1 FROM property_ownership own WHERE own.property_id=` + t + `.id)
+ OR EXISTS(SELECT 1 FROM property_owners po WHERE po.property_id=` + t + `.id)
+ OR ` + t + `.id IN (SELECT property_id FROM photos WHERE property_id IS NOT NULL)
+ OR ` + t + `.id IN (SELECT COALESCE(NULLIF(td.property_id,''),json_extract(td.data,'$.propId')) FROM todos td WHERE td.deleted_at IS NULL AND json_valid(td.data))
+ OR (json_valid(` + t + `.data) AND (
+  COALESCE(json_type(` + t + `.data,'$.pricefinderAttributes'),'null')<>'null'
+  OR COALESCE(json_type(` + t + `.data,'$.rpdataAttributes'),'null')<>'null'
+  OR CASE json_type(` + t + `.data,'$.notes')
+   WHEN 'array' THEN json_array_length(` + t + `.data,'$.notes')>0
+   WHEN 'text' THEN length(trim(json_extract(` + t + `.data,'$.notes')))>0
+   ELSE 0 END
+  OR COALESCE(json_extract(` + t + `.data,'$.source'),'') NOT IN ('','qld_parcels')
+  OR (COALESCE(json_extract(` + t + `.data,'$.source'),'')='' AND (COALESCE(json_extract(` + t + `.data,'$.lotplan'),'')='' OR ` + t + `.id GLOB 'parcel-*'))
+ )))`
+}
+
+// parseSyncCursor returns the change-log position and whether the cursor was
+// issued under the current sync scope.
+func parseSyncCursor(since string) (from int64, current bool, ok bool) {
+	decoded, err := base64.RawURLEncoding.DecodeString(since)
+	if err != nil {
+		return 0, false, false
+	}
+	version, seq, versioned := strings.Cut(string(decoded), ":")
+	if !versioned {
+		seq = version // pre-scope cursor: a bare sequence number
+	}
+	from, err = strconv.ParseInt(seq, 10, 64)
+	if err != nil || from < 0 {
+		return 0, false, false
+	}
+	return from, versioned && version == syncScopeVersion, true
+}
+
 // The cursor is a monotonic change-log sequence, not a timestamp. A high-water
 // mark is read before the scan so writes made during a pull remain eligible next time.
 func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 	since := r.URL.Query().Get("since")
 	var from int64
 	if since != "" {
-		var err error
-		decoded, decodeErr := base64.RawURLEncoding.DecodeString(since)
-		if decodeErr != nil {
+		var current, ok bool
+		from, current, ok = parseSyncCursor(since)
+		if !ok {
 			problem(w, 400, "invalid cursor")
 			return
 		}
-		from, err = strconv.ParseInt(string(decoded), 10, 64)
-		if err != nil || from < 0 {
-			problem(w, 400, "invalid cursor")
-			return
+		if !current {
+			// Issued under an older property scope: the phone may hold parcels that
+			// are no longer synced. A full snapshot replaces its tables.
+			since = ""
 		}
 	}
 	var high int64
@@ -88,7 +138,7 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 		}
 		zones.Close()
 	}
-	out := map[string]any{"cursor": base64.RawURLEncoding.EncodeToString([]byte(strconv.FormatInt(high, 10))), "full": since == ""}
+	out := map[string]any{"cursor": base64.RawURLEncoding.EncodeToString([]byte(syncScopeVersion + ":" + strconv.FormatInt(high, 10))), "full": since == ""}
 	deleted := map[string][]string{}
 	// Rex links are server-owned metadata: load once for the configured account.
 	rexIDs := map[string]string{}
@@ -122,7 +172,7 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 		// qualify the to-do scope columns as well.
 		q = strings.ReplaceAll(strings.ReplaceAll(q, "assignee_id=?", "t.assignee_id=?"), "created_by=?", "t.created_by=?")
 		if kind == "properties" {
-			q += ` AND t.registered=1`
+			q += propertySyncSQL("t")
 		}
 		params := append([]any{from, high}, args...)
 		if since == "" {
@@ -131,7 +181,7 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 			q = strings.ReplaceAll(strings.ReplaceAll(q, "assignee_id=?", "t.assignee_id=?"), "created_by=?", "t.created_by=?")
 			params = args
 			if kind == "properties" {
-				q += ` AND t.registered=1`
+				q += propertySyncSQL("t")
 			}
 		}
 		rows, err := a.db.Query(q, params...)

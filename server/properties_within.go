@@ -69,7 +69,7 @@ func (a *app) propertiesWithin(w http.ResponseWriter, r *http.Request, p princip
  EXISTS(SELECT 1 FROM property_owners po JOIN contacts c ON c.id=po.contact_id AND c.deleted_at IS NULL WHERE po.property_id=p.id AND (c.owner_id=? OR ?='admin'))
  FROM properties p WHERE p.deleted_at IS NULL AND json_valid(p.data)
  AND json_type(p.data,'$.ll[0]') IN ('integer','real') AND json_type(p.data,'$.ll[1]') IN ('integer','real')
- AND json_extract(p.data,'$.ll[0]') BETWEEN ? AND ? AND json_extract(p.data,'$.ll[1]') BETWEEN ? AND ?`+scopeSQL+` ORDER BY p.id`, append([]any{p.id, p.role}, args...)...)
+ AND json_extract(p.data,'$.ll[0]') BETWEEN ? AND ? AND json_extract(p.data,'$.ll[1]') BETWEEN ? AND ?`+scopeSQL+propertySyncSQL("p")+` ORDER BY p.id`, append([]any{p.id, p.role}, args...)...)
 	if err != nil {
 		problem(w, 500, "database error")
 		return
