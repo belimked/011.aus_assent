@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {Alert,ScrollView,Text,View,TextInput} from 'react-native';
 import {useRouter} from 'expo-router';
 import {mergeSuburbsZone,monitoredSuburbs} from '../domain/suburbs-zone';
+import {properties as mapProperties} from '../data/properties';
 import {areaProperties,suggestAreaName,tagArea,type AreaProperty} from '../domain/patch';
 import {propertiesWithin} from '../store/sync';
 import {Screen} from '../components/Screen';
@@ -39,7 +40,7 @@ export function Patch(){
  const [zoneName,setZoneName]=useState(''),[naming,setNaming]=useState(false),[opened,setOpened]=useState<string|null>(null);
  const nameRef=useRef<React.ElementRef<typeof TextInput>>(null);
  const [subs,setSubs]=useState(()=>monitoredSuburbs(s.zones,s.patch.suburbs));
- const all=[...new Set(s.properties.map(p=>p.suburb).concat(['Calamvale','Eight Mile Plains','Sunnybank Hills']))].filter(v=>!subs.includes(v));
+ const all=[...new Set(s.properties.map(p=>p.suburb).concat(mapProperties.map(p=>p.suburb)))].filter(v=>!subs.includes(v));
  const pts=useMemo(()=>areaPoints(corners,center,radius),[corners,center,radius]);
  const local=useMemo(()=>areaProperties(s,pts),[s,pts]);
  const count=canFinish(corners,center)?local.length:0;

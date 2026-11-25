@@ -21,9 +21,9 @@ SSHPASS=1 bash server/deploy/reset-test.sh --rex-import    # 演示数据 + 重�
 
 脚本对 `--rex-import` 先验证远端 `REX_ACCOUNT_ID=2057`，然后停服务、以 axleo 用户重置、重新启动并检查 `/api/v1/health`。重置命令打印 `Verified backup: /data/axleo/backup/axleo-*.db`、before/after 各表行数和（若请求导入）`properties: added=… updated=… skipped=…`、`contacts: ...`。任何步骤失败均尝试启动服务，打印快照恢复命令；如果连备份都没取得，会提示先查备份目录。失败时不要盲目重复导入或恢复，先检查 `journalctl -u axleo` 和本次输出。
 
-## Pricefinder 四区地块与业主导入
+## QLD 九区地块与业主导入
 
-完整的 65 执行命令、下载/打包、新版手机、dry-run 核验、Mary/John 专用 zone 和备份回滚步骤见 [pricefinder-import.md](pricefinder-import.md)。顺序：停止服务并备份 → 下载 QLD 四区 GeoJSON 至 `.tmp` → `axleo import-parcels <geojson-dir> --dry-run` → `axleo import-parcels <geojson-dir>` → `axleo market-import --provider pricefinder --kind ownership --dry-run <四个 xls>` → 审核匹配率/错位样例 → 正式导入 → `axleo market-zone <Mary 邮箱>` 和 `<John 邮箱>` → 启动服务。回滚请停服用备份执行 `axleo restore <快照>`，通知手机用户退出重新登录；源 xls 属个人信息，不得提交 git。
+完整的 65 执行命令、下载/打包、新版手机、dry-run 核验、Mary/John 专用 zone 和备份回滚步骤见 [pricefinder-import.md](pricefinder-import.md)。新五区（Macgregor、Robertson、Runcorn、Kuraby、Eight Mile Plains）单独导入 `.tmp/parcels-new/`，不要重复导入旧区；既有 zone 需人工扩展。顺序：停止服务并备份 → 下载 QLD 四区 GeoJSON 至 `.tmp` → `axleo import-parcels <geojson-dir> --dry-run` → `axleo import-parcels <geojson-dir>` → `axleo market-import --provider pricefinder --kind ownership --dry-run <四个 xls>` → 审核匹配率/错位样例 → 正式导入 → `axleo market-zone <Mary 邮箱>` 和 `<John 邮箱>` → 启动服务。回滚请停服用备份执行 `axleo restore <快照>`，通知手机用户退出重新登录；源 xls 属个人信息，不得提交 git。
 
 ## 只读演练
 

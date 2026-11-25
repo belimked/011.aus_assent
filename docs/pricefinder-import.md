@@ -1,8 +1,34 @@
-# Pricefinder 四区导入（65）
+# QLD 地块与 Pricefinder 导入（65）
+
+## 新增 Macgregor、Robertson、Runcorn、Kuraby、Eight Mile Plains
+
+QLD Spatial LandParcelPropertyFramework 地址 layer 0 / 地块 layer 4（© State of Queensland，CC BY 4.0）。只下载新五区，保留在不入库的 `.tmp/parcels-new/`；两层的 Macgregor locality 大小写不同（地址为 `Macgregor`、地块为 `MacGregor`），下载工具已分别处理。若要从零重建九区，将两个目录的页面合并（文件名包含 suburb，不冲突）：
+
+```sh
+node tools/download-qld-parcels.mjs .tmp/parcels-new MACGREGOR ROBERTSON RUNCORN KURABY 'EIGHT MILE PLAINS'
+node tools/download-qld-parcels.mjs .tmp/parcels-old SUNNYBANK 'SUNNYBANK HILLS' CALAMVALE PARKINSON
+mkdir -p .tmp/parcels-all
+cp .tmp/parcels-{old,new}/*.json .tmp/parcels-all/
+node tools/build-sunnybank-data.mjs .tmp/parcels-all .tmp/all-mobile.js
+node tools/build-sunnybank-mobile.mjs .tmp/all-mobile.js
+cp mobile/src/data/sunnybank.json web/public/parcels.json
+cp web/public/parcels.json server/web/parcels.json
+```
+
+生成时的地址点数（按 locality；全量 44,457 条，保留有地址的地块 38,714 条）：Sunnybank 4,262、Sunnybank Hills 7,382、Calamvale 7,411、Parkinson 4,498、Macgregor 2,487、Robertson 1,964、Runcorn 6,155、Kuraby 3,249、Eight Mile Plains 7,049。新五区原始页面合计 35,494,535 B。
+
+新五区原始 GeoJSON 不入库，服务器上只需复制 `.tmp/parcels-new/` 中的 `addr_*.json` / `parcel_*.json` 至 `/data/axleo/.tmp/parcels-new/`（由 axleo 用户可读，目录不得混入旧区或其他 JSON）。升级服务和 App 后，在维护窗口先停服务、按下文备份；以 root 执行以下命令，先核对 dry-run，再批准正式导入：
+
+```sh
+sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; /opt/axleo/current/axleo import-parcels /data/axleo/.tmp/parcels-new --dry-run'
+sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; /opt/axleo/current/axleo import-parcels /data/axleo/.tmp/parcels-new'
+```
+
+已有的 `market-zone` 不会自动扩充旧 zone：核对并在后台编辑现存 zone 加入新五区，或在确认为新账号时运行 `axleo market-zone <email>` 创建九区 zone。请 Ping 另行导出五区的 RP Data / Pricefinder 业主资料并经审批后按对应导入流程处理；公共 QLD 数据不含业主信息。手机内置文件从 4,686,809 B 增至 8,730,782 B（1.86 倍，未超过三倍）；后台静态地块文件也更新。重新构建、发布 App 与后台资源、验证地图及同步性能，不能只导入数据库。
 
 输入文件包含个人信息：**只在受限的 `.tmp` 中保存，不进 git、日志或测试夹具**。QLD Spatial LandParcelPropertyFramework 地址 layer 0、地块 layer 4（© State of Queensland，CC BY 4.0）；`tools/download-qld-parcels.mjs` 按区分页下载。Sunnybank Hills、Calamvale 的 Pricefinder 导出各受 5000 条上限约束：后续追加文件再导入，已导入文件按 SHA-256 去重。
 
-本地准备（重新打包手机 App：新版 `mobile/src/data/sunnybank.json` 包含四区地址和多边形；旧包不能显示新区背景灰点）。原始 API GeoJSON 放在 `.tmp`，**不要复制到版本库**：
+本地准备（重新打包手机 App：`mobile/src/data/sunnybank.json` 包含九区地址和多边形；旧包不能显示新区背景灰点）。原始 API GeoJSON 放在 `.tmp`，**不要复制到版本库**：
 
 ```sh
 node tools/download-qld-parcels.mjs .tmp/qld-raw
