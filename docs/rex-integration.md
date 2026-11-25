@@ -336,7 +336,7 @@ GET /api/map/properties?bbox=...
 ```
 POST /api/captures            { id: <客户端 UUID>, kind, input }   → status=draft
   1. AI 结构化（由语音/OCR 模块完成）
-  2. 去重：Contacts::findPossibleDuplicates（按手机、邮箱、姓名加地址的顺序）
+  2. 去重：先用 AU 标准手机号（+61/61/0061 → 0）匹配本地已链接联系人；沙箱资料显示 Rex `findPossibleDuplicates` 对国际号不等价，若查不到只能在明确核实之后新建；原号仍保留显示。
      将结果按 Visibility 分为三类：
        自己的   → 写入已有联系人（“已匹配已有联系人”，可以撤销）
        团队的   → 写入已有联系人，归属不变，显示归属人
@@ -451,3 +451,8 @@ GET  /api/captures/:id        → 进度，以及每一步的结果
 
 ### 沙箱双向增量同步
 读取开关 `AXLEO_REX_READ=1` 启用每 60 秒（`REX_POLL_SECONDS`，最低 30）搜索 Contacts/Properties `result_format=etags`（每页 10000）；变化后按 id 读取，复用导入映射及剩余容量分配；同一记录有未发送 outbox 时跳过，完整搜索后可软删消失的记录（`REX_POLL_SOFT_DELETE=0` 禁用）。写入须 `AXLEO_REX_WRITE=1`、`REX_WRITE_ACCOUNT_ID=2057` 且账户验证通过；`REX_WRITE_ALLOWED_ACCOUNTS` 默认为 2057，758 另需 `REX_ALLOW_PRODUCTION_WRITE=1`，当前不得启用。写入仅限 `source=rex_import` 且已有 rex_links 的联系人；其他 outbox 跳过，不向 Rex 新建数据。联系人更新发送 `Contacts::update`，`data.id` 为已有 Rex ID，`data.related.contact_names/contact_phones/contact_emails` 含已导入的子行 id（如有），以及渠道偏好字段；DND 单独更新。更新成功后读取最新 etag。沙箱已确认 `POST /v1/rex/AccountSettings/read` 请求 `{}` 返回 `result.id=2057`（数字）、`name`、`is_test_account=true`；每次登录/换 token 后重新验证。非测试账户还须 `REX_ALLOW_PRODUCTION_WRITE=1`；验证失败写操作 fail closed，不影响只读。首次实际 Contacts::update 写入结构仍须在沙箱验证。`rex_request_log` 提供实体 ID 筛选；`rex_sync_events` 对应 `/api/v1/admin/rex/events`，方向为 `app_to_rex` / `rex_to_app`。
+
+### UAT2 owner synchronisation
+Poll imports changed properties and contacts before saving `contact_reln_property`; missing contact references are read directly. Because Rex etags may omit relation-only changes, `REX_RELATION_REFRESH_SECONDS` (default 600, minimum 60) re-reads up to 500 properties updated in the last seven days. This is a bounded fallback, not a full historical repair. New polled records use `REX_USER_MAP` (`Rex id or email:local email`, comma-separated), automatic identical email or local rex_user_id, then `REX_DEFAULT_OWNER_EMAIL`, then the sandbox ranking. New owner contacts inherit the property agent; existing assignments remain unchanged.
+
+App-created contacts require an enabled local owner and the existing `AXLEO_REX_WRITE=1`/`REX_WRITE_ACCOUNT_ID` account verification. Outbox POST creates Contacts with related name/phone/email, records the account-scoped link, then queued property owner relations write `Properties::update`. Before create, linked local AU-normalised phones are checked. Ambiguous create results fail closed for manual reconciliation; they are **not** retried blindly. Rejected writes retain `last_error`; transient login/rate/update failures use exponential retries. Properties with no Rex link are skipped as "not in Rex". Latest outbox state is delivered as `rexSync`; clients can pull to refresh. Voice DK transcription/extraction audit is stored internally, not written to Rex.

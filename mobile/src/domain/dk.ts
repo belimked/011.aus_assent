@@ -5,7 +5,7 @@ import {addTodo, audit, byId, linkOwner, matchContacts, normMobile, noteOn} from
 export const isLongHold=(durationMs:number)=>durationMs>=260;
 export const matchesAddress=(address:string,query:string)=>address.toLowerCase().includes(query.trim().toLowerCase());
 export const houseNumberOrder=(a:{no:string},b:{no:string})=>parseInt(a.no,10)-parseInt(b.no,10);
-export type DKFields = {first:string;last:string;mobile:string;email:string;relation:string;note:string;reason:string;tags:string[];followup?:string;linked?:string;consent?:Record<string,number>};
+export type DKFields = {first:string;last:string;mobile:string;email:string;relation:string;note:string;reason:string;tags:string[];followup?:string;linked?:string;consent?:Record<string,number>;voiceAudit?:{raw:string;extracted:Record<string,unknown>}};
 export function applyTags(s:AppState,c:Contact,p:Property|undefined,tags:string[]){
   c.tags=[...new Set(tags)];c.flags.dnc=c.tags.includes('Do not contact');
   if(p)p.flags.dnc=c.flags.dnc;
@@ -51,6 +51,7 @@ export function commitDK(s:AppState, propId:string, r:DKFields, pick?:string) {
   if(r.consent)c.consentRec={d:today(),how:'At the door'};
   if(r.linked){c.rels=c.rels||[];c.rels.push({type:'Partner of',name:r.linked});}
   if(r.note)noteOn(s,c,r.note);
+  if(r.voiceAudit) c.voiceAudit=[...(c.voiceAudit||[]),{...r.voiceAudit,d:today()}];
   if(p&&['owner','landlord'].includes(r.relation))linkOwner(s,c,p);
   if(p)p.visits=[...(p.visits||[]),{d:today(),o:'spoke'}];
   if(r.followup)addTodo(s,{t:`Follow up with ${c.first} ${c.last}`.trim(),d:r.followup,cid:c.id,propId:p?.id});

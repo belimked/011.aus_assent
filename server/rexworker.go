@@ -55,7 +55,7 @@ func (w *rexWorker) run(ctx context.Context) {
 }
 func (w *rexWorker) link(entity, id string) string {
 	var rex string
-	_ = w.db.QueryRow(`SELECT rex_id FROM rex_links WHERE entity=? AND local_id=?`, entity, id).Scan(&rex)
+	_ = w.db.QueryRow(`SELECT rex_id FROM rex_links WHERE entity=? AND local_id=? AND account_id=?`, entity, id, w.account).Scan(&rex)
 	return rex
 }
 func (w *rexWorker) agent(id string) (name, rex string) {
@@ -82,13 +82,35 @@ func (w *rexWorker) step(ctx context.Context) error {
 		}
 		defer tx.Rollback()
 		if link != "" {
-			if _, e = tx.Exec(`INSERT OR IGNORE INTO rex_links(entity,local_id,rex_id,rex_service,created_at) VALUES(?,?,?,?,?)`, j.entity, j.localID, link, service, now()); e != nil {
+			if _, e = tx.Exec(`INSERT OR IGNORE INTO rex_links(entity,local_id,rex_id,rex_service,created_at,account_id) VALUES(?,?,?,?,?,?)`, j.entity, j.localID, link, service, now(), w.account); e != nil {
 				return e
 			}
 		}
 		_, e = tx.Exec(`UPDATE rex_outbox SET status=?,last_error=?,next_attempt_at=NULL WHERE id=?`, status, reason, j.id)
 		if e != nil {
 			return e
+		}
+		if j.entity == "contacts" {
+			if link != "" {
+				_, e = tx.Exec(`UPDATE contacts SET data=json_set(data,'$.rexId',?) WHERE id=?`, link, j.localID)
+				if e != nil {
+					return e
+				}
+			}
+			_, e = tx.Exec(`UPDATE contacts SET updated_at=?,version=version+1 WHERE id=?`, now(), j.localID)
+			if e != nil {
+				return e
+			}
+		}
+		if j.entity == "rex_contact_relation" {
+			var payload map[string]any
+			_ = json.Unmarshal([]byte(j.payload), &payload)
+			if pid := str(imap(payload["relation"]), "propertyId"); pid != "" {
+				_, e = tx.Exec(`UPDATE properties SET updated_at=?,version=version+1 WHERE id=?`, now(), pid)
+				if e != nil {
+					return e
+				}
+			}
 		}
 		if status == "skipped" || status == "failed" {
 			_, e = tx.Exec(`INSERT INTO rex_sync_events(at,direction,entity,local_id,rex_id,changes,result,error) VALUES(?,?,?,?,?,?,?,?)`, now(), "app_to_rex", j.entity, j.localID, link, `{}`, map[string]string{"skipped": "skipped", "failed": "error"}[status], reason)
@@ -106,12 +128,26 @@ func (w *rexWorker) step(ctx context.Context) error {
 		linkID = str(payload, "contactId")
 	}
 	linked := w.link("contacts", linkID)
-	if (j.entity != "contacts" && j.entity != "rex_contact_dnd" && j.entity != "rex_contact_tag" && j.entity != "rex_contact_letter") || linked == "" {
+	if j.entity == "properties" {
+		if w.link("properties", j.localID) == "" {
+			return finish("skipped", "not in Rex", "", "")
+		}
+		return finish("sent", "", "", "")
+	}
+	if j.entity != "contacts" && j.entity != "rex_contact_relation" && j.entity != "rex_contact_dnd" && j.entity != "rex_contact_tag" && j.entity != "rex_contact_letter" {
 		return finish("skipped", "not linked to Rex sandbox record", "", "")
 	}
 	var source string
 	_ = w.db.QueryRow(`SELECT COALESCE(json_extract(data,'$.source'),'') FROM contacts WHERE id=?`, linkID).Scan(&source)
-	if source != "rex_import" {
+	if linked == "" && j.entity != "contacts" {
+		var exists int
+		_ = w.db.QueryRow(`SELECT count(*) FROM contacts WHERE id=? AND deleted_at IS NULL`, linkID).Scan(&exists)
+		if exists == 0 {
+			return finish("skipped", "not linked to Rex sandbox record", "", "")
+		}
+		return w.deferJob(j, "waiting for contact link")
+	}
+	if linked != "" && source != "rex_import" && j.entity != "contacts" && j.entity != "rex_contact_relation" {
 		return finish("skipped", "not linked to Rex sandbox record", "", "")
 	}
 	var m map[string]any
@@ -158,7 +194,7 @@ func (w *rexWorker) step(ctx context.Context) error {
 			if propertyID := str(rel, "propertyId"); propertyID != "" {
 				property := w.link("properties", propertyID)
 				if property == "" {
-					return w.deferJob(j, "waiting for property")
+					return finish("skipped", "not in Rex", "", "")
 				}
 				kind := map[string]string{"Tenant of": "tenant", "Previous owner of": "past_owner", "Owner of": "owner", "Previous tenant of": "past_tenant"}[str(rel, "type")]
 				if kind == "" {
@@ -230,7 +266,35 @@ func (w *rexWorker) step(ctx context.Context) error {
 				return finish("failed", "invalid contact", "", "")
 			}
 			if entityLink == "" {
-				return finish("skipped", "not linked to Rex sandbox record", "", "")
+				var otherAccount int
+				_ = w.db.QueryRow(`SELECT count(*) FROM rex_links WHERE entity='contacts' AND local_id=?`, j.localID).Scan(&otherAccount)
+				if otherAccount > 0 {
+					return finish("skipped", "linked to another Rex account", "", "")
+				}
+				if j.op != "POST" {
+					return finish("skipped", "not linked to Rex sandbox record", "", "")
+				}
+				// Only contacts owned by a user with access to this write account.
+				var permitted int
+				_ = w.db.QueryRow(`SELECT count(*) FROM users WHERE id=? AND disabled=0 AND deleted_at IS NULL`, owner).Scan(&permitted)
+				if permitted == 0 {
+					return finish("skipped", "contact owner not in write account", "", "")
+				}
+				if found := w.findLocalDuplicate(j.localID, str(c, "mobile")); found != "" {
+					return finish("sent", "", found, "Contacts")
+				}
+				related := map[string]any{"contact_names": []any{map[string]any{"name_first": str(c, "first"), "name_last": str(c, "last")}}}
+				if phone := str(c, "mobile"); phone != "" {
+					related["contact_phones"] = []any{map[string]any{"phone_number": phone, "phone_type": "mobile", "phone_primary": true}}
+				}
+				if email := str(c, "email"); email != "" {
+					related["contact_emails"] = []any{map[string]any{"email_address": email, "email_desc": "home", "email_primary": true}}
+				}
+				if str(c, "first") == "" && str(c, "last") == "" {
+					return finish("failed", "contact name required", "", "")
+				}
+				data = map[string]any{"related": related}
+				break
 			}
 			method = "update"
 			// Read the current sub-row identifiers before updating, never append duplicates.
@@ -419,6 +483,7 @@ func (w *rexWorker) step(ctx context.Context) error {
 	if id == "" {
 		return finish("failed", "Rex returned no id; reconcile before retry", "", "")
 	}
+
 	return finish("sent", "", id, service)
 }
 func rexSignature(name string) string {
@@ -426,6 +491,26 @@ func rexSignature(name string) string {
 		name = "Agent"
 	}
 	return "\n— via AxleoCollect · " + name
+}
+
+// Search linked contacts locally by canonical phone before any create request.
+func (w *rexWorker) findLocalDuplicate(id, mobile string) string {
+	norm := normAUMobile(mobile)
+	if len(norm) < 10 {
+		return ""
+	}
+	rows, err := w.db.Query(`SELECT l.rex_id,c.mobile FROM rex_links l JOIN contacts c ON c.id=l.local_id WHERE l.entity='contacts' AND l.account_id=? AND l.local_id<>? AND c.deleted_at IS NULL`, w.account, id)
+	if err != nil {
+		return ""
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var rex, phone string
+		if rows.Scan(&rex, &phone) == nil && normAUMobile(phone) == norm {
+			return rex
+		}
+	}
+	return ""
 }
 func (w *rexWorker) deferJob(j rexJob, reason string) error {
 	_, e := w.db.Exec(`UPDATE rex_outbox SET status='pending',last_error=?,next_attempt_at=? WHERE id=?`, reason, time.Now().UTC().Add(15*time.Second).Format(layout), j.id)
@@ -444,5 +529,8 @@ func (w *rexWorker) retry(j rexJob, reason string, delay time.Duration) error {
 		delay = time.Hour
 	}
 	_, e := w.db.Exec(`UPDATE rex_outbox SET status=?,tries=?,last_error=?,next_attempt_at=? WHERE id=?`, status, tries, reason, time.Now().UTC().Add(delay).Format(layout), j.id)
+	if e == nil && status == "failed" && j.entity == "contacts" {
+		_, e = w.db.Exec(`UPDATE contacts SET updated_at=?,version=version+1 WHERE id=?`, now(), j.localID)
+	}
 	return e
 }

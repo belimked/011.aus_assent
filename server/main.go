@@ -622,6 +622,7 @@ func (a *app) resource(w http.ResponseWriter, r *http.Request, p principal) {
 func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, id string, m map[string]any) {
 	method := r.Method
 	old := map[string]any{}
+	var previousOwners map[string]any
 	_, ownersChanged := m["ownerIds"]
 	if method == "POST" {
 		id = str(m, "id")
@@ -649,6 +650,9 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 		if err != nil {
 			problem(w, 404, "not found")
 			return
+		}
+		if kind == "properties" {
+			previousOwners = map[string]any{"ownerIds": append([]string(nil), stringsFrom(old["ownerIds"])...)}
 		}
 		if kind == "listings" && p.role != "admin" && a.b3Owner(kind, id) != p.id {
 			problem(w, 404, "not found")
@@ -705,6 +709,9 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 		if str(m, "owner") == "" {
 			m["owner"] = p.name
 		}
+	}
+	if kind == "contacts" && method != "DELETE" {
+		m["mobileNorm"] = normAUMobile(str(m, "mobile"))
 	}
 	if kind == "todos" {
 		if method == "POST" {
@@ -912,7 +919,7 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 			}
 		}
 	}
-	if err = a.record(tx, p, method, kind, id, m); err != nil {
+	if err = a.record(tx, p, method, kind, id, m, previousOwners); err != nil {
 		problem(w, 500, "database error")
 		return
 	}
@@ -968,11 +975,18 @@ func (a *app) ownerID(kind, id string) string {
 	_ = a.db.QueryRow(`SELECT owner_id FROM contacts WHERE id=?`, id).Scan(&v)
 	return v
 }
-func (a *app) record(tx *sql.Tx, p principal, action, kind, id string, diff any) error {
+func (a *app) record(tx *sql.Tx, p principal, action, kind, id string, diff any, previous ...map[string]any) error {
 	b, _ := json.Marshal(diff)
 	stamp := now()
 	if _, err := tx.Exec(`INSERT INTO audit_log(user_id,device,action,entity,entity_id,diff,at) VALUES(?,?,?,?,?,?,?)`, p.id, p.device, action, kind, id, string(b), stamp); err != nil {
 		return err
+	}
+	if kind == "properties" && action != "DELETE" {
+		var old map[string]any
+		if len(previous) > 0 {
+			old = previous[0]
+		}
+		return enqueuePropertyOwners(tx, id, diff, old, stamp)
 	}
 	if kind == "contacts" || kind == "todos" || kind == "enquiries" || kind == "leads" || kind == "ofi_attendees" || kind == "referrals" || (kind == "captures" && captureApproved(diff)) {
 		_, err := tx.Exec(`INSERT INTO rex_outbox(entity,entity_id,op,payload,created_at) VALUES(?,?,?,?,?)`, kind, id, action, string(b), stamp)

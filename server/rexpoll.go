@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -47,12 +48,16 @@ func startRexPoller(ctx context.Context, db *sql.DB) {
 	}()
 }
 
+var relationPollMu sync.Mutex
+var lastRelationPoll time.Time
+
 func pollRex(ctx context.Context, db *sql.DB, c *rexClient, account string) error {
 	ids, err := sandboxUsers(db)
 	if err != nil {
 		return err
 	}
 	newProps, newContacts := map[string]bool{}, map[string]bool{}
+	changedProps := []importRow{}
 	for _, kind := range []string{"properties", "contacts"} {
 		service := map[string]string{"properties": "Properties", "contacts": "Contacts"}[kind]
 		seen := map[string]bool{}
@@ -120,6 +125,9 @@ func pollRex(ctx context.Context, db *sql.DB, c *rexClient, account string) erro
 				if e = importSave(db, kind, account, detail, ids["admin"], false, stats); e != nil {
 					return e
 				}
+				if kind == "properties" {
+					changedProps = append(changedProps, detail)
+				}
 				if local == "" {
 					local = "rex-" + kind + "-" + account + "-" + rid
 				}
@@ -142,6 +150,14 @@ func pollRex(ctx context.Context, db *sql.DB, c *rexClient, account string) erro
 					break
 				}
 				if !seen[p.rex] {
+					// A relation target can be readable by id but absent from contact search.
+					if kind == "contacts" {
+						var referenced int
+						_ = db.QueryRow(`SELECT count(*) FROM property_owners WHERE contact_id=?`, p.local).Scan(&referenced)
+						if referenced > 0 {
+							continue
+						}
+					}
 					missing = append(missing, p)
 				}
 			}
@@ -172,6 +188,92 @@ func pollRex(ctx context.Context, db *sql.DB, c *rexClient, account string) erro
 				_, _ = db.Exec(`INSERT INTO rex_sync_events(at,direction,entity,local_id,rex_id,changes,result) VALUES(?,?,?,?,?,?,?)`, now(), "rex_to_app", kind, p.local, p.rex, ijson(map[string]any{"deleted_at": map[string]any{"old": nil, "new": now()}}), "ok")
 			}
 		}
+	}
+	// Rex etags may not include relationship-only edits. Re-read recent properties
+	// periodically even when the search etag has not changed.
+	relationPollMu.Lock()
+	interval := 10 * time.Minute
+	if n, e := strconv.Atoi(os.Getenv("REX_RELATION_REFRESH_SECONDS")); e == nil && n >= 60 {
+		interval = time.Duration(n) * time.Second
+	}
+	due := time.Since(lastRelationPoll) >= interval
+	if due {
+		lastRelationPoll = time.Now()
+	}
+	relationPollMu.Unlock()
+	if due {
+		rows, e := db.Query(`SELECT l.rex_id FROM rex_links l JOIN properties p ON p.id=l.local_id WHERE l.entity='properties' AND l.account_id=? AND p.deleted_at IS NULL AND p.updated_at>=? ORDER BY p.updated_at DESC LIMIT 500`, account, time.Now().UTC().Add(-7*24*time.Hour).Format(layout))
+		if e != nil {
+			return e
+		}
+		var idsToRead []string
+		for rows.Next() {
+			var rid string
+			if e = rows.Scan(&rid); e != nil {
+				break
+			}
+			idsToRead = append(idsToRead, rid)
+		}
+		if e == nil {
+			e = rows.Err()
+		}
+		rows.Close()
+		if e != nil {
+			return e
+		}
+		for _, rid := range idsToRead {
+			c.Entity, c.LocalID, c.RexID = "properties", "", rid
+			_, record, e := c.Call(ctx, "Properties", "read", map[string]any{"id": rid})
+			if e != nil {
+				return e
+			}
+			var detail importRow
+			if e = json.Unmarshal(record.Result, &detail); e != nil {
+				return e
+			}
+			if iv(detail, "id") != "" {
+				changedProps = append(changedProps, detail)
+			}
+		}
+	}
+	// Contacts may arrive later than the property search. Read missing relation targets
+	// directly so a newly linked owner is not silently discarded.
+	for _, row := range changedProps {
+		for _, rel := range importRelations(row) {
+			rid := iv(imap(rel["contact"]), "id")
+			if rid == "" {
+				continue
+			}
+			var local string
+			e := db.QueryRow(`SELECT local_id FROM rex_links WHERE entity='contacts' AND account_id=? AND rex_id=?`, account, rid).Scan(&local)
+			if e == sql.ErrNoRows {
+				c.Entity, c.LocalID, c.RexID = "contacts", "", rid
+				_, record, err := c.Call(ctx, "Contacts", "read", map[string]any{"id": rid})
+				if err != nil {
+					return err
+				}
+				var detail importRow
+				if err = json.Unmarshal(record.Result, &detail); err != nil {
+					return err
+				}
+				if iv(detail, "id") == "" {
+					return fmt.Errorf("contact read missing id: %s", rid)
+				}
+				flattenRexRead(detail)
+				if err = importSave(db, "contacts", account, detail, ids["admin"], false, &importStats{}); err != nil {
+					return err
+				}
+				newContacts["rex-contacts-"+account+"-"+rid] = true
+			} else if e != nil {
+				return e
+			}
+		}
+		if err := saveImportRelations(db, account, row); err != nil {
+			return err
+		}
+	}
+	if err := assignPollOwners(db, newProps, newContacts); err != nil {
+		return err
 	}
 	return assignSandbox(db, ids, newProps, newContacts)
 }

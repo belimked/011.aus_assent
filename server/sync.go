@@ -160,6 +160,9 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 				if kind == "contacts" || kind == "properties" {
 					delete(item, "rex")
 				}
+				if kind == "contacts" || kind == "properties" {
+					attachRexSync(a.db, kind, id, item)
+				}
 				if kind == "properties" {
 					// Always overwrite stale client metadata, including when a link is removed.
 					item["rexId"] = rexIDs[id]

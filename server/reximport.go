@@ -270,7 +270,7 @@ func importSave(db *sql.DB, kind, account string, r importRow, owner string, dry
 			}
 			owner = existingOwner.String
 		}
-		data := importRow{"id": id, "first": first, "last": last, "mobile": iv(r, "phone_number"), "email": iv(r, "email_address"), "address": iv(r, "address"), "owner": owner, "roles": []string{}, "tags": []string{}, "notes": []any{}, "rels": []any{}, "source": "rex_import", "flags": map[string]any{"dnc": ibool(r["is_dnd"])}, "consent": map[string]any{"letter": iopt(r["contact_by_letter"]), "email": iopt(r["contact_by_email"]), "phone": iopt(r["contact_by_phone"]), "sms": iopt(r["contact_by_sms"])}, "rex": r}
+		data := importRow{"id": id, "first": first, "last": last, "mobile": iv(r, "phone_number"), "mobileNorm": normAUMobile(iv(r, "phone_number")), "email": iv(r, "email_address"), "address": iv(r, "address"), "owner": owner, "roles": []string{}, "tags": []string{}, "notes": []any{}, "rels": []any{}, "source": "rex_import", "flags": map[string]any{"dnc": ibool(r["is_dnd"])}, "consent": map[string]any{"letter": iopt(r["contact_by_letter"]), "email": iopt(r["contact_by_email"]), "phone": iopt(r["contact_by_phone"]), "sms": iopt(r["contact_by_sms"])}, "rex": r}
 		if exists {
 			if err = mergeImportData(tx, "contacts", id, data); err != nil {
 				return err
@@ -343,6 +343,10 @@ func saveImportRelations(db *sql.DB, account string, r importRow) error {
 			return err
 		}
 	}
+	// Relation table has no sync trigger; invalidate the property after the set is saved.
+	if _, err = tx.Exec(`UPDATE properties SET updated_at=?,version=version+1 WHERE id=?`, now(), pid); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -358,7 +362,7 @@ func mergeImportData(tx *sql.Tx, table, id string, data importRow) error {
 		return nil
 	}
 	owned := map[string]bool{"id": true, "rex": true, "source": true}
-	keys := []string{"first", "last", "mobile", "email", "address", "consent"}
+	keys := []string{"first", "last", "mobile", "mobileNorm", "email", "address", "consent"}
 	if table == "properties" {
 		keys = []string{"no", "street", "suburb", "address", "state", "postcode", "unit", "lat", "lng", "beds", "baths", "cars"}
 	}
