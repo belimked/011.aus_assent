@@ -63,6 +63,9 @@ func storeRPAttributes(tx *sql.Tx, id string, head, row []string, providerID, fi
 			attrs["exportedAt"] = d.Format(time.RFC3339)
 		}
 	}
+	if syntheticMarketFile(filename) {
+		attrs["synthetic"] = "true"
+	}
 	if providerID != "" {
 		attrs["corelogicId"] = providerID
 	}

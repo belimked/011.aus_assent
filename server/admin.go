@@ -558,7 +558,7 @@ func main() {
 		return
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed [--with-demo]|reset-data [--yes] [--rex-import] [--with-demo]|passwd <email>|backup <dir>|verify <file>|restore <file>|rex-probe|rex-import")
+		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed [--with-demo]|reset-data [--yes] [--rex-import] [--with-demo]|passwd <email>|backup <dir>|verify <file>|restore <file>|market-import|market-purge-synthetic [--dry-run]|rex-probe|rex-import")
 		os.Exit(2)
 	}
 	path := env("AXLEO_DB", "./axleo.db")
@@ -713,6 +713,15 @@ func main() {
 			out, _ := json.MarshalIndent(report, "", "  ")
 			fmt.Printf("%s: %s\n", file, out)
 		}
+	case "market-purge-synthetic":
+		if len(os.Args) > 3 || len(os.Args) == 3 && os.Args[2] != "--dry-run" {
+			fatal(fmt.Errorf("usage: axleo market-purge-synthetic [--dry-run]"))
+		}
+		var id string
+		fatal(db.QueryRow(`SELECT id FROM users WHERE role='admin' ORDER BY created_at LIMIT 1`).Scan(&id))
+		c, err := purgeSyntheticMarket(db, len(os.Args) == 3, principal{id: id, role: "admin", device: "CLI"})
+		fatal(err)
+		fmt.Printf("imports=%d events=%d alerts=%d ownership=%d properties=%d dry=%v\n", c.Imports, c.Events, c.Alerts, c.Ownership, c.Properties, len(os.Args) == 3)
 	case "serve":
 		a := &app{db: db, failures: map[string][]time.Time{}}
 		loadRexConfig().logStartup()

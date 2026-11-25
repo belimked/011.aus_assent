@@ -11,3 +11,5 @@
 5. 导入后删除服务器上的源 xlsx 和临时副本（包括失败文件），核对受限目录为空；保留只含统计的审计记录。异常时停止服务并依备份恢复，通知用户重新同步。
 
 每个文件上限 100 MB。Excel 图片不导入；CLI 和 HTTP 都只读取首个工作表。文件名包含 `_YYYYMMDDHHMMSS` 时保存为 exportedAt。Pricefinder 历史导入仍可指定 `--provider pricefinder`。
+
+测试服务器可先导入合成数据（`SYNTHETIC_*.xlsx`，见 [rpdata-synthetic.md](rpdata-synthetic.md)）；导入真实文件前必须先运行 `axleo market-purge-synthetic` 清除。生产环境禁止导入合成文件。
