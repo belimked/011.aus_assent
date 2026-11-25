@@ -425,6 +425,12 @@ func (a *app) exportCSV(w http.ResponseWriter, r *http.Request, p principal) {
 		}
 		records = append(records, record)
 	}
+	// Release the single pooled connection before the audit write below.
+	if e = rows.Err(); e != nil {
+		problem(w, 500, "database error")
+		return
+	}
+	rows.Close()
 	if len(records) > 20000 {
 		problem(w, 413, "export exceeds 20000 rows")
 		return
