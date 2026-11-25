@@ -3,7 +3,7 @@ import {LEAFLET_CSS,LEAFLET_JS} from './leafletAsset';
 /** One marker as drawn in the WebView. kind follows the prototype legend. */
 export type MapMark={id:string;ll:[number,number];no:string;color:string;kind:'dot'|'pending'|'listed'|'other'|'pin'|'dnc'};
 export type MapDrawing={points:number[][];finished?:boolean;radius?:{center:[number,number];metres:number}};
-export type MapState={sat:boolean;selected?:string;center:[number,number];centerKey:string;locate:number;zoom:number;marks:MapMark[];bg:{id:string;ll:[number,number]}[];parcels:[number,number][][];me:[number,number]|null;labels:boolean;drawing?:MapDrawing};
+export type MapState={sat:boolean;selected?:string;center:[number,number];centerKey:string;locate:number;zoom:number;marks:MapMark[];me:[number,number]|null;labels:boolean;drawing?:MapDrawing};
 export type MapMsg={t:'ready'}|{t:'move';s:number;n:number;w:number;e:number;z:number}|{t:'sel';id:string}|{t:'tap';lat:number;lng:number};
 
 // Runs inside the WebView. Mirrors the prototype's Leaflet map (prototype/index.html propMarker/drawMap).
@@ -13,16 +13,14 @@ const map=L.map('m',{zoomControl:false,attributionControl:true,preferCanvas:true
 map.attributionControl.setPrefix(false);
 const osm=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});
 const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'© Esri'});
-const parcels=L.layerGroup().addTo(map),bg=L.layerGroup().addTo(map),marks=L.layerGroup().addTo(map),drawing=L.layerGroup().addTo(map),me=L.layerGroup().addTo(map);
+const marks=L.layerGroup().addTo(map),drawing=L.layerGroup().addTo(map),me=L.layerGroup().addTo(map);
 const PATH={star:'<path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3-4.6-4.4 6.3-.9z"/>'};
 const icon=(html,size)=>L.divIcon({className:'',html,iconSize:[size,size],iconAnchor:[size/2,size/2]});
 function select(id,e){L.DomEvent.stopPropagation(e);if(cur&&cur.drawing&&!cur.drawing.finished){post({t:'tap',lat:e.latlng.lat,lng:e.latlng.lng});return}post({t:'sel',id});}
 let cur=null,lastKey=null,lastLocate=null,quiet=false;
 function setTiles(isSat){const want=isSat?sat:osm,other=isSat?osm:sat;if(map.hasLayer(other))map.removeLayer(other);if(!map.hasLayer(want))want.addTo(map);}
 function draw(s){
-  parcels.clearLayers();bg.clearLayers();marks.clearLayers();drawing.clearLayers();me.clearLayers();
-  s.parcels.forEach(r=>L.polygon(r,{color:'#0b5d8a',weight:1,opacity:.45,fillColor:'#0b5d8a',fillOpacity:.05,interactive:false}).addTo(parcels));
-  s.bg.forEach(p=>{const mk=L.circleMarker(p.ll,{radius:9,color:'#fff',weight:2,fillColor:'#8A94A6',fillOpacity:.9,fillRule:'nonzero'}).addTo(bg);mk.on('click',e=>select(p.id,e));});
+  marks.clearLayers();drawing.clearLayers();me.clearLayers();
   s.marks.forEach(p=>{const at=p.id===s.selected;let mk;
     if(p.kind==='dnc')mk=L.marker(p.ll,{icon:icon('<div class="mk dnc">⊘</div>',28)});
     else if(p.kind==='pin')mk=L.marker(p.ll,{icon:icon('<div class="mk"><svg viewBox="0 0 24 24" style="fill:#F5A300">'+PATH.star+'</svg></div>',22)});

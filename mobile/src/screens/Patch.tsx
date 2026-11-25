@@ -2,7 +2,6 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {Alert,ScrollView,Text,View,TextInput} from 'react-native';
 import {useRouter} from 'expo-router';
 import {mergeSuburbsZone,monitoredSuburbs} from '../domain/suburbs-zone';
-import {properties as mapProperties} from '../data/properties';
 import {areaProperties,suggestAreaName,tagArea,type AreaProperty} from '../domain/patch';
 import {propertiesWithin} from '../store/sync';
 import {Screen} from '../components/Screen';
@@ -26,8 +25,8 @@ function AreaResults({pts,local,properties,l2}:{pts:number[][];local:AreaPropert
  },[polygon]);
  const items=remote?.items||local;const total=remote?.total??local.length;const linked=remote?.linked??local.filter(x=>x.hasContact).length;
  return <View style={{gap:6,marginVertical:8}}><Text style={text}>{l2('All addresses','全部地址')} {total} · {l2('Linked contacts','已关联联系人')} {linked}</Text>
-  {(offline||loading)&&<Text style={[text,{color:colors.muted,fontSize:12}]}>{offline?l2('Offline · showing on-device addresses','离线 · 显示手机内置地址'):l2('Loading all addresses…','正在加载全部地址…')}</Text>}
-  <ScrollView nestedScrollEnabled style={{maxHeight:280}}>{items.map(item=><Text key={item.id} onPress={()=>{if(properties.some(p=>p.id===item.id))router.push(`/prop/${item.id}`);else Alert.alert(`${item.no} ${item.street}, ${item.suburb}`,`${l2('Read-only address · no local property record','只读地址 · 本地没有房产档案')}\n${l2('Source','来源')}: ${item.source||'—'}\n${item.ll[0].toFixed(5)}, ${item.ll[1].toFixed(5)}`)}} style={[text,{paddingVertical:8,borderBottomWidth:1,borderColor:colors.line}]}>{item.no} {item.street}, {item.suburb}{item.hasContact?' · ●':''}</Text>)}</ScrollView>
+  {(offline||loading)&&<Text style={[text,{color:colors.muted,fontSize:12}]}>{offline?l2('Offline · showing synced properties','离线 · 显示已同步的房产'):l2('Loading all addresses…','正在加载全部地址…')}</Text>}
+  <ScrollView nestedScrollEnabled style={{maxHeight:280}}>{items.map(item=><Text key={item.id} onPress={properties.some(p=>p.id===item.id)?()=>router.push(`/prop/${item.id}`):undefined} style={[text,{paddingVertical:8,borderBottomWidth:1,borderColor:colors.line}]}>{item.no} {item.street}, {item.suburb}{item.hasContact?' · ●':''}</Text>)}</ScrollView>
   {remote&&items.length<total&&<Button size="sm" onPress={()=>{setLoading(true);propertiesWithin(pts,100,items.length).then(next=>setRemote(v=>v?{...v,items:[...v.items,...next.items]}:next)).catch(()=>setOffline(true)).finally(()=>setLoading(false))}}>{l2('Load more','加载更多')}</Button>}
  </View>
 }
@@ -40,7 +39,7 @@ export function Patch(){
  const [zoneName,setZoneName]=useState(''),[naming,setNaming]=useState(false),[opened,setOpened]=useState<string|null>(null);
  const nameRef=useRef<React.ElementRef<typeof TextInput>>(null);
  const [subs,setSubs]=useState(()=>monitoredSuburbs(s.zones,s.patch.suburbs));
- const all=[...new Set(s.properties.map(p=>p.suburb).concat(mapProperties.map(p=>p.suburb)))].filter(v=>!subs.includes(v));
+ const all=[...new Set(s.properties.map(p=>p.suburb).filter(Boolean))].filter(v=>!subs.includes(v));
  const pts=useMemo(()=>areaPoints(corners,center,radius),[corners,center,radius]);
  const local=useMemo(()=>areaProperties(s,pts),[s,pts]);
  const count=canFinish(corners,center)?local.length:0;
@@ -57,7 +56,7 @@ export function Patch(){
    <Button onPress={()=>{reset();setMode('draw')}}>{l2('Draw area','绘制区域')}</Button>
    <Button onPress={()=>{reset();setMode('radius')}}>{l2('◯ Radius','◯ 半径')}</Button>
    {mode==='draw'&&corners.length>0&&!locked&&<Button onPress={()=>setCorners(v=>v.slice(0,-1))}>{l2('Undo point','撤销角点')}</Button>}
-   <Button disabled={!canFinish(corners,center)||locked} variant="primary" onPress={()=>{setZoneName(suggestAreaName(s,pts));setLocked(true);setNaming(true);setTimeout(()=>nameRef.current?.focus(),100)}}>{mode==='radius'?l2(`Finish · ${radius} m radius`,`完成 · ${radius} 米半径`):l2(`Finish · ${corners.length} corners`,`完成 · ${corners.length} 个角点`)}</Button>
+   <Button disabled={!canFinish(corners,center)||locked} variant="primary" onPress={()=>{setZoneName(suggestAreaName(s,pts,l2('Patch','片区')));setLocked(true);setNaming(true);setTimeout(()=>nameRef.current?.focus(),100)}}>{mode==='radius'?l2(`Finish · ${radius} m radius`,`完成 · ${radius} 米半径`):l2(`Finish · ${corners.length} corners`,`完成 · ${corners.length} 个角点`)}</Button>
    <Button onPress={reset}>{l2('Cancel','取消')}</Button>
   </View>
   {mode==='radius'&&<View style={{flexDirection:'row',gap:6,flexWrap:'wrap'}}>{[200,300,500,1000].map(r=><Chip key={r} kind={radius===r?'blue':'steel'} onPress={()=>setRadius(r)}>{r===1000?'1 km':r+' m'}</Chip>)}</View>}

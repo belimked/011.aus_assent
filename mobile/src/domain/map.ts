@@ -1,4 +1,0 @@
-import type {AppState,Property} from '../data/types';
-import type {Property as Parcel} from '../data/properties';
-export function findParcelRecord(s:AppState,parcel:Parcel):Property|undefined{const matches=s.properties.filter(p=>p.parcelId===parcel.id||p.lotplan===parcel.lotplan||p.lot===parcel.lotplan);return matches.find(p=>p.parcelId===parcel.id)||matches.find(p=>p.no===parcel.number&&p.street.toLowerCase()===parcel.street.toLowerCase()&&p.suburb.toLowerCase()===parcel.suburb.toLowerCase()&&(!parcel.unit||p.unit===parcel.unit))||(matches.length===1?matches[0]:undefined)}
-export function ensureParcelRecord(s:AppState,parcel:Parcel):Property{const existing=findParcelRecord(s,parcel);if(existing)return existing;const p:Property={id:'parcel-'+parcel.id,parcelId:parcel.id,no:parcel.number,street:parcel.street,suburb:parcel.suburb,ownerIds:[],pfOwner:'',lastSale:'',flags:{},ll:[parcel.lat,parcel.lng],lot:parcel.lotplan,land:parcel.area};s.properties.push(p);return p}

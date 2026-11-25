@@ -38,7 +38,7 @@
 
 - `users`（email, name, role, password_hash, disabled）、`sessions`（token_hash, user_id, device, expires_at）
 - `contacts`（first, last, mobile, email, owner_id, roles, tags, flags, consent），`contact_notes`
-- `properties`（no, street, suburb, geometry, pf_owner, last_sale, flags）——首次从 `src/data/sunnybank.json` 导入；`property_owners`（property_id, contact_id, relation）
+- `properties`（no, street, suburb, geometry, pf_owner, last_sale, flags）——首次从 `web/public/parcels.json`（原手机内置 QLD 数据）导入；`property_owners`（property_id, contact_id, relation）
 - `todos`（due, time, text, assignee_id, created_by, kind, done, contact_id, property_id）——`created_by` 用来显示 “Assigned by me”
 - `captures`（离线语音/文字记录：text, audio_ref, status, property_id, extracted JSON）
 - `enquiries`、`leads`、`listings`、`ofi_events`、`ofi_attendees`、`sales`、`contracts`、`referrals`
