@@ -9,7 +9,7 @@ test('market address review links a candidate and ignores an unrelated event', a
   const data = `Address,Suburb,Kind,Record ID\n9 ${street} Rear,Sunnybank,listing,${id}-link\n999 ${id} Missing,Sunnybank,listing,${id}-ignore\n`;
   const upload = await request.post('http://127.0.0.1:8083/api/v1/admin/market/imports', {
     headers: { Authorization: `Bearer ${admin}` },
-    multipart: { file: { name: `${id}.csv`, mimeType: 'text/csv', buffer: Buffer.from(data) } },
+    multipart: { provider: 'pricefinder', file: { name: `${id}.csv`, mimeType: 'text/csv', buffer: Buffer.from(data) } },
   });
   expect(upload.status(), await upload.text()).toBe(201);
   const pending = await api(request, admin, 'admin/market-review');
