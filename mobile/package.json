@@ -29,6 +29,7 @@
     "expo-splash-screen": "~58.0.10",
     "expo-status-bar": "~58.0.3",
     "expo-symbols": "~58.0.4",
+    "immer": "^11.2.10",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.1",
@@ -66,7 +67,8 @@
       "**/*.test.ts?(x)"
     ],
     "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/src/$1"
+      "^@/(.*)$": "<rootDir>/src/$1",
+      "^immer$": "<rootDir>/node_modules/immer/dist/cjs/immer.cjs.development.js"
     }
   },
   "private": true

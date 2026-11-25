@@ -10,7 +10,7 @@ import {MapView} from '../components/map/MapView';
 import {areaPoints,canFinish,validAreaName} from '../components/map/patchDrawing';
 import {Banner,Button,Card,Chip,SectionLabel} from '../components/ui';
 import {colors,text} from '../theme';
-import {useStore,update,showToast} from '../store';
+import {useStoreKeys,update,showToast} from '../store';
 import {useT} from '../i18n';
 
 function AreaResults({pts,local,properties,l2}:{pts:number[][];local:AreaProperty[];properties:import('../data/types').Property[];l2:(en:string,zh:string)=>string}){
@@ -33,7 +33,7 @@ function AreaResults({pts,local,properties,l2}:{pts:number[][];local:AreaPropert
 }
 
 export function Patch(){
- const s=useStore(s=>s),{l2}=useT(),router=useRouter();
+ const s=useStoreKeys('properties','contacts','zones','patch'),{l2}=useT(),router=useRouter();
  const [sub,setSub]=useState(''),[mode,setMode]=useState<'idle'|'draw'|'radius'>('idle');
  const [radius,setRadius]=useState(300),[center,setCenter]=useState<[number,number]|null>(null);
  const [locked,setLocked]=useState(false),[corners,setCorners]=useState<number[][]>([]);

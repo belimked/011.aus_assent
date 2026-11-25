@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import {AppState as RNAppState,Platform} from 'react-native';
-import {getState,onLocalWrite,replaceState,showToast} from './index';
+import {cancelStateWrite,flushState,getState,onLocalWrite,replaceState,showToast} from './index';
 import {diff,attendeeOps,enqueue,merge,mapRecord,field,type Op,type Pull} from './sync-logic';
 import type {Account,AppState} from '../data/types';
 import {l2} from '../i18n';
@@ -39,7 +39,7 @@ export async function decideApproval(id:string,decision:'approve'|'reject'){awai
 export async function propertiesWithin(polygon:number[][],limit=100,offset=0):Promise<{items:import('../domain/patch').AreaProperty[];total:number;linked:number}>{return api('/properties/within',{method:'POST',body:JSON.stringify({polygon,limit,offset})});}
 export async function teamMembers():Promise<{id:string;name:string}[]>{return api('/team');}
 export async function directAction(path:string,data:Record<string,unknown>){await api(path,{method:'POST',body:JSON.stringify(data)});await syncNow();}
-export async function logout(){const old=token;token=null;clearTimeout(timer);cursor='';queue=[];lastSync='';names={};await tokenSet(null);await AsyncStorage.removeItem(syncKey);const s=getState();replaceState({...s,auth:null,contacts:[],properties:[],todos:[],captures:[],enquiries:[],leads:[],listings:[],ofi_attendees:[],sales:[],contracts:[],referrals:[],market:[],zones:[],myTags:[],audit:[],approvals:[],syncq:[],queue:0});if(old){await unregisterDevice(old,apiUrl);void fetch(`${apiUrl}/auth/logout`,{method:'POST',headers:{Authorization:`Bearer ${old}`}}).catch(()=>{});}}
+export async function logout(){const old=token;token=null;clearTimeout(timer);cancelStateWrite();cursor='';queue=[];lastSync='';names={};await tokenSet(null);await AsyncStorage.removeItem(syncKey);const s=getState();replaceState({...s,auth:null,contacts:[],properties:[],todos:[],captures:[],enquiries:[],leads:[],listings:[],ofi_attendees:[],sales:[],contracts:[],referrals:[],market:[],zones:[],myTags:[],audit:[],approvals:[],syncq:[],queue:0});flushState();if(old){await unregisterDevice(old,apiUrl);void fetch(`${apiUrl}/auth/logout`,{method:'POST',headers:{Authorization:`Bearer ${old}`}}).catch(()=>{});}}
 export async function syncNow(){if(!token||running)return;running=true;let errors=getState().syncq.filter(q=>q.status==='error');try{
  try{await uploadPendingPhotos()}catch{/* Photo retries must not block record sync. */}
  const team=await api('/team') as {id:string;name:string}[];names=Object.fromEntries(team.map(u=>[u.id,u.name]));
@@ -50,7 +50,11 @@ export async function syncNow(){if(!token||running)return;running=true;let error
  if(item.status==='ok'&&item.record){const later=queue.find(x=>x.kind===op.kind&&x.id===op.id);if(later)later.baseVersion=item.record.version;else {const s=getState();replaceState({...s,[field(op.kind)]:[...(s[field(op.kind)] as any[]).filter(x=>x.id!==op.id),mapRecord(item.record,op.kind,names,s.auth?.name||'')]});}}
  }await save();reflect(errors);}
  const pull=await api(`/sync${cursor?`?since=${encodeURIComponent(cursor)}`:''}`) as Pull;
- replaceState({...merge(getState(),pull,names,queue),syncq:[...queue.map(op=>label(op)),...errors],queue:queue.length});cursor=pull.cursor;lastSync=new Date().toISOString();await save();delay=2000;
+ const current=getState();const merged=merge(current,pull,names,queue);
+ const changed=Object.keys(merged).some(key=>merged[key as keyof AppState]!==current[key as keyof AppState]);
+ if(changed || current.queue!==queue.length || current.syncq.length!==queue.length+errors.length)
+   replaceState({...merged,syncq:[...queue.map(op=>label(op)),...errors],queue:queue.length});
+ cursor=pull.cursor;lastSync=new Date().toISOString();await save();delay=2000;
  }catch{queue=enqueue([],queue);void save();delay=Math.min(Math.max(delay*2,4000),60000);schedule(delay);}finally{inFlight.clear();running=false;if(queue.length&&delay===2000)schedule();}}
 RNAppState.addEventListener('change',v=>{if(v==='active'&&token)schedule(0)});
 setInterval(()=>{if(token)void syncNow()},60000);

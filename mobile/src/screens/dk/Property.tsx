@@ -9,13 +9,13 @@ import {RexSyncLabel} from '../../components/RexSyncLabel';
 
 import {MapView} from '../../components/map/MapView';
 import {Banner,Button,Card,Chip,KV,SectionLabel} from '../../components/ui';
-import {useStore,update,openSheet,showToast} from '../../store';
+import {useStoreKeys,update,openSheet,showToast} from '../../store';
 import {cname,ownersOf,propAddr,propColor,tagCls,yearsSince,mask,maskEmail} from '../../domain';
 import {colors,text} from '../../theme';
 import {useT} from '../../i18n';
 import {applyTags} from '../../domain/dk';
 import {MarketPanel} from '../../components/MarketPanel';
-export function Property(){const {id}=useLocalSearchParams<{id:string}>();const s=useStore(s=>s);const router=useRouter();const {l2}=useT();const [refreshing,setRefreshing]=useState(false);const p=s.properties.find(p=>p.id===id);if(!p)return <Screen title="Property" back><Banner>Property not found</Banner></Screen>;
+export function Property(){const {id}=useLocalSearchParams<{id:string}>();const s=useStoreKeys('properties','contacts','listings','myTags');const router=useRouter();const {l2}=useT();const [refreshing,setRefreshing]=useState(false);const p=s.properties.find(p=>p.id===id);if(!p)return <Screen title="Property" back><Banner>Property not found</Banner></Screen>;
  const latest=p.photos?.at(-1);const local=latest?.uri?.startsWith('file://')&&new File(latest.uri).exists?latest.uri:undefined;
  const photoSource=latest?(local?{uri:local}:latest.uploaded&&authHeader()?{uri:`${apiUrl}/photos/${encodeURIComponent(latest.id)}`,headers:authHeader()!}:undefined):undefined;
  const owners=ownersOf(s,p),c=owners[0],listing=s.listings.find(l=>l.propertyId===p.id&&l.status==='listed');const off=c?Object.entries(c.consent||{}).filter(([,v])=>v===0).map(([k])=>k):[];

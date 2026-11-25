@@ -69,6 +69,15 @@ describe('edits made while synchronizing',()=>{
       else {const run=sync.syncNow();await answer('/team',[]);const req=await take('/sync/push');push(req);await flush();const reqPull=await take('/sync');undo();reqPull.resolve(pull());await run;}
       await check();
     });
+  test('empty incremental pull does not emit or replace state',async()=>{
+    const create=sync.syncNow();await settle();await create;
+    const before=store.getState();const listener=jest.fn();const unsubscribe=store.subscribe(listener);
+    const run=sync.syncNow();await answer('/team',[]);await answer('/sync',{cursor:'next',full:false,deleted:{}});await run;
+    expect(store.getState()).toBe(before);
+    expect(listener).not.toHaveBeenCalled();
+    expect(sync.syncInfo().lastSync).toBeTruthy();
+    unsubscribe();
+  });
   test('Undo while Complete push is in flight retains the latest edit and server version',async()=>{
     const create=sync.syncNow();await settle();await create;
     complete();const run=sync.syncNow();await answer('/team',[]);const req=await take('/sync/push');
@@ -79,6 +88,7 @@ describe('edits made while synchronizing',()=>{
 
 describe('formatLastSync',()=>{
   it('formats ISO timestamps and hides invalid legacy values',()=>{
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const {formatLastSync}=require('./sync');
     expect(formatLastSync('')).toBe('—');
     expect(formatLastSync('25/11/2026, 4:31:00 pm')).toBe('—');

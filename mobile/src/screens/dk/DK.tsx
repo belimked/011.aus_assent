@@ -11,12 +11,12 @@ import {recordingAction} from '../../components/recordingAction';
 import {voiceErrorText} from '../../lib/voice';
 import {getVoiceLang} from '../../lib/voicePref';
 import {colors,text} from '../../theme';
-import {useStore,openSheet,showToast} from '../../store';
+import {useStoreKeys,openSheet,showToast} from '../../store';
 import {propAddr,ownersOf,cname,yearsSince} from '../../domain';
 import {today} from '../../lib/today';
 import {useT} from '../../i18n';
 export function DK(){
-  const s=useStore(s=>s);const router=useRouter();const {t,l2,lang:appLang}=useT();const rec=useHoldRecorder();const [starting,setStarting]=useState(false);const loc=useLivePosition();const live=loc.position;
+  const s=useStoreKeys('properties','contacts','captures','auth');const router=useRouter();const {t,l2,lang:appLang}=useT();const rec=useHoldRecorder();const [starting,setStarting]=useState(false);const loc=useLivePosition();const live=loc.position;
   // Nearest property to the phone's real GPS fix; nothing until we have one (no demo fallback).
   const nearest=useMemo(()=>{if(!live)return null;let id='',d=Infinity;for(const p of s.properties){if(p.ll?.length!==2)continue;const m=distanceM(live,{lat:p.ll[0],lng:p.ll[1]});if(m<d){d=m;id=p.id}}return id?{id,d}:null},[live,s.properties]);
   const [gps,setGps]=useState(true);const [at,setAt]=useState<string|null>(null);
