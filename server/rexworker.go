@@ -145,6 +145,14 @@ func (w *rexWorker) step(ctx context.Context) error {
 		if exists == 0 {
 			return finish("skipped", "not linked to Rex sandbox record", "", "")
 		}
+		var createStatus string
+		_ = w.db.QueryRow(`SELECT status FROM rex_outbox WHERE entity='contacts' AND entity_id=? AND op='POST' ORDER BY id DESC LIMIT 1`, linkID).Scan(&createStatus)
+		if createStatus == "failed" {
+			return finish("failed", "contact creation failed; reconcile before retry", "", "")
+		}
+		if createStatus == "" || createStatus == "skipped" || createStatus == "sent" {
+			return finish("skipped", "contact not in Rex", "", "")
+		}
 		return w.deferJob(j, "waiting for contact link")
 	}
 	if linked != "" && source != "rex_import" && j.entity != "contacts" && j.entity != "rex_contact_relation" {
