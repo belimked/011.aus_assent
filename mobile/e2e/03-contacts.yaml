@@ -17,9 +17,9 @@ name: 03 contacts
     timeout: 10000
 - assertVisible: No contact yet
 - scrollUntilVisible:
-    element: '\+ Add contact'
+    element: 'Add or link owner'
     direction: DOWN
-- tapOn: '\+ Add contact'
+- tapOn: 'Add or link owner'
 - tapOn:
     id: quickadd-mobile
 - inputText: '0499000123'

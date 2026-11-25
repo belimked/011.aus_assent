@@ -498,7 +498,6 @@ export default {
   "tr_hello": "你好！This agent is still learning Chinese 🙂",
   "tr_hold": "Hold to speak",
   "tr_save": "Save to notes",
-  "tr_hint": "隐藏彩蛋：长按顶部 Logo 打开 Talk to me 翻译。不点保存就不写入 Rex。",
   "partners": "转介合作方",
   "p_broker": "Mortgage broker",
   "p_rental": "Rental appraisal",

@@ -498,7 +498,6 @@ export default {
   "tr_hello": "你好！This agent is still learning Chinese 🙂",
   "tr_hold": "Hold to speak",
   "tr_save": "Save to notes",
-  "tr_hint": "Hidden extra: long-press the logo at the top to open the Talk to me translator. Nothing is saved unless you tap Save to notes.",
   "partners": "Referral partners",
   "p_broker": "Mortgage broker",
   "p_rental": "Rental appraisal",
