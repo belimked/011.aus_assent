@@ -9,7 +9,10 @@ export function extract(text: string, ctx: string, state: Pick<AppState, 'myTags
   const notName=/^(St|Street|Rd|Road|Ave|Avenue|Ct|Court|Dr|Drive|Pl|Place|Sunnybank|Runcorn|Calamvale|Domain|Mobile|Lead|Referral|From)$/;
   let n = text.match(/(?:[Oo]wner is|[Ss]poke to|[Ss]poke with|[Tt]alked to|[Nn]ame is|[Tt]his is|with|业主是|叫|和)\s*([A-Z][a-z]+)\s+([A-Z][a-z]+)/) || text.match(/([A-Z][a-z]+)\s+([A-Z][a-z]+),?\s*(?:on |at |mobile |mob |ph )?0[45]\d/) || text.match(/^([A-Z][a-z]+)\s+([A-Z][a-z]+)[\s,]/);
   if(n && (notName.test(n[1])||notName.test(n[2]))) n=null;
-  if(n){ r.first=n[1]; r.last=n[2]; } else { const cn=text.match(/(?:业主是|业主叫|名叫|我是|这位是|叫)\s*([一-龥]{2,3})(?=[，,。\s]|$)/); const c = cn?[cn[1]]:text.match(/[一-龥]{2,3}(?=[，,\s]|$)/); if(c){ r.first=c[0]; r.last=""; if(!cn) r.unsure.push("name"); } else r.unsure.push("name"); }
+  // A single heard name ("Owner is Sawley") is a first name, as the AI prompt specifies.
+  const one=n?null:text.match(/(?:[Oo]wner is|[Oo]wner's name is|[Ss]poke to|[Ss]poke with|[Tt]alked to|[Nn]ame is)\s+([A-Z][a-z]+)(?=[\s,.;!?]|$)/);
+  const oneOk=!!one&&!notName.test(one[1])&&!/^(The|A|An|Not|No|Out|Home|Away|Keen|Happy|Interested|Selling|Moving|Renting|Retired|Elderly|Here|There|Mr|Mrs|Ms|Dr)$/.test(one[1]);
+  if(n){ r.first=n[1]; r.last=n[2]; } else if(oneOk){ r.first=one![1]; r.last=""; } else { const cn=text.match(/(?:业主是|业主叫|名叫|我是|这位是|叫)\s*([一-龥]{2,3})(?=[，,。\s]|$)/); const c = cn?[cn[1]]:text.match(/[一-龥]{2,3}(?=[，,\s]|$)/); if(c){ r.first=c[0]; r.last=""; if(!cn) r.unsure.push("name"); } else r.unsure.push("name"); }
   if(/tenant|租客|renting/i.test(text)){ r.relation="tenant"; r.type="tenant"; }
   if(/landlord|房东/i.test(text)){ r.relation="landlord"; r.type="landlord"; }
   if(/might sell|may sell|thinking of selling|could sell|可能卖|想卖|考虑卖|sell next|apprais|估价/i.test(text)){ r.intent="Seller lead"; r.tags.push("Seller lead"); r.ps=true; r.type="seller"; }

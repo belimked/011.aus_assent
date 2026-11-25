@@ -3,7 +3,7 @@ import {Text,TextInput,View} from 'react-native';
 import type {Property} from '../data/types';
 import {useStore,update,showToast} from '../store';
 import {cname,ownersOf} from '../domain';
-import {noteIdentity,matchingNoteContacts,savePropertyTranscript,type NoteIdentity} from '../domain/propertyNotes';
+import {noteIdentity,noteIdentityLabel,hasNoteIdentity,matchingNoteContacts,savePropertyTranscript,type NoteIdentity} from '../domain/propertyNotes';
 import {aiExtract} from '../lib/voice';
 import {getVoiceLang} from '../lib/voicePref';
 import {isOnline} from '../store/sync';
@@ -23,14 +23,14 @@ export function PropertyNotes({property:p}:{property:Property}){
     let identity=noteIdentity(transcript);
     if(isOnline())try{identity=noteIdentity(transcript,await aiExtract(transcript,'dk',getVoiceLang(lang)))}catch{showToast(l2('Used offline parser','已使用离线解析'))}
     setBusy(false);
-    if(identity.first||identity.last||identity.mobile){setPending({transcript,identity});setSelected('')}
+    if(hasNoteIdentity(identity)){setPending({transcript,identity});setSelected('')}
     else save(transcript);
   };
   const matches=pending?matchingNoteContacts(s,pending.identity.mobile):[];
   return <><SectionLabel>NOTES</SectionLabel>{notes.length>3&&!all&&<Button onPress={()=>setAll(true)}>See all {notes.length} ›</Button>}
     <View style={{flexDirection:'row',alignItems:'center',gap:6}}><TextInput testID="property-note" accessibilityLabel={l2('Add a note','添加备注')} placeholder={l2('Add a note…','添加备注…')} value={note} onChangeText={setNote} style={[text,{flex:1,minWidth:0,borderWidth:1,borderColor:colors.line,padding:8,borderRadius:8}]}/><NoteMic value={note} onChangeText={setNote} onTranscript={v=>void transcribed(v)}/><Button testID="property-note-save" variant="primary" disabled={busy||!!pending} onPress={()=>{if(note.trim())save(note.trim())}}>Add</Button></View>
     {busy&&<Text style={text}>{l2('Reading transcript…','正在识别语音…')}</Text>}
-    {pending&&<Card><Text style={text}>{l2('Contact heard in voice note. Confirm before linking as owner:','语音中识别到联系人，确认后关联为业主：')}</Text><Text style={text}>{pending.identity.first} {pending.identity.last} · {pending.identity.mobile}</Text>
+    {pending&&<Card><Text style={text}>{l2('Contact heard in voice note. Confirm before linking as owner:','语音中识别到联系人，确认后关联为业主：')}</Text><Text style={text}>{noteIdentityLabel(pending.identity)}</Text>
       {matches.map(c=><Button key={c.id} onPress={()=>setSelected(c.id)}>{selected===c.id?'✓ ':''}{cname(c)} · {c.mobile}</Button>)}
       {matches.length>1&&<Text style={text}>{l2('Choose the correct contact','请选择正确的联系人')}</Text>}
       <Button testID="property-note-confirm" variant="primary" disabled={matches.length>1&&!selected} onPress={()=>save(pending.transcript,pending.identity,selected||undefined)}>{matches.length?l2('Link owner and save note','关联业主并保存备注'):l2('Create owner and save note','新建业主并保存备注')}</Button>

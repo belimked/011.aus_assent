@@ -3,15 +3,26 @@ import {filePropertyNote} from './dk';
 import {byId,linkOwner,normMobile} from './index';
 import {today} from '../lib/today';
 import {extract} from './extract';
-import {mergeAI} from './aiMerge';
+import {mergeAI,aiText} from './aiMerge';
 import type {AIResult} from '../lib/voice';
 
 export type NoteIdentity={first:string;last:string;mobile:string};
+/** A name part is kept only when it has letters/CJK and is not a model placeholder. */
+export const noteName=(value:unknown)=>{const t=aiText(value);return /[\p{L}]/u.test(t)?t:'';};
+/** Owner phone must be a full Australian number: mobile 04xxxxxxxx, or a landline with its area code 0[2378]xxxxxxxx.
+ * Shorter digit runs (e.g. STT turning 0467 076 507 into 67076507) stay in the note text only. */
+export const plausibleNotePhone=(value:unknown)=>{const t=aiText(value);if(!/^[\d\s()+.-]+$/.test(t))return false;return /^0[2-478]\d{8}$/.test(canonicalMobile(t));};
 export function noteIdentity(transcript:string,ai?:AIResult):NoteIdentity{
   const result=extract(transcript,'dk');
   const fields=ai?mergeAI(result,ai):result;
-  return {first:fields.first||'',last:fields.last||'',mobile:fields.mobile||''};
+  // Like mergeAI, an unusable AI value falls back to what the local parser heard.
+  const name={first:noteName(fields.first)||noteName(result.first),last:noteName(fields.last)||noteName(result.last)};
+  const mobile=[fields.mobile,result.mobile].find(plausibleNotePhone)||'';
+  return {...name,mobile:mobile.trim()};
 }
+/** Confirmation-card label: only the parts that were heard, no stray separators. */
+export const noteIdentityLabel=(identity:NoteIdentity)=>[[identity.first,identity.last].filter(Boolean).join(' '),identity.mobile].filter(Boolean).join(' · ');
+export const hasNoteIdentity=(identity:NoteIdentity)=>!!(identity.first||identity.last||identity.mobile);
 export function canonicalMobile(value:string){const digits=normMobile(value);return digits.startsWith('61')&&digits.length===11?'0'+digits.slice(2):digits;}
 export function matchingNoteContacts(s:AppState,mobile:string){const number=canonicalMobile(mobile);return number.length===10?s.contacts.filter(c=>canonicalMobile(c.mobile)===number):[];}
 /** Save the transcript even if no identity was heard; only explicit confirmation links an owner. */

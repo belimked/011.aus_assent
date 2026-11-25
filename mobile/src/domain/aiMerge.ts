@@ -1,9 +1,17 @@
 import type {AIResult,AIFields} from '../lib/voice';
 import {extract} from './extract';
 
+const placeholderWords=new Set(["unknown","n/a","na","null","nil","none","-","--","?","??","not provided","not stated","not mentioned","undefined"]);
+/** Model stand-ins for "no value" (e.g. "<UNKNOWN>", "N/A", "<UNKNOWN><UNKNOWN>.<UNKNOWN>") become empty; mirrors server aiCleanString. */
+export function aiText(value:unknown):string{
+  if(typeof value!=="string")return "";let t=value.trim();
+  if(t.includes("<"))t=t.replace(/<[^<>]*>/g," ").split(/\s+/).filter(Boolean).join(" ").replace(/^[\s\p{P}]+|[\s\p{P}]+$/gu,"");
+  return placeholderWords.has(t.toLowerCase())?"":t;
+}
+const cleanFields=(f:AIFields)=>Object.fromEntries(Object.entries(f).map(([k,v])=>[k,typeof v==="string"?(aiText(v)||null):v])) as AIFields;
 /** Retain the local parser's tags, requests and follow-up; AI overrides only supplied fields. */
 export function mergeAI(local:ReturnType<typeof extract>,result:AIResult){
-  const r={...local,tags:[...local.tags],unsure:[...local.unsure]};const f=result.fields||{} as AIFields;
+  const r={...local,tags:[...local.tags],unsure:[...local.unsure]};const f=cleanFields(result.fields||{} as AIFields);
   const put=(source:keyof AIFields,target:string,value:unknown=f[source])=>{
     if(value===null||value===undefined||value==='')return;
     r[target]=value;

@@ -3,7 +3,10 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"regexp"
+	"strings"
 	"time"
+	"unicode"
 )
 
 // audRule makes every AI step treat money as Australian dollars (the app is used by Brisbane agents).
@@ -58,4 +61,25 @@ func (a *app) auditCall(p principal, action string, metadata map[string]any) {
 	if _, err := a.db.Exec(`INSERT INTO audit_log(user_id,device,action,entity,entity_id,diff,at) VALUES(?,?,?,?,?,?,?)`, p.id, p.device, action, action, "", string(diff), now()); err != nil {
 		log.Printf("%s audit failed: %v", action, err)
 	}
+}
+
+// nullRule forbids the placeholder strings models sometimes emit for unknown facts.
+const nullRule = " If a fact is not clearly stated, set that field to null (JSON null). Never output placeholder text such as <UNKNOWN>, UNKNOWN, unknown, N/A, none, null as a string, '-', '?', or any <...> token. A single surname or first name is still a name; a phone number is only what was actually spoken."
+
+var aiPlaceholderTag = regexp.MustCompile(`<[^<>]*>`)
+var aiPlaceholderWords = map[string]bool{"unknown": true, "n/a": true, "na": true, "null": true, "nil": true, "none": true, "-": true, "--": true, "?": true, "??": true, "not provided": true, "not stated": true, "not mentioned": true, "undefined": true}
+
+// aiCleanString drops placeholder text a model used for "no value": listed
+// words (case-insensitive) and any <...> token, e.g. "<UNKNOWN><UNKNOWN>.<UNKNOWN>".
+// It returns "" when nothing real remains.
+func aiCleanString(s string) string {
+	t := strings.TrimSpace(s)
+	if strings.Contains(t, "<") {
+		t = strings.Join(strings.Fields(aiPlaceholderTag.ReplaceAllString(t, " ")), " ")
+		t = strings.TrimFunc(t, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsPunct(r) })
+	}
+	if aiPlaceholderWords[strings.ToLower(t)] {
+		return ""
+	}
+	return t
 }
