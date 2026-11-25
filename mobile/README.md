@@ -6,6 +6,6 @@ Expo SDK 58 / Expo Router client. Contacts, registered properties and to-dos syn
 - `src/screens/`: one component per screen; use `Screen` for header, safe area, scrolling and watermark.
 - `src/sheets/`: add a component and register its kind in `registry.ts`; call `openSheet({kind, ...params})` from anywhere.
 - `src/store/`, `src/domain/`, `src/data/`: state, pure helpers and mock seed; `src/theme/`, `src/components/ui/`, `src/i18n/`: shared presentation.
-- Existing QLD parcel geometry is in `src/data/sunnybank.json`, `src/data/properties.ts` and `src/lib/geometry.ts` for the map phase.
+- Maps and patches only show synced properties (`s.properties`, Rex/Pricefinder); the app bundles no QLD address points.
 
 Run `npx expo start`, `npm run web:export` for local QA, `npm test`, `npx tsc --noEmit` and `npx expo lint`. Signed iOS Ad Hoc builds run through GitHub Actions (`.github/workflows/mobile-ios-adhoc.yml`), not locally.

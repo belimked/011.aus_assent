@@ -4,7 +4,7 @@ const start = source.indexOf('JSON.parse(JSON.stringify(') + 'JSON.parse(JSON.st
 const end = source.lastIndexOf(')) as AppState');
 if (start < 0 || end < 0) throw Error('seed format changed');
 const seed = JSON.parse(source.slice(start,end));
-const data = JSON.parse(fs.readFileSync('mobile/src/data/sunnybank.json','utf8'));
+const data = JSON.parse(fs.readFileSync('web/public/parcels.json','utf8'));
 const parcels = new Map(data.parcels.map(p => [p.lp,p]));
 const groups = new Map();
 for (const a of data.addresses) { const key = `${a[1]}|${a[2]}|${a[3]}|${a[4]}`; if (!groups.has(key)) groups.set(key,[]); groups.get(key).push(a); }

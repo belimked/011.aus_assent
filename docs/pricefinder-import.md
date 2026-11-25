@@ -11,7 +11,6 @@ mkdir -p .tmp/parcels-all
 cp .tmp/parcels-{old,new}/*.json .tmp/parcels-all/
 node tools/build-sunnybank-data.mjs .tmp/parcels-all .tmp/all-mobile.js
 node tools/build-sunnybank-mobile.mjs .tmp/all-mobile.js
-cp mobile/src/data/sunnybank.json web/public/parcels.json
 cp web/public/parcels.json server/web/parcels.json
 ```
 
@@ -28,7 +27,7 @@ sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; /opt/ax
 
 输入文件包含个人信息：**只在受限的 `.tmp` 中保存，不进 git、日志或测试夹具**。QLD Spatial LandParcelPropertyFramework 地址 layer 0、地块 layer 4（© State of Queensland，CC BY 4.0）；`tools/download-qld-parcels.mjs` 按区分页下载。Sunnybank Hills、Calamvale 的 Pricefinder 导出各受 5000 条上限约束：后续追加文件再导入，已导入文件按 SHA-256 去重。
 
-本地准备（重新打包手机 App：`mobile/src/data/sunnybank.json` 包含九区地址和多边形；旧包不能显示新区背景灰点）。原始 API GeoJSON 放在 `.tmp`，**不要复制到版本库**：
+本地准备（`tools/build-sunnybank-mobile.mjs` 写入后台静态文件 `web/public/parcels.json`，再复制到 `server/web/parcels.json`；手机 App 不再内置 QLD 地址点，地图只显示同步下来的房产）。原始 API GeoJSON 放在 `.tmp`，**不要复制到版本库**：
 
 ```sh
 node tools/download-qld-parcels.mjs .tmp/qld-raw
