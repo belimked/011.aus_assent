@@ -53,15 +53,37 @@ func rexDate(v string) (time.Time, error) {
 	}
 	return t.In(brisbane), nil
 }
-func rexEvent(e importRow, from, to time.Time) (map[string]any, bool) {
-	typ := strings.ToLower(iv(e, "event_type"))
+func rexEvent(e importRow, at time.Time, back, ahead int) (map[string]any, bool) {
+	typ := strings.ToLower(strings.TrimSpace(iv(e, "event_type")))
 	if m := imap(e["event_type"]); m != nil {
-		typ = strings.ToLower(iv(m, "id") + " " + iv(m, "text"))
+		typ = strings.ToLower(strings.TrimSpace(iv(m, "id")))
 	}
-	if !strings.Contains(typ, "open") && typ != "ofi" {
+	if typ != "open_home" && typ != "ofi" {
 		return nil, false
 	}
-	d, err := rexDate(iv(e, "event_date"))
+	zone := brisbane
+	if name := iv(e, "event_timezone"); name != "" {
+		var err error
+		zone, err = time.LoadLocation(name)
+		if err != nil {
+			return nil, false
+		}
+	}
+	day := at.In(zone)
+	from := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, zone).AddDate(0, 0, -back)
+	to := from.AddDate(0, 0, back+ahead)
+	date := iv(e, "event_date")
+	var d time.Time
+	var err error
+	if len(date) == 10 {
+		d, err = time.ParseInLocation("2006-01-02", date, zone)
+	} else {
+		d, err = time.Parse(time.RFC3339, date)
+		if err == nil {
+			d = d.In(zone)
+			d = time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, zone)
+		}
+	}
 	if err != nil || d.Before(from) || d.After(to) {
 		return nil, false
 	}
@@ -69,7 +91,8 @@ func rexEvent(e importRow, from, to time.Time) (map[string]any, bool) {
 	if len(clock) >= 5 {
 		clock = clock[:5]
 	}
-	if _, err = time.Parse("15:04", clock); err != nil {
+	start, err := time.Parse("15:04", clock)
+	if err != nil {
 		return nil, false
 	}
 	end := iv(e, "event_end_time")
@@ -80,8 +103,11 @@ func rexEvent(e importRow, from, to time.Time) (map[string]any, bool) {
 		end = end[:5]
 	}
 	if _, err = time.Parse("15:04", end); err != nil {
-		end = clock
-	} // unknown duration: don't invent a 30-minute slot
+		end = clock // unknown duration: don't invent a slot
+		if minutes, err := strconv.Atoi(iv(e, "event_duration_minutes")); err == nil && minutes >= 0 {
+			end = start.Add(time.Duration(minutes) * time.Minute).Format("15:04")
+		}
+	}
 	count := 0
 	field := env("REX_OFI_COUNT_FIELD", "attendee_count")
 	if n, err := strconv.Atoi(iv(e, field)); err == nil && n >= 0 {
@@ -125,7 +151,7 @@ func pollRexOFI(ctx context.Context, db *sql.DB, c *rexClient, account string, a
 	}
 	grouped := map[string][]map[string]any{}
 	for _, e := range events {
-		if ev, ok := rexEvent(e, from, to); ok {
+		if ev, ok := rexEvent(e, at, back, ahead); ok {
 			if rid := rexOFIRef(e["listing"]); rid != "" {
 				grouped[rid] = append(grouped[rid], ev)
 			}

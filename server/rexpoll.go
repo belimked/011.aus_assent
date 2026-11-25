@@ -189,10 +189,10 @@ func pollRex(ctx context.Context, db *sql.DB, c *rexClient, account string) erro
 			}
 		}
 	}
-	// Rex etags may not include relationship-only edits. Re-read recent properties
-	// periodically even when the search etag has not changed.
+	// Rex etags change on relationship-only edits too. Keep a bounded daily
+	// re-read of recent properties as a safety net.
 	relationPollMu.Lock()
-	interval := 10 * time.Minute
+	interval := 24 * time.Hour
 	if n, e := strconv.Atoi(os.Getenv("REX_RELATION_REFRESH_SECONDS")); e == nil && n >= 60 {
 		interval = time.Duration(n) * time.Second
 	}
@@ -202,7 +202,11 @@ func pollRex(ctx context.Context, db *sql.DB, c *rexClient, account string) erro
 	}
 	relationPollMu.Unlock()
 	if due {
-		rows, e := db.Query(`SELECT l.rex_id FROM rex_links l JOIN properties p ON p.id=l.local_id WHERE l.entity='properties' AND l.account_id=? AND p.deleted_at IS NULL AND p.updated_at>=? ORDER BY p.updated_at DESC LIMIT 500`, account, time.Now().UTC().Add(-7*24*time.Hour).Format(layout))
+		limit := 100
+		if n, err := strconv.Atoi(os.Getenv("REX_RELATION_REFRESH_LIMIT")); err == nil && n > 0 {
+			limit = n
+		}
+		rows, e := db.Query(`SELECT l.rex_id FROM rex_links l JOIN properties p ON p.id=l.local_id WHERE l.entity='properties' AND l.account_id=? AND p.deleted_at IS NULL AND p.updated_at>=? ORDER BY p.updated_at DESC LIMIT ?`, account, time.Now().UTC().Add(-7*24*time.Hour).Format(layout), limit)
 		if e != nil {
 			return e
 		}

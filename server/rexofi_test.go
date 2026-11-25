@@ -9,6 +9,49 @@ import (
 	"time"
 )
 
+func TestRexEventRealSearchRow(t *testing.T) {
+	// ListingEvents::search row from the test account; agent email is synthetic.
+	const fixture = `{"account_id":"2057","etag":"14871972-2026-09-14 05:12:21","event_agent":null,"event_date":"2026-09-26","event_duration_minutes":"30","event_time":"09:45:00","event_timezone":"Australia/Perth","event_type":"open_home","event_type_display":"Open Home","event_venue":null,"id":"14871972","listing":{"id":5133946,"listing_agent_1":{"email":"agent@example.invalid"},"listing_category":{"id":"residential_rental"}}}`
+	var row importRow
+	if err := json.Unmarshal([]byte(fixture), &row); err != nil {
+		t.Fatal(err)
+	}
+	// Brisbane has reached Sep 26, but Perth is still on Sep 25.
+	at := time.Date(2026, 9, 25, 15, 0, 0, 0, time.UTC)
+	if _, ok := rexEvent(row, at, 0, 0); ok {
+		t.Fatal("Perth event should not count as today yet")
+	}
+	at = at.Add(time.Hour)
+	ev, ok := rexEvent(row, at, 0, 0)
+	if !ok || ev["d"] != "2026-09-26" || ev["time"] != "09:45–10:15" || rexOFIRef(row["listing"]) != "5133946" {
+		t.Fatalf("real search row: %v, accepted=%v", ev, ok)
+	}
+	row["event_end_time"] = "10:25:00"
+	if ev, ok = rexEvent(row, at, 0, 0); !ok || ev["time"] != "09:45–10:25" {
+		t.Fatalf("explicit end should win: %v", ev)
+	}
+	delete(row, "event_end_time")
+	row["end_time"] = "10:20"
+	if ev, ok = rexEvent(row, at, 0, 0); !ok || ev["time"] != "09:45–10:20" {
+		t.Fatalf("legacy end should win: %v", ev)
+	}
+	delete(row, "end_time")
+	row["event_duration_minutes"] = "invalid"
+	if ev, ok = rexEvent(row, at, 0, 0); !ok || ev["time"] != "09:45–09:45" {
+		t.Fatalf("invalid duration: %v", ev)
+	}
+	for _, typ := range []string{"open_inspection", "not_open_home", "open", "reopen_home"} {
+		row["event_type"] = typ
+		if _, ok := rexEvent(row, at, 0, 0); ok {
+			t.Fatalf("accepted %s", typ)
+		}
+	}
+	row["event_type"] = "ofi"
+	if _, ok := rexEvent(row, at, 0, 0); !ok {
+		t.Fatal("legacy ofi rejected")
+	}
+}
+
 func TestRexOFIPoll(t *testing.T) {
 	a, _ := setup(t)
 	day := time.Date(2026, 11, 20, 14, 5, 0, 0, time.UTC) // Brisbane: Nov 21 00:05
