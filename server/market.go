@@ -387,10 +387,11 @@ type importReport struct {
 	WithParcel         int                 `json:"withParcel"`
 	WithOwners         int                 `json:"withOwners"`
 	WithCorelogicID    int                 `json:"withCorelogicId"`
+	Synthetic          bool                `json:"synthetic"`
 }
 
 func (a *app) importMarket(data []byte, filename, provider, kind string, dry bool, p principal) (importReport, error) {
-	r := importReport{ID: ulid(), Details: []string{}, Agents: map[string]int{}, DryRun: dry}
+	r := importReport{ID: ulid(), Details: []string{}, Agents: map[string]int{}, DryRun: dry, Synthetic: syntheticMarketFile(filename)}
 	if provider != "pricefinder" && provider != "rpdata" && provider != "other" {
 		return r, errors.New("invalid provider")
 	}

@@ -23,4 +23,4 @@ Rex 不提供市场成交和登记业主数据。默认来源为 RP Data 文件�
 
 附加属性写入 `properties.data.rpdataAttributes`，包括房型、卧浴车、土地/建筑面积、年份、用途/分区/地块、最近成交、经纪人、CoreLogic URL 和 ID、updatedAt、可解析的 exportedAt，以及业主/卖家姓名。不会覆盖 Rex 原字段；这些属性供 UI 单独展示。`market_events.raw` 只保留非个人信息白名单列；`rpdataAttributes.owners` 和 `.vendors` 及 `property_ownership.owner_names` 对无 zone 授权者从同步和单条 API 响应中删除。不要将原文件、未匹配地址或姓名写入公开日志。
 
-测试服务器的备份、上传、dry-run、正式导入及源文件清理步骤见 [rpdata-import.md](rpdata-import.md)。管理员也可在 `/admin/` → Market data 选择 RP Data / Pricefinder 上传，先 dry-run 核对行数及匹配率。Pricefinder 原有快照仍按其旧规则运行；API pull 尚未实现。
+测试服务器的备份、上传、dry-run、正式导入及源文件清理步骤见 [rpdata-import.md](rpdata-import.md)。测试用的合成导出文件及清理方法见 [rpdata-synthetic.md](rpdata-synthetic.md)。管理员也可在 `/admin/` → Market data 选择 RP Data / Pricefinder 上传，先 dry-run 核对行数及匹配率。Pricefinder 原有快照仍按其旧规则运行；API pull 尚未实现。
