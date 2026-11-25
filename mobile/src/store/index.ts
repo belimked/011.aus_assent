@@ -13,7 +13,7 @@ const emit = () => listeners.forEach(fn => fn());
 export const getState = () => state;
 export const subscribe = (fn: () => void) => { listeners.add(fn); return () => {listeners.delete(fn)}; };
 export function useStore<T>(selector: (state: AppState) => T): T { return selector(useSyncExternalStore(subscribe, getState, getState)); }
-export async function hydrate() { try { const raw = await AsyncStorage.getItem('ax_state'); const saved = raw && JSON.parse(raw); if (saved?.v === 8 && saved.contacts && saved.captures && saved.auth?.email?.endsWith('@axleo.local')) state = {...emptyState(),...saved,ofi_attendees:saved.ofi_attendees||[]}; } catch {} ready = true; emit(); reconcileReminders(state); }
+export async function hydrate() { try { const raw = await AsyncStorage.getItem('ax_state'); const saved = raw && JSON.parse(raw); if (saved?.v === 8 && saved.contacts && saved.captures) state = {...emptyState(),...saved,ofi_attendees:saved.ofi_attendees||[]}; } catch {} ready = true; emit(); reconcileReminders(state); }
 export const useReady = () => useSyncExternalStore(subscribe, () => ready, () => true);
 let localWrite: ((before: AppState, after: AppState) => void) | null = null;
 export const onLocalWrite = (fn: typeof localWrite) => { localWrite = fn; };
