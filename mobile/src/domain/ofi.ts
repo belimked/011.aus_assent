@@ -42,10 +42,10 @@ export function ohRequests(state:AppState, l:Listing, c:Contact, p:Property, rq:
   if(rq.guide) noteOn(state,c,'Buyer guide emailed.');
   if(rq.dbyd) task(days(2),`Send Dial Before You Dig info · ${cname(c)}`);
 }
-export function commitOH(state:AppState, listingId:string, r:Registration):Contact {
+export function commitOH(state:AppState, listingId:string, r:Registration, eventIndex?:number):Contact {
   const l=byId(state.listings,listingId);if(!l) throw new Error('Listing not found');
   const p=byId(state.properties,l.propertyId);if(!p) throw new Error('Property not found');
-  const o=l.ofi.find(x=>x.d===today());if(!o) throw new Error('No open home today');
+  const o=eventIndex===undefined?l.ofi.find(x=>x.d===today()):l.ofi[eventIndex];if(!o||o.d!==today()) throw new Error('No open home today');
   const matches=buyerMatches(state,r.mobile,r.email);
   // The prototype falls back to the first match when several contacts match.
   let c=matches.list[0]?.c;

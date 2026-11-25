@@ -275,7 +275,10 @@ func pollRex(ctx context.Context, db *sql.DB, c *rexClient, account string) erro
 	if err := assignPollOwners(db, newProps, newContacts); err != nil {
 		return err
 	}
-	return assignSandbox(db, ids, newProps, newContacts)
+	if err := assignSandbox(db, ids, newProps, newContacts); err != nil {
+		return err
+	}
+	return pollRexOFI(ctx, db, c, account, time.Now())
 }
 
 // flattenRexRead lifts the primary name/phone/email from a Contacts::read result
