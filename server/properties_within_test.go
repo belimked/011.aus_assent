@@ -18,13 +18,13 @@ func TestPropertiesWithin(t *testing.T) {
 	var mary, john string
 	_ = a.db.QueryRow(`SELECT id FROM users WHERE email='mary@axleo.local'`).Scan(&mary)
 	_ = a.db.QueryRow(`SELECT id FROM users WHERE email='john@axleo.local'`).Scan(&john)
-	for _, row := range []struct{ id, owner, ll, source string }{{"parcel", mary, `[-27.57,153.06]`, "qld"}, {"rex", mary, `[-27.571,153.061]`, "rex_import"}, {"private", john, `[-27.57,153.06]`, "manual"}, {"outside", mary, `[-27.59,153.06]`, "qld"}} {
-		if _, err := a.db.Exec(`INSERT INTO properties(id,no,street,suburb,data,owner_id,registered,created_at,updated_at) VALUES(?,'1','Test St','Sunnybank',?,?,0,?,?)`, row.id, `{"id":"`+row.id+`","ll":`+row.ll+`,"source":"`+row.source+`"}`, row.owner, now(), now()); err != nil {
+	for _, row := range []struct{ id, owner, ll, source string }{{"parcel", mary, `[-27.57,153.06]`, "qld_parcels"}, {"rex", mary, `[-27.571,153.061]`, "rex_import"}, {"private", john, `[-27.57,153.06]`, "manual"}, {"outside", mary, `[-27.59,153.06]`, "qld_parcels"}, {"unlinked", mary, `[-27.572,153.062]`, "qld_parcels"}} {
+		if _, err := a.db.Exec(`INSERT INTO properties(id,no,street,suburb,data,owner_id,registered,created_at,updated_at) VALUES(?,'1','Test St','Sunnybank',?,?,1,?,?)`, row.id, `{"id":"`+row.id+`","ll":`+row.ll+`,"source":"`+row.source+`"}`, row.owner, now(), now()); err != nil {
 			t.Fatal(err)
 		}
 	}
 	// SQL NULL represents the common parcel; an empty owner is a private owner, not public.
-	if _, err := a.db.Exec(`UPDATE properties SET owner_id=NULL WHERE id IN ('parcel','rex','outside')`); err != nil {
+	if _, err := a.db.Exec(`UPDATE properties SET owner_id=NULL WHERE id IN ('parcel','rex','outside','unlinked')`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := a.db.Exec(`INSERT INTO contacts(id,owner_id,data,created_at,updated_at) VALUES('c',?,'{"id":"c","first":"Secret"}',?,?)`, mary, now(), now()); err != nil {
