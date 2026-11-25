@@ -19,6 +19,7 @@ const tokenSet=(v:string|null)=>Platform.OS==='web'?Promise.resolve(v?localStora
 export const isOnline=()=>!!token;
 export const authHeader=()=>token ? {Authorization:`Bearer ${token}`} : null;
 export const syncInfo=()=>({lastSync,pending:queue.length});
+export const formatLastSync=(value:string)=>{const d=new Date(value);return value&&!Number.isNaN(d.getTime())?d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'}):'—'};
 /** Team member id for a display name (from the last /team fetch); undefined offline. */
 /** Team from the last sync (id+name), so pickers render instantly. */
 export const teamList=()=>Object.entries(names).map(([id,name])=>({id,name}));
@@ -49,7 +50,7 @@ export async function syncNow(){if(!token||running)return;running=true;let error
  if(item.status==='ok'&&item.record){const later=queue.find(x=>x.kind===op.kind&&x.id===op.id);if(later)later.baseVersion=item.record.version;else {const s=getState();replaceState({...s,[field(op.kind)]:[...(s[field(op.kind)] as any[]).filter(x=>x.id!==op.id),mapRecord(item.record,op.kind,names,s.auth?.name||'')]});}}
  }await save();reflect(errors);}
  const pull=await api(`/sync${cursor?`?since=${encodeURIComponent(cursor)}`:''}`) as Pull;
- replaceState({...merge(getState(),pull,names,queue),syncq:[...queue.map(op=>label(op)),...errors],queue:queue.length});cursor=pull.cursor;lastSync=new Date().toLocaleString();await save();delay=2000;
+ replaceState({...merge(getState(),pull,names,queue),syncq:[...queue.map(op=>label(op)),...errors],queue:queue.length});cursor=pull.cursor;lastSync=new Date().toISOString();await save();delay=2000;
  }catch{queue=enqueue([],queue);void save();delay=Math.min(Math.max(delay*2,4000),60000);schedule(delay);}finally{inFlight.clear();running=false;if(queue.length&&delay===2000)schedule();}}
 RNAppState.addEventListener('change',v=>{if(v==='active'&&token)schedule(0)});
 setInterval(()=>{if(token)void syncNow()},60000);

@@ -76,3 +76,12 @@ describe('edits made while synchronizing',()=>{
     await check();
   });
 });
+
+describe('formatLastSync',()=>{
+  it('formats ISO timestamps and hides invalid legacy values',()=>{
+    const {formatLastSync}=require('./sync');
+    expect(formatLastSync('')).toBe('—');
+    expect(formatLastSync('25/11/2026, 4:31:00 pm')).toBe('—');
+    expect(formatLastSync('2026-11-25T06:31:00.000Z')).toMatch(/\d{1,2}:\d{2}/);
+  });
+});
