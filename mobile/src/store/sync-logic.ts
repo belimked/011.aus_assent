@@ -1,4 +1,5 @@
 import type {AppState} from '../data/types';
+import {withPropertyLL} from '../domain/propertyLL';
 export const kinds=['contacts','properties','todos','captures','enquiries','leads','listings','ofi_attendees','sales','contracts','referrals','market_items','zones','tags','activity'] as const;
 export type Kind=typeof kinds[number];
 export const field=(kind:Kind):keyof AppState=>kind==='market_items'?'market':kind==='tags'?'myTags':kind==='activity'?'audit':kind;
@@ -29,6 +30,8 @@ export function mapRecord(record:RecordData,kind:Kind,names:Record<string,string
  if(kind==='contacts')r.owner=names[r.ownerId]||r.owner||me;
  if(kind==='todos'){r.who=names[r.assigneeId]||r.who||me;r.by=names[r.createdBy]||r.by||me;}
  if(kind==='listings')r.agent=names[r.ownerId]||r.agent||me;
+ // Legacy server rows carry lat/lng only; every map reads ll.
+ if(kind==='properties')return withPropertyLL(r);
  return r;
 }
 export function merge(state:AppState,pull:Pull,names:Record<string,string>,pending:Op[]):AppState{

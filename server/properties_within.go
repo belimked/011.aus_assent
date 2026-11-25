@@ -28,6 +28,13 @@ func withinPolygon(p withinPoint, poly []withinPoint) bool {
 	}
 	return inside
 }
+
+// Map point: numeric ll first, then numeric lat/lng (legacy rows; see property_ll.go).
+const withinHasLL = `json_type(p.data,'$.ll[0]') IN ('integer','real') AND json_type(p.data,'$.ll[1]') IN ('integer','real')`
+const withinHasLatLng = `json_type(p.data,'$.lat') IN ('integer','real') AND json_type(p.data,'$.lng') IN ('integer','real')`
+const withinLat = `(CASE WHEN ` + withinHasLL + ` THEN json_extract(p.data,'$.ll[0]') WHEN ` + withinHasLatLng + ` THEN json_extract(p.data,'$.lat') END)`
+const withinLng = `(CASE WHEN ` + withinHasLL + ` THEN json_extract(p.data,'$.ll[1]') WHEN ` + withinHasLatLng + ` THEN json_extract(p.data,'$.lng') END)`
+
 func (a *app) propertiesWithin(w http.ResponseWriter, r *http.Request, p principal) {
 	var input struct {
 		Polygon []withinPoint `json:"polygon"`
@@ -64,12 +71,11 @@ func (a *app) propertiesWithin(w http.ResponseWriter, r *http.Request, p princip
 	args := []any{south, north, west, east}
 	args = append(args, scopeArgs...)
 	rows, err := a.db.Query(`SELECT p.id,coalesce(p.no,''),coalesce(p.street,''),coalesce(p.suburb,''),
- json_extract(p.data,'$.ll[0]'),json_extract(p.data,'$.ll[1]'),coalesce(json_extract(p.data,'$.source'),''),
+ `+withinLat+`,`+withinLng+`,coalesce(json_extract(p.data,'$.source'),''),
  EXISTS(SELECT 1 FROM rex_links rl WHERE rl.entity='properties' AND rl.local_id=p.id),
  EXISTS(SELECT 1 FROM property_owners po JOIN contacts c ON c.id=po.contact_id AND c.deleted_at IS NULL WHERE po.property_id=p.id AND (c.owner_id=? OR ?='admin'))
  FROM properties p WHERE p.deleted_at IS NULL AND json_valid(p.data)
- AND json_type(p.data,'$.ll[0]') IN ('integer','real') AND json_type(p.data,'$.ll[1]') IN ('integer','real')
- AND json_extract(p.data,'$.ll[0]') BETWEEN ? AND ? AND json_extract(p.data,'$.ll[1]') BETWEEN ? AND ?`+scopeSQL+propertySyncSQL("p")+` ORDER BY p.id`, append([]any{p.id, p.role}, args...)...)
+ AND `+withinLat+` BETWEEN ? AND ? AND `+withinLng+` BETWEEN ? AND ?`+scopeSQL+propertySyncSQL("p")+` ORDER BY p.id`, append([]any{p.id, p.role}, args...)...)
 	if err != nil {
 		problem(w, 500, "database error")
 		return

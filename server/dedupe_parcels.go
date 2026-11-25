@@ -70,11 +70,7 @@ func dedupeParcels(db *sql.DB, dry bool) (dedupeCounts, error) {
 			counts.Moved++
 			continue
 		}
-		lat, lng := 0.0, 0.0
-		if ll, ok := from.data["ll"].([]any); ok && len(ll) == 2 {
-			lat, _ = ll[0].(float64)
-			lng, _ = ll[1].(float64)
-		}
+		lat, lng, _ := propertyLL(from.data)
 		area, _ := from.data["land"].(float64)
 		lp := lotKey(str(from.data, "lotplan"))
 		if lp == "" {
@@ -104,6 +100,7 @@ func dedupeParcels(db *sql.DB, dry bool) (dedupeCounts, error) {
 		}
 		if to.data["pricefinderAttributes"] == nil && from.data["pricefinderAttributes"] != nil || oldDate.Valid && (!newDate.Valid || oldDate.String > newDate.String) && from.data["pricefinderAttributes"] != nil {
 			to.data["pricefinderAttributes"] = from.data["pricefinderAttributes"]
+			ensurePropertyLL(to.data)
 			b, _ := json.Marshal(to.data)
 			if _, err = tx.Exec(`UPDATE properties SET data=?,updated_at=?,version=version+1 WHERE id=?`, string(b), now(), to.id); err != nil {
 				return counts, err

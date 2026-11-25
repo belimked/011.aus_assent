@@ -828,6 +828,9 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 	delete(m, "version")
 	delete(m, "updated_at")
 	delete(m, "deleted_at")
+	if kind == "properties" {
+		ensurePropertyLL(m)
+	}
 	b, _ := json.Marshal(m)
 	tx, err := a.db.Begin()
 	if err != nil {

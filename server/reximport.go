@@ -291,6 +291,7 @@ func importSave(db *sql.DB, kind, account string, r importRow, owner string, dry
 			if err = mergeImportData(tx, "properties", id, data); err != nil {
 				return err
 			}
+			ensurePropertyLL(data)
 			_, err = tx.Exec(`UPDATE properties SET no=?,street=?,suburb=?,data=?,updated_at=?,version=version+1,deleted_at=NULL WHERE id=?`, no, street, suburb, ijson(data), stamp, id)
 		} else {
 			_, err = tx.Exec(`INSERT INTO properties(id,owner_id,no,street,suburb,data,registered,created_at,updated_at) VALUES(?,?,?,?,?,?,1,?,?)`, id, owner, no, street, suburb, ijson(data), stamp, stamp)

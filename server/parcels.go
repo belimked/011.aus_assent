@@ -57,6 +57,8 @@ func enrichParcel(tx *sql.Tx, p parcelPrior, lp string, lat, lng, area float64, 
 	if d["ll"] == nil && lat != 0 && lng != 0 {
 		d["ll"] = []float64{lat, lng}
 		changed = true
+	} else if ensurePropertyLL(d) {
+		changed = true
 	}
 	if d["land"] == nil && area > 0 {
 		d["land"] = area

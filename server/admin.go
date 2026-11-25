@@ -453,6 +453,7 @@ func seedData(db seedStore, withDemo bool) error {
 	}
 	for _, m := range demo.Properties {
 		id := str(m, "id")
+		ensurePropertyLL(m)
 		payload, _ := json.Marshal(m)
 		_, err = db.Exec(`INSERT INTO properties(id,no,street,suburb,geometry,pf_owner,last_sale,flags,data,created_at,updated_at,registered) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING`, id, str(m, "no"), str(m, "street"), str(m, "suburb"), jsonField(m, "geometry"), str(m, "pfOwner"), str(m, "lastSale"), jsonField(m, "flags"), string(payload), stamp, stamp, strings.HasPrefix(id, "p") && len(id) <= 3)
 		if err != nil {

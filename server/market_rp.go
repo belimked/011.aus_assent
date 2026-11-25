@@ -86,6 +86,7 @@ func storeRPAttributes(tx *sql.Tx, id string, head, row []string, providerID, fi
 		}
 	}
 	p["rpdataAttributes"] = attrs
+	ensurePropertyLL(p)
 	b, _ := json.Marshal(p)
 	_, err := tx.Exec(`UPDATE properties SET data=?,updated_at=?,version=version+1 WHERE id=?`, string(b), now(), id)
 	return err
