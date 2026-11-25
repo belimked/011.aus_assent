@@ -41,7 +41,41 @@ func marketRows(data []byte) ([][]string, error) {
 		if len(sheets) == 0 {
 			return nil, fmt.Errorf("no sheets")
 		}
-		return f.GetRows(sheets[0])
+		// Rows avoids building a second full worksheet (and never reads embedded photos).
+		iter, err := f.Rows(sheets[0])
+		if err != nil {
+			return nil, err
+		}
+		defer iter.Close()
+		var out [][]string
+		for iter.Next() {
+			row, err := iter.Columns()
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, row)
+		}
+		if err := iter.Error(); err != nil {
+			return nil, err
+		}
+		// CoreLogic exports may store the link as a formula without a cached value.
+		for i, row := range out {
+			if i == 0 || len(row) < 30 {
+				continue
+			}
+			if corelogicID(row[29]) != "" {
+				continue
+			}
+			cell, _ := excelize.CoordinatesToCellName(30, i+1)
+			if formula, _ := f.GetCellFormula(sheets[0], cell); corelogicID(formula) != "" {
+				row[29] = formula
+				continue
+			}
+			if ok, target, _ := f.GetCellHyperLink(sheets[0], cell); ok {
+				row[29] = target
+			}
+		}
+		return out, nil
 	}
 	r := csv.NewReader(bytes.NewReader(bytes.TrimPrefix(data, []byte{0xef, 0xbb, 0xbf})))
 	r.FieldsPerRecord = -1
@@ -113,7 +147,7 @@ func marketDate(s string) (string, error) {
 	if s == "" {
 		return "", nil
 	}
-	for _, layout := range []string{"2006-01-02", "2/1/2006"} {
+	for _, layout := range []string{"2006-01-02", "2/1/2006", "2 Jan 2006"} {
 		if t, err := time.Parse(layout, s); err == nil {
 			return t.Format("2006-01-02"), nil
 		}

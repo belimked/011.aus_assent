@@ -1,0 +1,14 @@
+{
+  "address": ["Street Address"],
+  "suburb": ["Suburb"],
+  "postcode": ["Postcode"],
+  "lot_plan": ["Parcel Details"],
+  "price": ["Sale Price"],
+  "date": ["Sale Date"],
+  "agency": ["Agency"],
+  "agent": ["Agent"],
+  "beds": ["Bed"],
+  "baths": ["Bath"],
+  "cars": ["Car"],
+  "land": ["Land Size (m²)"]
+}

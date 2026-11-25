@@ -56,7 +56,7 @@ export function confirmMarket(s:AppState,id:string){
       const priceMatch=m.meta.match(/\$\s*([\d,.]+)\s*([mk])?/i);
       const price=priceMatch?Math.round(Number(priceMatch[1].replace(/,/g,''))*(priceMatch[2]?.toLowerCase()==='m'?1e6:priceMatch[2]?.toLowerCase()==='k'?1e3:1)):null;
       if(soldDate)p.lastSale=soldDate.slice(0,7);
-      p.market={...p.market,lastSalePrice:price??p.market?.lastSalePrice??null,lastSaleDate:soldDate||p.market?.lastSaleDate||'',source:'Pricefinder',updatedAt:today()};
+      p.market={...p.market,lastSalePrice:price??p.market?.lastSalePrice??null,lastSaleDate:soldDate||p.market?.lastSaleDate||'',source:p.market?.source||'RP Data',updatedAt:today()};
     }else if(m.kind==='listing'){
       p.otherListing=true;
       for(const c of ownersOf(s,p)){c.sellerLeadStatus='Listed with competitor';c.sellerStatus='Listed with competitor';noteOn(s,c,`Market monitor: ${propAddr(p)} listed with ${m.agency||'a competitor'}. Seller lead status: Listed with competitor.`)}
