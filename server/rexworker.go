@@ -65,6 +65,13 @@ func (w *rexWorker) agent(id string) (name, rex string) {
 	}
 	return
 }
+func (w *rexWorker) userName(id string) string {
+	var name string
+	if id != "" {
+		_ = w.db.QueryRow(`SELECT name FROM users WHERE id=?`, id).Scan(&name)
+	}
+	return name
+}
 func rexRef(id string) map[string]any { return map[string]any{"id": id} }
 func (w *rexWorker) step(ctx context.Context) error {
 	var j rexJob
@@ -102,10 +109,14 @@ func (w *rexWorker) step(ctx context.Context) error {
 				return e
 			}
 		}
-		if j.entity == "rex_contact_relation" {
+		if j.entity == "rex_contact_relation" || j.entity == "rex_property_note" {
 			var payload map[string]any
 			_ = json.Unmarshal([]byte(j.payload), &payload)
-			if pid := str(imap(payload["relation"]), "propertyId"); pid != "" {
+			pid := str(payload, "propertyId")
+			if j.entity == "rex_contact_relation" {
+				pid = str(imap(payload["relation"]), "propertyId")
+			}
+			if pid != "" {
 				_, e = tx.Exec(`UPDATE properties SET updated_at=?,version=version+1 WHERE id=?`, now(), pid)
 				if e != nil {
 					return e
@@ -134,29 +145,31 @@ func (w *rexWorker) step(ctx context.Context) error {
 		}
 		return finish("sent", "", "", "")
 	}
-	if j.entity != "contacts" && j.entity != "rex_contact_relation" && j.entity != "rex_contact_dnd" && j.entity != "rex_contact_tag" && j.entity != "rex_contact_letter" {
+	if j.entity != "contacts" && j.entity != "rex_contact_relation" && j.entity != "rex_contact_dnd" && j.entity != "rex_contact_tag" && j.entity != "rex_contact_letter" && j.entity != "rex_property_note" {
 		return finish("skipped", "not linked to Rex sandbox record", "", "")
 	}
-	var source string
-	_ = w.db.QueryRow(`SELECT COALESCE(json_extract(data,'$.source'),'') FROM contacts WHERE id=?`, linkID).Scan(&source)
-	if linked == "" && j.entity != "contacts" {
-		var exists int
-		_ = w.db.QueryRow(`SELECT count(*) FROM contacts WHERE id=? AND deleted_at IS NULL`, linkID).Scan(&exists)
-		if exists == 0 {
+	if j.entity != "rex_property_note" { // property notes need the Rex property, not a contact
+		var source string
+		_ = w.db.QueryRow(`SELECT COALESCE(json_extract(data,'$.source'),'') FROM contacts WHERE id=?`, linkID).Scan(&source)
+		if linked == "" && j.entity != "contacts" {
+			var exists int
+			_ = w.db.QueryRow(`SELECT count(*) FROM contacts WHERE id=? AND deleted_at IS NULL`, linkID).Scan(&exists)
+			if exists == 0 {
+				return finish("skipped", "not linked to Rex sandbox record", "", "")
+			}
+			var createStatus string
+			_ = w.db.QueryRow(`SELECT status FROM rex_outbox WHERE entity='contacts' AND entity_id=? AND op='POST' ORDER BY id DESC LIMIT 1`, linkID).Scan(&createStatus)
+			if createStatus == "failed" {
+				return finish("failed", "contact creation failed; reconcile before retry", "", "")
+			}
+			if createStatus == "" || createStatus == "skipped" || createStatus == "sent" {
+				return finish("skipped", "contact not in Rex", "", "")
+			}
+			return w.deferJob(j, "waiting for contact link")
+		}
+		if linked != "" && source != "rex_import" && j.entity != "contacts" && j.entity != "rex_contact_relation" {
 			return finish("skipped", "not linked to Rex sandbox record", "", "")
 		}
-		var createStatus string
-		_ = w.db.QueryRow(`SELECT status FROM rex_outbox WHERE entity='contacts' AND entity_id=? AND op='POST' ORDER BY id DESC LIMIT 1`, linkID).Scan(&createStatus)
-		if createStatus == "failed" {
-			return finish("failed", "contact creation failed; reconcile before retry", "", "")
-		}
-		if createStatus == "" || createStatus == "skipped" || createStatus == "sent" {
-			return finish("skipped", "contact not in Rex", "", "")
-		}
-		return w.deferJob(j, "waiting for contact link")
-	}
-	if linked != "" && source != "rex_import" && j.entity != "contacts" && j.entity != "rex_contact_relation" {
-		return finish("skipped", "not linked to Rex sandbox record", "", "")
 	}
 	var m map[string]any
 	if json.Unmarshal([]byte(j.payload), &m) != nil {
@@ -234,6 +247,21 @@ func (w *rexWorker) step(ctx context.Context) error {
 		}
 		service, method = "Reminders", "toggleCompletionState"
 		body = map[string]any{"id": reminder, "is_completed": true, "create_activity_entry": true}
+	case "rex_property_note":
+		property := w.link("properties", str(m, "propertyId"))
+		if property == "" {
+			return finish("skipped", "not in Rex", "", "")
+		}
+		if str(m, "t") == "" {
+			return finish("skipped", "empty note", "", "")
+		}
+		entityLink = w.link("rex_property_note", j.localID) // already created: never a second note
+		service = "Notes"
+		actor = w.userName(str(m, "actorId"))
+		if actor == "" {
+			actor = str(m, "a")
+		}
+		data = map[string]any{"note": propertyNoteText(m, actor, time.Now()), "note_type": rexRef("note"), "related": map[string]any{"note_properties": []any{map[string]any{"property": rexRef(property)}}}}
 	case "rex_completion_note":
 		if str(m, "contactId") == "" {
 			return finish("skipped", "completion note needs a contact", "", "")
@@ -440,6 +468,9 @@ func (w *rexWorker) step(ctx context.Context) error {
 		}
 	}
 	w.client.Entity, w.client.LocalID, w.client.RexID = "contacts", linkID, linked
+	if j.entity == "rex_property_note" {
+		w.client.Entity, w.client.LocalID, w.client.RexID = j.entity, j.localID, ""
+	}
 	if w.client.Token == "" {
 		if _, e := w.client.Login(ctx, w.email, w.password, w.account); e != nil {
 			return w.retry(j, "Rex login failed", 0)

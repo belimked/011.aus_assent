@@ -257,6 +257,49 @@ func TestRexWorkerSingleConnection(t *testing.T) {
 	}
 }
 
+// Property notes: mutate snapshots the old notes, the record tx checks for an
+// existing job, the worker reads links/users and finishes, and the pull lists
+// per-note outbox rows while building each property.
+func TestPropertyNoteSingleConnection(t *testing.T) {
+	a, tokens := setup(t)
+	t.Setenv("REX_ACCOUNT_ID", "2057")
+	mary := tokens["mary"]
+	var maryID string
+	_ = a.db.QueryRow(`SELECT id FROM users WHERE email='mary@axleo.local'`).Scan(&maryID)
+	created := 777
+	w, _ := sandboxWorker(t, a, func(path string, b map[string]any) (any, int) { created++; return created, 200 })
+	w.client.Log = rexDBLogger(a.db)
+	singleConnGuard(t, a.db, "property notes", func() error {
+		if err := syncPushOps(a, mary, map[string]any{"opId": "p", "kind": "properties", "op": "upsert", "id": "p-1", "data": map[string]any{"id": "p-1", "no": "1", "street": "Test St", "suburb": "Sunnybank", "ownerIds": []string{}, "flags": map[string]any{}, "notes": []any{note("n-1", "2026-11-25", "Mary", "Hi")}}}); err != nil {
+			return err
+		}
+		if _, err := a.db.Exec(`INSERT INTO rex_links(entity,local_id,rex_id,rex_service,created_at,account_id) VALUES('properties','p-1','r1','Properties',?,'2057')`, now()); err != nil {
+			return err
+		}
+		var version int
+		if err := a.db.QueryRow(`SELECT version FROM properties WHERE id='p-1'`).Scan(&version); err != nil {
+			return err
+		}
+		if err := syncPushOps(a, mary, map[string]any{"opId": "p2", "kind": "properties", "op": "upsert", "id": "p-1", "baseVersion": version, "data": map[string]any{"notes": []any{note("n-2", "2026-11-25", "Mary", "Again"), note("n-1", "2026-11-25", "Mary", "Hi")}}}); err != nil {
+			return err
+		}
+		for i := 0; i < 4; i++ { // two property PATCH jobs interleave with the note jobs
+			if err := w.step(context.Background()); err != nil {
+				return err
+			}
+		}
+		if r := request(a, "GET", "/api/v1/sync", mary, nil); r.Code != 200 || !strings.Contains(r.Body.String(), `"noteRexSync"`) {
+			return fmt.Errorf("pull %d %s", r.Code, r.Body)
+		}
+		return nil
+	})
+	var sent int
+	_ = a.db.QueryRow(`SELECT count(*) FROM rex_links WHERE entity='rex_property_note'`).Scan(&sent)
+	if sent != 2 {
+		t.Fatal("notes linked:", sent)
+	}
+}
+
 // Admin market import (RP Data + Pricefinder-style attributes) in one transaction,
 // followed by the import list/detail endpoints.
 func TestMarketImportSingleConnection(t *testing.T) {

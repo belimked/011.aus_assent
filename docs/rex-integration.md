@@ -457,6 +457,36 @@ Poll imports changed properties and contacts before saving `contact_reln_propert
 
 App-created contacts require an enabled local owner and the existing `AXLEO_REX_WRITE=1`/`REX_WRITE_ACCOUNT_ID` account verification. Outbox POST creates Contacts with related name/phone/email, records the account-scoped link, then queued property owner relations write `Properties::update`. Before create, linked local AU-normalised phones are checked. Ambiguous create results fail closed for manual reconciliation; they are **not** retried blindly. Rejected writes retain `last_error`; transient login/rate/update failures use exponential retries. Properties with no Rex link are skipped as "not in Rex" (product decision 2026-11-25: the contact is still created in Rex, but the app never auto-creates the property in Rex; the owner link stays local and the property shows "Not in Rex yet"). Latest outbox state is delivered as `rexSync`; clients can pull to refresh. Voice DK transcription/extraction audit is stored internally, not written to Rex.
 
+## 房产备注 → Rex Notes
+
+App 房产详情里的备注（`properties.data.notes[]`）在房产已关联 Rex 时，每条写成一条挂在 Rex 房产上的 Note。只同步**新增**，备注修改、删除不同步，也不从 Rex 拉回备注。
+
+**入队**：房产 POST/PATCH（含 `/sync/push`，它同样走 `mutate`）时，用修改前的 `data.notes` 和新 `data.notes` 对比，每条新增备注入队 `rex_outbox(entity='rex_property_note', entity_id='<propertyId>:<noteKey>', op='POST', payload={propertyId,noteKey,t,a,d,at,actorId})`。`noteKey` 取 App 生成的备注 `id`（`pn…`，≤64 字符）；没有 id 的旧备注用 `"h"+sha1(at 或 d ␟ a ␟ t)`。同一 entity_id 已有 outbox 记录就不再入队（重复 PATCH、删除后恢复、同步重放都只会有一条任务）。入队时不判断 Rex 关联，由 worker 判断。旧备注在 `mutate` 里和 `previousOwners` 一起从已读出的记录中复制，不另外查库（`MaxOpenConns(1)`，见 `TestPropertyNoteSingleConnection`）。
+
+**worker**（`rexworker.go`，`rex_property_note`）：
+- 不按联系人校验，只看房产：`rex_links(properties, propertyId, 当前账户)` 不存在 → `skipped "not in Rex"`，不调用 Rex。
+- `rex_links(rex_property_note, '<propertyId>:<noteKey>')` 已存在 → 直接 `sent`（幂等）。
+- 否则 `Notes::create`，成功后写 `rex_links(entity='rex_property_note', local_id='<propertyId>:<noteKey>', rex_id=<note id>, rex_service='Notes')`，并给房产 version+1，让手机拉到新状态。
+- 响应丢失（无 error envelope 的超时/5xx）时任务置 `failed "Rex write outcome unknown; reconcile before retry"`，**不盲目重放**；Rex 明确拒绝时记录 `Rex rejected: …`。
+- 仍受 `AXLEO_REX_WRITE=1`、`REX_WRITE_ACCOUNT_ID`、测试账户验证约束。
+
+**已在沙箱 2057 验证的请求**（2026-11-25）：
+
+```json
+// Notes::create（POST /v1/rex/notes/create）
+{"data":{"note":"<正文>\n— via AxleoCollect · <经纪人>","note_type":{"id":"note"},
+  "related":{"note_properties":[{"property":{"id":23138536}}]}},"return_id":true}
+```
+
+- `result` 为 note id（如 141116060）。只挂房产、不挂联系人可行。
+- `Notes::read` 返回 `related.note_properties=[{"id":"39194753","property":"23138536"}]`；`Notes::search` criteria `[{"name":"related_property.id","value":23138536}]` 能查到。
+- `Notes::update {"data":{"id":N,"note":"…"}}` 只改正文、不丢房产关联；`Notes::trash {"id":N}` 删除（本功能目前都不调用）。
+- 平铺写法 `note_properties=[{"property_id":N}]` 也可用，代码统一用嵌套写法 `{property:{id}}`。
+
+**作者与时间限制**：Rex 的 `created_by` 总是集成用户（沙箱为 80559），`system_ctime` 是 Rex 服务器时间、不可写。因此正文末尾加签名 `\n— via AxleoCollect · <经纪人>`（经纪人取写入备注的登录用户名，找不到时用备注上的 `a`）；备注日期 `d` 不是发送当天（Brisbane）时，正文前加 `[YYYY-MM-DD] `。
+
+**App 状态**：`/sync` 拉取的房产带 `noteRexSync: {<noteKey>: {status, reason, at}}`（服务端计算，写入时丢弃），房产备注卡片用 `RexSyncLabel` 显示 Pending Rex / In Rex / Rex failed / Rex skipped；无 id 的旧备注不显示状态。
+
 ## OFI 只读导入（UAT2）
 
 `AXLEO_REX_READ=1` 且 Rex 凭证完整时，房产/联系人 poll 后每账户至少间隔 5 分钟读取 `Listings::search` 和 `ListingEvents::search`（分页、无过滤条件；沙箱尚未确认日期和类型的 search criteria），只保留 `event_type` 精确为 `open_home`（兼容旧值 `ofi`）的事件。`listing.id` 关联 Listings；Listings `property.id` / `property_id` 经 `rex_links(properties,account_id,rex_id)` 找房产，缺失时 `Properties::read` 后走现有房产导入。挂牌 owner/team 跟房产 owner/team；未分配房产由导入默认 admin 持有。所有挂牌继续沿用当前 listings 全团队可见规则。按每场 `event_timezone` 的当地日历日保留昨天到未来 14 天（可设 `REX_OFI_PAST_DAYS` / `REX_OFI_FUTURE_DAYS`，0–365；缺时区回退 Brisbane），显示事件当地时间。本地 `listings.data.ofi[]` 保存 `{d,time,attendees:[],rexEventId,rexAttendeeCount}`；本地签到仍在独立 `ofi_attendees`，UI 数字为 Rex 计数 + 本地签到数（如果两边重复签到可能重复计数）。重新轮询只替换窗口内 Rex 场次、不动本地场次及本地签到；变更才更新 listings 版本，写 rex_links 和 rex_sync_events。未找到场次则显示下一场或空状态。

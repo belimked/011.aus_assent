@@ -214,6 +214,7 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 					attachRexSync(a.db, kind, id, item)
 				}
 				if kind == "properties" {
+					attachPropertyNoteSync(a.db, id, item)
 					// Always overwrite stale client metadata, including when a link is removed.
 					item["rexId"] = rexIDs[id]
 					// The phone draws its parcels from its own parcel layer and needs

@@ -9,6 +9,13 @@ test('note without contact works on an unowned property',()=>{
  savePropertyTranscript(s,p.id,'No one home');
  expect(s.contacts).toHaveLength(count);expect(p.notes?.[0].t).toBe('No one home');
 });
+test('every new property note carries a unique stable id for the Rex note job',()=>{
+ const s=seed(),p=s.properties[0];p.notes=[{d:'2026-10-01',a:'Mary',t:'Legacy note without id'}];
+ savePropertyTranscript(s,p.id,'First');savePropertyTranscript(s,p.id,'Second');
+ const [second,first,legacy]=p.notes!;
+ expect(first.id).toMatch(/^pn[a-z0-9]+$/);expect(second.id).toMatch(/^pn[a-z0-9]+$/);expect(first.id).not.toBe(second.id);
+ expect(first.id!.length).toBeLessThanOrEqual(64);expect(legacy.id).toBeUndefined();
+});
 test('voice finds existing contact by normalized Australian mobile',()=>{
  const s=seed(),p=s.properties[0];p.ownerIds=[];
  const c=s.contacts[0];c.mobile='+61 499 987 654';

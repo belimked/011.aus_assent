@@ -654,7 +654,7 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 			return
 		}
 		if kind == "properties" {
-			previousOwners = map[string]any{"ownerIds": append([]string(nil), stringsFrom(old["ownerIds"])...)}
+			previousOwners = map[string]any{"ownerIds": append([]string(nil), stringsFrom(old["ownerIds"])...), "notes": copyPropertyNotes(old["notes"])}
 		}
 		if kind == "listings" && p.role != "admin" && a.b3Owner(kind, id) != p.id {
 			problem(w, 404, "not found")
@@ -810,6 +810,7 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 	}
 	if kind == "properties" {
 		delete(m, "market")
+		delete(m, "noteRexSync") // server-computed on pull
 		if p.role != "admin" {
 			if method == "PATCH" {
 				var raw string
@@ -991,7 +992,10 @@ func (a *app) record(tx *sql.Tx, p principal, action, kind, id string, diff any,
 		if len(previous) > 0 {
 			old = previous[0]
 		}
-		return enqueuePropertyOwners(tx, id, diff, old, stamp)
+		if err := enqueuePropertyOwners(tx, id, diff, old, stamp); err != nil {
+			return err
+		}
+		return enqueuePropertyNotes(tx, id, diff, old, p.id, stamp)
 	}
 	if kind == "contacts" || kind == "todos" || kind == "enquiries" || kind == "leads" || kind == "ofi_attendees" || kind == "referrals" || (kind == "captures" && captureApproved(diff)) {
 		_, err := tx.Exec(`INSERT INTO rex_outbox(entity,entity_id,op,payload,created_at) VALUES(?,?,?,?,?)`, kind, id, action, string(b), stamp)

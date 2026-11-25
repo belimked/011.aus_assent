@@ -22,10 +22,11 @@ export function applyPreference(s:AppState,c:Contact,k:string,val:number,reason=
   c.prefLog={d:today(),by:s.auth?.name||'Owen Chen',t:`${label}: ${val?'opted in':'opted out'}${reason?' · “'+reason+'”':''}`};
   noteOn(s,c,`Preferences · ${label} ${val?'opted in':'opted out'}${reason?' · '+reason:''}`);audit(s,'Preferences',`${c.first} ${c.last}`.trim()+` · ${label}=${val}`);
 }
+/** Stable note id: the server keys its one-time Rex Notes::create job on it. */
+export const propertyNoteId=()=>'pn'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
 export function filePropertyNote(s:AppState,propId:string,txt:string){
   const p=byId(s.properties,propId);if(!p)throw new Error('Property not found');
-  // TODO(Rex): property-linked Notes::create relation field is unverified; do not attach this to an unrelated contact.
-  p.notes=[{d:today(),at:new Date().toISOString(),a:s.auth?.name||'Owen Chen',t:txt},...(p.notes||[])];
+  p.notes=[{id:propertyNoteId(),d:today(),at:new Date().toISOString(),a:s.auth?.name||'Owen Chen',t:txt},...(p.notes||[])];
   p.visits=[...(p.visits||[]),{d:today(),o:'spoke'}];audit(s,'Note',`${p.no} ${p.street}`);return p;
 }
 export function commitDK(s:AppState, propId:string, r:DKFields, pick?:string) {

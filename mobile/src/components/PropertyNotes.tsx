@@ -11,12 +11,13 @@ import {useT} from '../i18n';
 import {colors,text} from '../theme';
 import {Button,Card,SectionLabel} from './ui';
 import {NoteMic} from './NoteMic';
+import {RexSyncLabel} from './RexSyncLabel';
 
 export function PropertyNotes({property:p}:{property:Property}){
   const s=useStore(s=>s);const {l2,lang}=useT();const [note,setNote]=useState('');const [all,setAll]=useState(false);
   const [pending,setPending]=useState<{transcript:string;identity:NoteIdentity}|null>(null);
   const [selected,setSelected]=useState('');const [busy,setBusy]=useState(false);
-  const notes=[...(p.notes||[]).map(n=>({...n,who:l2('Property','房产')})),...ownersOf(s,p).flatMap(c=>c.notes.map(n=>({...n,at:'',who:`${l2('Owner','业主')}: ${cname(c)}`})))].sort((a,b)=>(b.at||b.d).localeCompare(a.at||a.d));
+  const notes=[...(p.notes||[]).map(n=>({...n,who:l2('Property','房产'),rex:n.id?p.noteRexSync?.[n.id]:undefined})),...ownersOf(s,p).flatMap(c=>c.notes.map(n=>({...n,at:'',who:`${l2('Owner','业主')}: ${cname(c)}`,rex:undefined})))].sort((a,b)=>(b.at||b.d).localeCompare(a.at||a.d));
   const save=(transcript:string,identity?:NoteIdentity,pick?:string)=>{try{update(d=>{savePropertyTranscript(d,p.id,transcript,identity,pick)});setNote('');setPending(null);setSelected('');showToast(l2('Saved','已保存'))}catch(e){showToast(String(e))}};
   const transcribed=async(transcript:string)=>{
     setNote(transcript);setBusy(true);
@@ -35,6 +36,6 @@ export function PropertyNotes({property:p}:{property:Property}){
       {matches.length>1&&<Text style={text}>{l2('Choose the correct contact','请选择正确的联系人')}</Text>}
       <Button testID="property-note-confirm" variant="primary" disabled={matches.length>1&&!selected} onPress={()=>save(pending.transcript,pending.identity,selected||undefined)}>{matches.length?l2('Link owner and save note','关联业主并保存备注'):l2('Create owner and save note','新建业主并保存备注')}</Button>
       <Button onPress={()=>save(pending.transcript)}>{l2('Save note only','只保存备注')}</Button><Button onPress={()=>setPending(null)}>{l2('Edit note instead','返回编辑备注')}</Button></Card>}
-    {(all?notes:notes.slice(0,3)).map((n,i)=><Card key={i}><Text style={[text,{fontSize:11,color:colors.muted}]}>{n.d} · {n.a} · {n.who}</Text><Text style={text}>{n.t}</Text></Card>)}
+    {(all?notes:notes.slice(0,3)).map((n,i)=><Card key={i}><Text style={[text,{fontSize:11,color:colors.muted}]}>{n.d} · {n.a} · {n.who}</Text><Text style={text}>{n.t}</Text><RexSyncLabel value={n.rex}/></Card>)}
   </>;
 }
