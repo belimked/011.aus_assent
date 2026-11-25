@@ -61,6 +61,9 @@ func pollRex(ctx context.Context, db *sql.DB, c *rexClient, account string) erro
 	for _, kind := range []string{"properties", "contacts"} {
 		service := map[string]string{"properties": "Properties", "contacts": "Contacts"}[kind]
 		seen := map[string]bool{}
+		// Links created after the search began (e.g. an app contact created mid-poll)
+		// cannot appear in this listing and must not be treated as deleted in Rex.
+		searchStarted := now()
 		for offset := 0; ; offset += 10000 {
 			c.Entity, c.LocalID, c.RexID = kind, "", ""
 			_, env, e := c.Call(ctx, service, "search", map[string]any{"limit": 10000, "offset": offset, "result_format": "etags"})
@@ -138,7 +141,7 @@ func pollRex(ctx context.Context, db *sql.DB, c *rexClient, account string) erro
 			}
 		}
 		if os.Getenv("REX_POLL_SOFT_DELETE") != "0" {
-			rows, e := db.Query(`SELECT local_id,rex_id FROM rex_links WHERE entity=? AND account_id=?`, kind, account)
+			rows, e := db.Query(`SELECT local_id,rex_id FROM rex_links WHERE entity=? AND account_id=? AND created_at<?`, kind, account, searchStarted)
 			if e != nil {
 				return e
 			}
@@ -150,14 +153,8 @@ func pollRex(ctx context.Context, db *sql.DB, c *rexClient, account string) erro
 					break
 				}
 				if !seen[p.rex] {
-					// A relation target can be readable by id but absent from contact search.
-					if kind == "contacts" {
-						var referenced int
-						_ = db.QueryRow(`SELECT count(*) FROM property_owners WHERE contact_id=?`, p.local).Scan(&referenced)
-						if referenced > 0 {
-							continue
-						}
-					}
+					// No nested queries here: the pool has a single connection and these
+					// rows hold it, so a QueryRow inside this loop deadlocks the server.
 					missing = append(missing, p)
 				}
 			}
@@ -167,6 +164,18 @@ func pollRex(ctx context.Context, db *sql.DB, c *rexClient, account string) erro
 			rows.Close()
 			if e != nil {
 				return e
+			}
+			// A relation target can be readable by id but absent from contact search.
+			if kind == "contacts" {
+				kept := missing[:0]
+				for _, p := range missing {
+					var referenced int
+					_ = db.QueryRow(`SELECT count(*) FROM property_owners WHERE contact_id=?`, p.local).Scan(&referenced)
+					if referenced == 0 {
+						kept = append(kept, p)
+					}
+				}
+				missing = kept
 			}
 			// Guard against a truncated or changed listing wiping local data.
 			if len(missing) > 20 && len(missing)*20 > len(seen)+len(missing) {
