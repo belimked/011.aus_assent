@@ -333,6 +333,8 @@ func resetTx(db *sql.DB, demo string, withDemo bool) error {
 	defer restore.Close()
 	for _, m := range seed.Properties {
 		id := str(m, "id")
+		// Same normalisation as seedData: the phone map needs ll, not only lat/lng.
+		ensurePropertyLL(m)
 		payload, e := json.Marshal(m)
 		if e != nil {
 			return e
