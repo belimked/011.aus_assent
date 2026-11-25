@@ -14,10 +14,12 @@ test('quick add DNC flags property and records a visit',()=>{
  const c=commitDK(s,p.id,{first:'Test',last:'Owner',mobile:'0499000111',email:'',relation:'owner',note:'',reason:'',tags:['Do not contact']},'new');
  expect(p.ownerIds).toContain(c.id);expect(p.flags.dnc).toBe(true);expect(p.visits.at(-1)?.o).toBe('spoke');
 });
-test('note on property without owner creates and links a contact',()=>{
- const s=seed(),p=s.properties[0];p.ownerIds=[];p.pfOwner='Sam Smith';
- const c=filePropertyNote(s,p.id,'Spoke at door');
- expect(p.ownerIds).toContain(c.id);expect(c.notes[0].t).toBe('Spoke at door');expect(p.visits.at(-1)?.o).toBe('spoke');expect(p.notes).toBeUndefined();
+test('note on property without owner does not create a contact',()=>{
+ const s=seed(),p=s.properties[0];p.ownerIds=[];const count=s.contacts.length;
+ expect(filePropertyNote(s,p.id,'Spoke at door')).toBe(p);
+ expect(p.ownerIds).toEqual([]);expect(s.contacts).toHaveLength(count);
+ expect(p.notes?.[0]).toMatchObject({t:'Spoke at door'});
+ expect(p.visits.at(-1)?.o).toBe('spoke');
 });
 test('preferences log each channel, junk tag, and only SMS determines optedOut',()=>{
  const s=seed(),c=s.contacts[0];
