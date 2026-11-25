@@ -137,7 +137,7 @@ jobs:
           export AXLEO_DB="$RUNNER_TEMP/axleo-e2e/axleo.db"
           rm -rf "$(dirname "$AXLEO_DB")" && mkdir -p "$(dirname "$AXLEO_DB")"
           go build -o "$RUNNER_TEMP/axleo" .
-          "$RUNNER_TEMP/axleo" seed >> "$E2E/server.log" 2>&1
+          "$RUNNER_TEMP/axleo" seed --with-demo >> "$E2E/server.log" 2>&1
           nohup "$RUNNER_TEMP/axleo" serve >> "$E2E/server.log" 2>&1 &
           nohup node ../mobile/e2e/common/network-proxy.cjs >> "$E2E/proxy.log" 2>&1 &
           for i in $(seq 1 30); do

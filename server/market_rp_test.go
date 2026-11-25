@@ -44,7 +44,7 @@ func TestRPDataLinksAndDates(t *testing.T) {
 }
 func TestRPDataSnapshot(t *testing.T) {
 	a, tokens := setup(t)
-	if err := seed(a.db); err != nil {
+	if err := seed(a.db, true); err != nil {
 		t.Fatal(err)
 	}
 	var admin string

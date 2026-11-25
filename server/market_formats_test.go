@@ -51,7 +51,7 @@ func TestMarketFormats(t *testing.T) {
 }
 func TestPricefinderSnapshot(t *testing.T) {
 	a, tokens := setup(t)
-	if err := seed(a.db); err != nil {
+	if err := seed(a.db, true); err != nil {
 		t.Fatal(err)
 	}
 	var admin string
@@ -123,7 +123,7 @@ func TestPricefinderSnapshot(t *testing.T) {
 }
 func TestMarketMatchesUnregisteredParcelByLotplan(t *testing.T) {
 	a, _ := setup(t)
-	if err := seed(a.db); err != nil {
+	if err := seed(a.db, true); err != nil {
 		t.Fatal(err)
 	}
 	var admin string

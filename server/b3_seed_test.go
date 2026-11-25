@@ -9,7 +9,7 @@ func TestB3SeedExistingDatabaseIdempotent(t *testing.T) {
 		t.Fatal(w.Body)
 	}
 	for i := 0; i < 2; i++ {
-		if err := seed(a.db); err != nil {
+		if err := seed(a.db, true); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -35,7 +35,7 @@ func resetFixture(t *testing.T) (*app, string, map[string]string) {
 			t.Fatal(err)
 		}
 	}
-	if err = seedData(db); err != nil {
+	if err = seedData(db, true); err != nil {
 		t.Fatal(err)
 	}
 	a := &app{db: db, failures: map[string][]time.Time{}}
@@ -260,7 +260,7 @@ func TestResetData(t *testing.T) {
 	// Dry run changes nothing, including photo files and backups.
 	dirty := tableCounts(t, db)
 	dirtyProps := dump(t, db, `SELECT * FROM properties ORDER BY id`)
-	if err := resetData(db, path, false); err != nil {
+	if err := resetData(db, path, false, true); err != nil {
 		t.Fatal(err)
 	}
 	if got := tableCounts(t, db); !reflect.DeepEqual(got, dirty) {
@@ -276,7 +276,7 @@ func TestResetData(t *testing.T) {
 		t.Fatal("dry run wrote a backup", err)
 	}
 
-	if err := resetData(db, path, true); err != nil {
+	if err := resetData(db, path, true, true); err != nil {
 		t.Fatal(err)
 	}
 	backups, _ := filepath.Glob(filepath.Join(os.Getenv("AXLEO_BACKUP_DIR"), "axleo-*.db"))
@@ -386,7 +386,7 @@ func TestResetDataRequiresMigratedSchema(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if err = resetData(db, path, true); err == nil {
+	if err = resetData(db, path, true, true); err == nil {
 		t.Fatal("reset of an unmigrated database must fail")
 	}
 }

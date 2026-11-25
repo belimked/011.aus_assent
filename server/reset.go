@@ -10,8 +10,8 @@ import (
 	"strings"
 )
 
-// resetTables hold test/business data only; they are emptied and the demo rows
-// are then re-inserted by seedData. Order respects foreign keys (children first).
+// resetTables hold test/business data only; they are emptied and optional demo
+// rows are then re-inserted by seedData. Order respects foreign keys (children first).
 var resetTables = []string{
 	"sessions", "contact_notes", "property_owners", "todos", "activity", "captures", "ofi_attendees", "ofi_events",
 	"enquiries", "leads", "sales", "contracts", "referrals", "listings", "market_items", "contacts", "tags", "photos",
@@ -25,17 +25,16 @@ var keptTables = []string{"properties", "zones", "users", "teams", "settings", "
 // Pull treats any cursor at or below it as stale and answers with a full snapshot.
 const syncResetKey = "sync_reset_seq"
 
-// Property rule (the 4,461 imported parcels are the property rows of seed/demo.json:
-// the p1..p12 demo homes plus the DCDB parcels with data.lotplan):
-//  1. id in demo.json: kept and restored in place to the demo.json values
+// Property rule (4,449 DCDB parcels plus 12 optional demo homes in demo.json):
+//  1. id in the selected seed: kept and restored in place to the selected values
 //     (address, geometry, pf_owner, last_sale, flags, data), undeleting it.
 //     registered = the seed rule (short p-ids) OR a Pricefinder ownership row
 //     exists, because the market import registers the parcels it matches.
-//  2. id not in demo.json but referenced by property_ownership/market_events
+//  2. id not in the selected seed but referenced by property_ownership/market_events
 //     (Pricefinder data must survive and keeps its FK), or carrying data.lotplan
 //     (a parcel imported outside demo.json): kept, phone-only fields stripped,
 //     registered only if Pricefinder ownership exists.
-//  3. every other row (phone/app-created: ensureParcelRecord "parcel-*" rows,
+//  3. every other row (including demo homes without --with-demo, and phone/app-created "parcel-*" rows,
 //     which carry data.lot rather than data.lotplan, and other new ids): deleted.
 //
 // Kept rows get version=version+1 so any stale queued edit conflicts.
@@ -143,7 +142,7 @@ func printCounts(title string, before, after map[string]int64) {
 			fmt.Printf("  %-55s %d -> %d\n", k, before[k], after[k])
 		}
 	}
-	fmt.Println(" cleared, then demo rows re-inserted:")
+	fmt.Println(" cleared (optional demo rows re-inserted):")
 	for _, t := range resetTables {
 		row(t)
 	}
@@ -159,17 +158,28 @@ func printCounts(title string, before, after map[string]int64) {
 // resetCommand keeps the original preview/reset behaviour unless explicitly asked
 // to import. Import failures do not undo the already committed, backed-up reset.
 func resetCommand(db *sql.DB, path string, args []string) error {
-	yes, importRex := false, false
-	switch {
-	case len(args) == 0:
-	case len(args) == 1 && args[0] == "--yes":
-		yes = true
-	case len(args) == 2 && args[0] == "--yes" && args[1] == "--rex-import":
-		yes, importRex = true, true
-	default:
-		return fmt.Errorf("usage: axleo reset-data [--yes [--rex-import]]")
+	yes, importRex, withDemo := false, false, false
+	seen := map[string]bool{}
+	for _, arg := range args {
+		if seen[arg] {
+			return fmt.Errorf("duplicate option %s", arg)
+		}
+		seen[arg] = true
+		switch arg {
+		case "--yes":
+			yes = true
+		case "--rex-import":
+			importRex = true
+		case "--with-demo":
+			withDemo = true
+		default:
+			return fmt.Errorf("usage: axleo reset-data [--yes] [--rex-import] [--with-demo]")
+		}
 	}
-	if err := resetData(db, path, yes); err != nil {
+	if importRex && !yes {
+		return fmt.Errorf("--rex-import requires --yes")
+	}
+	if err := resetData(db, path, yes, withDemo); err != nil {
 		return err
 	}
 	if !importRex {
@@ -183,9 +193,9 @@ func resetCommand(db *sql.DB, path string, args []string) error {
 	return nil
 }
 
-// resetData restores the demo starting state. Without yes it only reports.
+// resetData restores parcels (and optionally demo fixtures). Without yes it only reports.
 // The caller must hold serviceLock so the service cannot write concurrently.
-func resetData(db *sql.DB, path string, yes bool) error {
+func resetData(db *sql.DB, path string, yes bool, withDemo bool) error {
 	pending, err := pendingMigrations(db)
 	if err != nil {
 		return err
@@ -204,7 +214,21 @@ func resetData(db *sql.DB, path string, yes bool) error {
 	if err != nil {
 		return err
 	}
-	demo := string(raw)
+	var selected struct {
+		Properties []map[string]any `json:"properties"`
+		Zones      []map[string]any `json:"zones"`
+	}
+	if err = json.Unmarshal(raw, &selected); err != nil {
+		return err
+	}
+	if !withDemo {
+		selected.Properties = parcelProperties(selected.Properties)
+	}
+	selection, err := json.Marshal(selected)
+	if err != nil {
+		return err
+	}
+	demo := string(selection)
 	before, err := resetCounts(db, demo)
 	if err != nil {
 		return err
@@ -223,7 +247,7 @@ func resetData(db *sql.DB, path string, yes bool) error {
 		return fmt.Errorf("backup verification failed (%s), nothing reset: %w", saved, err)
 	}
 	fmt.Println("Verified backup:", saved)
-	if err = resetTx(db, demo); err != nil {
+	if err = resetTx(db, demo, withDemo); err != nil {
 		return fmt.Errorf("reset rolled back, nothing changed: %w", err)
 	}
 	// All photo rows are gone, so every stored file is now orphaned. Removing
@@ -246,7 +270,7 @@ func resetData(db *sql.DB, path string, yes bool) error {
 	return nil
 }
 
-func resetTx(db *sql.DB, demo string) error {
+func resetTx(db *sql.DB, demo string, withDemo bool) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return err
@@ -268,6 +292,11 @@ func resetTx(db *sql.DB, demo string) error {
 			return fmt.Errorf("clear %s: %w", table, err)
 		}
 	}
+	if !withDemo {
+		if _, err = tx.Exec(`DELETE FROM zones WHERE id IN `+demoZoneIDs, demo); err != nil {
+			return fmt.Errorf("clear demo zones: %w", err)
+		}
+	}
 	// Change-log AUTOINCREMENT continues after lastSeq, so new cursors stay above it.
 	if _, err = tx.Exec(`INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`, syncResetKey, strconv.FormatInt(lastSeq, 10)); err != nil {
 		return err
@@ -281,6 +310,13 @@ func resetTx(db *sql.DB, demo string) error {
 		data=json_remove(data,'$.ownerIds','$.previousOwnerIds','$.visits','$.flags','$.notes','$.photos','$.sellerLeadStatus','$.otherListing','$.pfOwner','$.lastSale')
 		WHERE id NOT IN `+demoPropertyIDs, stamp, demo); err != nil {
 		return fmt.Errorf("reset kept properties: %w", err)
+	}
+	if !withDemo {
+		// A demo home can remain only when a Pricefinder FK references it.
+		// Remove the prototype measurements and marketing details from that row.
+		if _, err = tx.Exec(`UPDATE properties SET deleted_at=?, registered=0, data=json_remove(data,'$.beds','$.baths','$.cars','$.land','$.lot','$.ll','$.appraisal','$.pending','$.pinned','$.otherAgent','$.otherListing') WHERE id GLOB 'p[0-9]*' AND json_extract(data,'$.lotplan') IS NULL`, stamp); err != nil {
+			return fmt.Errorf("strip retained demo homes: %w", err)
+		}
 	}
 	var seed struct {
 		Properties []map[string]any `json:"properties"`
@@ -305,9 +341,9 @@ func resetTx(db *sql.DB, demo string) error {
 			return fmt.Errorf("restore property %s: %w", id, err)
 		}
 	}
-	// Same inserts as `axleo seed`: contacts/notes, missing properties, owner links,
-	// todos, B3 kinds, demo zones and tags, OFI attendees. Accounts are untouched.
-	if err = seedData(tx); err != nil {
+	// Same inserts as `axleo seed`: parcels by default; demo business rows only
+	// when explicitly requested. Accounts are untouched.
+	if err = seedData(tx, withDemo); err != nil {
 		return err
 	}
 	check, err := tx.Query(`PRAGMA foreign_key_check`)

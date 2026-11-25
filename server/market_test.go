@@ -22,7 +22,7 @@ func TestAddressKeys(t *testing.T) {
 }
 func TestMarketImport(t *testing.T) {
 	a, tokens := setup(t)
-	if err := seed(a.db); err != nil {
+	if err := seed(a.db, true); err != nil {
 		t.Fatal(err)
 	}
 	var mary, john string
@@ -163,7 +163,7 @@ func TestMappingAndBOM(t *testing.T) {
 		t.Fatal(m)
 	}
 	a, _ := setup(t)
-	if err := seed(a.db); err != nil {
+	if err := seed(a.db, true); err != nil {
 		t.Fatal(err)
 	}
 	p := principal{id: "test", role: "admin"}

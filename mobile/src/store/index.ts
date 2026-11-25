@@ -4,14 +4,16 @@ import { seed } from '../data/seed';
 import type { AppState } from '../data/types';
 import { l2 } from '../i18n';
 import {reconcileReminders} from '../lib/notifications';
-let state = seed();
+// Prototype fixtures are only loaded by the explicit offline demo reset.
+const emptyState = (): AppState => ({...seed(),auth:null,contacts:[],properties:[],todos:[],captures:[],enquiries:[],leads:[],listings:[],ofi_attendees:[],sales:[],contracts:[],referrals:[],market:[],zones:[],myTags:[],audit:[],approvals:[],syncq:[],queue:0});
+let state = emptyState();
 let ready = false;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach(fn => fn());
 export const getState = () => state;
 export const subscribe = (fn: () => void) => { listeners.add(fn); return () => {listeners.delete(fn)}; };
 export function useStore<T>(selector: (state: AppState) => T): T { return selector(useSyncExternalStore(subscribe, getState, getState)); }
-export async function hydrate() { try { const raw = await AsyncStorage.getItem('ax_state'); const saved = raw && JSON.parse(raw); if (saved?.v === 8 && saved.contacts && saved.captures) state = {...seed(),...saved,ofi_attendees:saved.ofi_attendees||[]}; } catch {} ready = true; emit(); reconcileReminders(state); }
+export async function hydrate() { try { const raw = await AsyncStorage.getItem('ax_state'); const saved = raw && JSON.parse(raw); if (saved?.v === 8 && saved.contacts && saved.captures && saved.auth?.email?.endsWith('@axleo.local')) state = {...emptyState(),...saved,ofi_attendees:saved.ofi_attendees||[]}; } catch {} ready = true; emit(); reconcileReminders(state); }
 export const useReady = () => useSyncExternalStore(subscribe, () => ready, () => true);
 let localWrite: ((before: AppState, after: AppState) => void) | null = null;
 export const onLocalWrite = (fn: typeof localWrite) => { localWrite = fn; };

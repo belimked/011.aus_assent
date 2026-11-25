@@ -359,7 +359,7 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 	problem(w, 404, "not found")
 }
 func strconvAtoi(s string) (int, error) { var n int; _, err := fmt.Sscan(s, &n); return n, err }
-func seed(db *sql.DB) error {
+func seed(db *sql.DB, withDemo bool) error {
 	pass := os.Getenv("AXLEO_SEED_PASSWORD")
 	var existing int
 	if err := db.QueryRow(`SELECT count(*) FROM users WHERE email IN ('admin@axleo.local','mary@axleo.local','john@axleo.local')`).Scan(&existing); err != nil {
@@ -376,7 +376,7 @@ func seed(db *sql.DB) error {
 			return err
 		}
 	}
-	return seedData(db)
+	return seedData(db, withDemo)
 }
 
 type seedStore interface {
@@ -385,7 +385,7 @@ type seedStore interface {
 }
 
 // seedData is shared by seed and the atomic reset; reset never changes accounts.
-func seedData(db seedStore) error {
+func seedData(db seedStore, withDemo bool) error {
 	ids := map[string]string{}
 	rows, err := db.Query(`SELECT name,id FROM users WHERE email IN ('mary@axleo.local','john@axleo.local')`)
 	if err != nil {
@@ -417,6 +417,23 @@ func seedData(db seedStore) error {
 	var demo struct{ Contacts, Properties, Todos, Captures, Enquiries, Leads, Listings, Sales, Contracts, Referrals, Market, Zones, MyTags []map[string]any }
 	if err = json.Unmarshal(b, &demo); err != nil {
 		return err
+	}
+	// The bundled DCDB parcels contain only cadastral data. The first twelve
+	// homes and every other business record are prototype fixtures, opt-in only.
+	if !withDemo {
+		demo.Contacts = nil
+		demo.Todos = nil
+		demo.Captures = nil
+		demo.Enquiries = nil
+		demo.Leads = nil
+		demo.Listings = nil
+		demo.Sales = nil
+		demo.Contracts = nil
+		demo.Referrals = nil
+		demo.Market = nil
+		demo.Zones = nil
+		demo.MyTags = nil
+		demo.Properties = parcelProperties(demo.Properties)
 	}
 	stamp := now()
 	for _, m := range demo.Contacts {
@@ -501,6 +518,26 @@ func seedData(db seedStore) error {
 	}
 	return nil
 }
+
+// Strip prototype-only owner/flags fields even if the bundled parcel JSON
+// later acquires other display fields. Never infer cadastral identity from p-ids.
+func parcelProperties(properties []map[string]any) []map[string]any {
+	out := make([]map[string]any, 0, len(properties))
+	for _, p := range properties {
+		if str(p, "lotplan") == "" {
+			continue
+		}
+		parcel := map[string]any{}
+		for _, key := range []string{"id", "unit", "no", "street", "suburb", "lotplan", "lng", "lat", "area", "geometry", "units"} {
+			if v, ok := p[key]; ok {
+				parcel[key] = v
+			}
+		}
+		out = append(out, parcel)
+	}
+	return out
+}
+
 func sliceMaps(v any) []map[string]any {
 	var out []map[string]any
 	for _, x := range v.([]any) {
@@ -520,7 +557,7 @@ func main() {
 		return
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed|reset-data [--yes [--rex-import]]|passwd <email>|backup <dir>|verify <file>|restore <file>|rex-probe|rex-import")
+		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed [--with-demo]|reset-data [--yes] [--rex-import] [--with-demo]|passwd <email>|backup <dir>|verify <file>|restore <file>|rex-probe|rex-import")
 		os.Exit(2)
 	}
 	path := env("AXLEO_DB", "./axleo.db")
@@ -576,7 +613,10 @@ func main() {
 	case "migrate":
 		return
 	case "seed":
-		fatal(seed(db))
+		if len(os.Args) > 3 || (len(os.Args) == 3 && os.Args[2] != "--with-demo") {
+			fatal(fmt.Errorf("usage: axleo seed [--with-demo]"))
+		}
+		fatal(seed(db, len(os.Args) == 3))
 	case "passwd":
 		if len(os.Args) != 3 {
 			fatal(fmt.Errorf("email required"))

@@ -9,7 +9,7 @@ import (
 
 func TestParcelAndPricefinderImport(t *testing.T) {
 	a, _ := setup(t)
-	if err := seed(a.db); err != nil {
+	if err := seed(a.db, true); err != nil {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()

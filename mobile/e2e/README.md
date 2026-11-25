@@ -33,12 +33,12 @@ gh run watch; gh run download <run-id>                                     # fol
 ## What runs where
 
 ```
-Maestro ──runScript──────────────────────────────► Go server 127.0.0.1:8082 (fresh DB, `axleo seed`)
+Maestro ──runScript──────────────────────────────► Go server 127.0.0.1:8082 (fresh DB, `axleo seed --with-demo`)
 App (EXPO_PUBLIC_API_URL=127.0.0.1:8092/api/v1) ─► CI proxy 127.0.0.1:8092 ─┘
 ```
 
 - The server is built from `server/`, with a new `AXLEO_DB` in `$RUNNER_TEMP` and
-  `AXLEO_SEED_PASSWORD` set to a CI-only value. `axleo seed` runs before `axleo serve`. Seeded users are
+  `AXLEO_SEED_PASSWORD` set to a CI-only value. `axleo seed --with-demo` runs before `axleo serve`. Seeded users are
   `admin@axleo.local`, `mary@axleo.local` and `john@axleo.local`. Flows sign in as Mary.
 - `common/network-proxy.cjs` passes everything through to the server. A `POST /__e2e/offline`
   makes it answer 503 to every request until `POST /__e2e/online`. That lets flow 11 simulate lost
@@ -112,7 +112,7 @@ share one server DB, so they never assume a pristine server. Use unique `E2E …
    `EXPO_PUBLIC_API_URL=http://127.0.0.1:8092/api/v1`), run:
 
    ```sh
-   (cd server && go build -o /tmp/axleo . && AXLEO_DB=/tmp/e2e.db AXLEO_SEED_PASSWORD=dev-e2e-pass /tmp/axleo seed \
+   (cd server && go build -o /tmp/axleo . && AXLEO_DB=/tmp/e2e.db AXLEO_SEED_PASSWORD=dev-e2e-pass /tmp/axleo seed --with-demo \
      && AXLEO_DB=/tmp/e2e.db AXLEO_ADDR=127.0.0.1:8082 /tmp/axleo serve &)
    node mobile/e2e/common/network-proxy.cjs &
    maestro test -e E2E_PASSWORD=dev-e2e-pass -e API=http://127.0.0.1:8082/api/v1 -e PROXY=http://127.0.0.1:8092 mobile/e2e/05-fullmap.yaml

@@ -10,13 +10,13 @@
 
 恢复（**会覆盖当前库**）：先确认要恢复的文件、维护窗口及程序版本。root 执行 `systemctl stop axleo`；确认无其他进程使用数据库；再以 `axleo` 用户、加载 `/etc/axleo/env` 的环境运行 `/opt/axleo/current/axleo restore <快照绝对路径>`。命令校验快照和 schema，将当前库另存于数据库同级 `backup/` 并输出文件名，然后替换数据库。恢复失败不要启动服务，先检查日志与备份。最后 `systemctl start axleo` 并检查健康、账号和业务数量。不要恢复比当前程序更新的 schema；不要在服务运行时替换 WAL 文件。
 
-重置测试数据（**清空业务数据并恢复 Mary/John 演示数据**）：root 执行 `systemctl stop axleo`；以 `axleo` 用户运行 `sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; exec /opt/axleo/current/axleo reset-data'` 查看各表行数（只读，不做任何修改）；确认后同样方式运行 `reset-data --yes`：先在 `AXLEO_BACKUP_DIR` 生成并校验快照（失败则中止），再在单个事务内清空业务表（包括 Rex 导入联系人、关系、`rex_links` 和 `rex_outbox`）、删除不在 demo.json 中的 Rex 导入房产（即使含 lotplan）、删除手机端新建的房产、把 demo.json 中的 4,461 处房产恢复为种子值，并重新写入演示数据；保留账号、团队、设置、管理员绘制的区域、Pricefinder 导入和 `rex_request_log` 调用审计。预览会列出 Rex 导入房产/联系人、链接、outbox、关系和保留的日志数量。所有会话被注销，手机须退出后重新登录。最后 `systemctl start axleo`。回滚：用输出的快照执行 `restore`。重置不会调用 Rex；需要重置后重导入时使用 `reset-data --yes --rex-import`（账户取 `REX_ACCOUNT_ID`，默认按 sandbox-test 固定方案分配（见 `docs/rex-integration.md`））。它先完成重置，随后检查 `AXLEO_REX_READ=1`、账户和凭证并执行只读导入；检查或导入失败会输出 `未导入：原因`、以非零状态退出，**已提交的重置不会回滚**。此模式仅用于沙箱 2057。
+重置测试数据（**默认清空演示业务记录，只恢复真实 QLD 地块**）：root 执行 `systemctl stop axleo`；以 `axleo` 用户运行 `sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; exec /opt/axleo/current/axleo reset-data'` 查看各表行数（只读，不做任何修改）；确认后同样方式运行 `reset-data --yes`：先在 `AXLEO_BACKUP_DIR` 生成并校验快照（失败则中止），再在单个事务内清空业务表（包括 Rex 导入联系人、关系、`rex_links` 和 `rex_outbox`）、删除不在 demo.json 中的 Rex 导入房产（即使含 lotplan）、删除手机端新建的房产、删除 12 处演示房产（有 Pricefinder 关联的须保留 FK，但会软删除并清理演示字段，不再展示），把 demo.json 中的 4,449 处 QLD 地块恢复为地块原值（仅地籍地址、lotplan、坐标、面积、几何和单位数；不写入业主或演示 beds/baths/land 等字段），不重新写入演示联系人、挂牌、OFI、转介和待办；保留账号、团队、设置、管理员绘制的区域、Pricefinder 导入和 `rex_request_log` 调用审计。预览会列出 Rex 导入房产/联系人、链接、outbox、关系和保留的日志数量。所有会话被注销，手机须退出后重新登录。最后 `systemctl start axleo`。回滚：用输出的快照执行 `restore`。重置不会调用 Rex；需要重置后重导入时使用 `reset-data --yes --rex-import`（账户取 `REX_ACCOUNT_ID`，默认按 sandbox-test 固定方案分配（见 `docs/rex-integration.md`））。它先完成重置，随后检查 `AXLEO_REX_READ=1`、账户和凭证并执行只读导入；检查或导入失败会输出 `未导入：原因`、以非零状态退出，**已提交的重置不会回滚**。此模式仅用于沙箱 2057。仅在隔离的开发/e2e 数据库需要演示记录时显式使用 `axleo seed --with-demo` 或 `axleo reset-data --yes --with-demo`（可与 `--rex-import` 组合）；`seed`、启动时自动种子均默认只建账号/团队/设置及地块，不写入演示业务数据。
 
 本地运维机可用单条命令远程执行（先部署包含此脚本和新服务版本的 release；需要 `sshpass`，**不会自动部署二进制**）：
 
 ```sh
-SSHPASS=1 bash server/deploy/reset-test.sh                 # 演示数据
-SSHPASS=1 bash server/deploy/reset-test.sh --rex-import    # 演示数据 + 重新导入 2057
+SSHPASS=1 bash server/deploy/reset-test.sh                 # 无演示数据，恢复地块
+SSHPASS=1 bash server/deploy/reset-test.sh --rex-import    # 无演示数据 + 重新导入 2057
 ```
 
 脚本对 `--rex-import` 先验证远端 `REX_ACCOUNT_ID=2057`，然后停服务、以 axleo 用户重置、重新启动并检查 `/api/v1/health`。重置命令打印 `Verified backup: /data/axleo/backup/axleo-*.db`、before/after 各表行数和（若请求导入）`properties: added=… updated=… skipped=…`、`contacts: ...`。任何步骤失败均尝试启动服务，打印快照恢复命令；如果连备份都没取得，会提示先查备份目录。失败时不要盲目重复导入或恢复，先检查 `journalctl -u axleo` 和本次输出。

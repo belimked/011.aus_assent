@@ -57,7 +57,7 @@ func TestResetClearsRexImportAndPreservesRequestLog(t *testing.T) {
 	if n != 1 {
 		t.Fatal("preview deleted Rex property")
 	}
-	if err := resetCommand(a.db, path, []string{"--yes"}); err != nil {
+	if err := resetCommand(a.db, path, []string{"--yes", "--with-demo"}); err != nil {
 		t.Fatal(err)
 	}
 	for _, q := range []string{
@@ -141,7 +141,7 @@ func TestResetRexImportGateAndSuccess(t *testing.T) {
 			if _, err := a.db.Exec(`INSERT INTO rex_outbox(entity,entity_id,op,payload,created_at) VALUES('contacts','test','POST','{}','now')`); err != nil {
 				t.Fatal(err)
 			}
-			err := resetCommand(a.db, path, []string{"--yes", "--rex-import"})
+			err := resetCommand(a.db, path, []string{"--yes", "--rex-import", "--with-demo"})
 			if readEnabled && err != nil {
 				t.Fatal(err)
 			}

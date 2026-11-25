@@ -9,7 +9,7 @@ npm ci --prefix web/e2e --include=dev
 cd web/e2e && npm test
 ```
 
-Playwright starts its own Go server at `127.0.0.1:8083`, builds the Vue assets and Go binary, seeds a **new** database under the repository's ignored `.tmp/web-e2e/`, then bootstraps a leader (Mary) and another team (John) through the API. Stop any other server listening on 8083 first. The server is stopped and its database removed after the run. Set `TMPDIR` to the repo's `.tmp` if using other temporary-file tools; the server script sets it itself. Seed credentials are confined to the test harness.
+Playwright starts its own Go server at `127.0.0.1:8083`, builds the Vue assets and Go binary, seeds a **new** database under the repository's ignored `.tmp/web-e2e/`, then runs `axleo seed --with-demo` for cadastral parcels, the Natalie/Owen listings and OFI fixtures, and admin/Mary/John accounts before bootstrapping a leader (Mary) and another team (John) through the API. Production `axleo seed` does not insert demo business records. Stop any other server listening on 8083 first. The server is stopped and its database removed after the run. Set `TMPDIR` to the repo's `.tmp` if using other temporary-file tools; the server script sets it itself. Seed credentials are confined to the test harness.
 
 Use `npm test -- --headed` to watch, or `npm test -- tests/review.spec.js` for a single spec. Failure screenshots, traces and videos live in `web/e2e/test-results/`; the HTML report is in `web/e2e/playwright-report/` (both ignored). CI uploads both even on failure.
 
