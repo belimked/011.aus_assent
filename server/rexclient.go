@@ -39,6 +39,10 @@ type rexClient struct {
 	// Gate, when set, replaces the per-client spacing with one shared per-account slot
 	// schedule (Rex: 3,600 requests/hour per account, i.e. one per second overall).
 	Gate *rexGate
+	// Priority callers (interactive search) take the next free moment instead of
+	// queueing behind background slots; later background slots shift by one
+	// interval, so the account-wide average rate is unchanged.
+	Priority bool
 }
 
 // rexGate is a FIFO slot reservation shared by every production Rex client
@@ -66,6 +70,17 @@ func (g *rexGate) reserve() (time.Duration, time.Time) {
 	}
 	g.next = time.Now().Add(d + g.Interval)
 	return d, g.next
+}
+
+// reserveNow grants an immediate slot and pushes the schedule back by one interval.
+func (g *rexGate) reserveNow() time.Time {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if n := time.Now(); g.next.Before(n) {
+		g.next = n
+	}
+	g.next = g.next.Add(g.Interval)
+	return g.next
 }
 
 // release returns an unused slot (the caller gave up before its turn) when it is still the last one.
@@ -104,7 +119,9 @@ func newRexClient(base, appID string) *rexClient {
 func (c *rexClient) wait(ctx context.Context) error {
 	var d time.Duration
 	var slotEnd time.Time
-	if c.Gate != nil {
+	if c.Gate != nil && c.Priority {
+		slotEnd = c.Gate.reserveNow()
+	} else if c.Gate != nil {
 		d, slotEnd = c.Gate.reserve()
 	} else {
 		c.mu.Lock()

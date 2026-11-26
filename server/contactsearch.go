@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -130,8 +131,8 @@ func newContactSearch(db *sql.DB) *contactSearch {
 	if s.cfg.canRead() {
 		c := newRexClient(s.cfg.BaseURL, s.cfg.AppID)
 		c.ReadOnly, c.AccountID, c.Caller, c.Password, c.Log = true, s.cfg.AccountID, "search", s.cfg.Password, rexDBLogger(db)
-		c.Gate = rexAccountGate
-		c.Retries = 0 // interactive: a 429 degrades to database results
+		c.Gate, c.Priority = rexAccountGate, true // interactive: never queue behind poller/worker
+		c.Retries = 0                             // interactive: a 429 degrades to database results
 		c.HTTP.Timeout = 10 * time.Second
 		s.client = c
 	}
@@ -232,6 +233,16 @@ func (s *contactSearch) withClient(ctx context.Context, fn func(*rexClient) erro
 }
 
 var errRexDisabled = errors.New("Rex reads disabled")
+
+// warm logs the search client in ahead of the first search, so a search costs
+// one Rex call instead of login + account check + call.
+func (s *contactSearch) warm() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := s.withClient(ctx, func(*rexClient) error { return nil }); err != nil && err != errRexDisabled {
+		log.Printf("Rex search warm-up: %v", err)
+	}
+}
 
 func (s *contactSearch) rexLookup(ctx context.Context, q searchQuery) ([]rexHit, error) {
 	var hits []rexHit

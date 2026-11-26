@@ -743,6 +743,7 @@ func main() {
 		if worker := newRexWorker(db); worker != nil {
 			go worker.run(context.Background())
 		}
+		go a.contactSearcher().warm()
 		fatal(http.ListenAndServe(env("AXLEO_ADDR", "127.0.0.1:8082"), a.routes()))
 	default:
 		fatal(fmt.Errorf("unknown command"))
