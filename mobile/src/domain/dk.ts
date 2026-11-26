@@ -61,16 +61,3 @@ export function commitDK(s:AppState, propId:string, r:DKFields, pick?:string) {
   return c;
 }
 export function duplicatesOf(s:AppState,c:Contact){return s.contacts.filter(x=>x.id!==c.id&&((!!c.mobile&&normMobile(c.mobile)===normMobile(x.mobile))||!!c.email&&c.email.toLowerCase()===x.email.toLowerCase()));}
-export function mergeContacts(s:AppState,aId:string,bId:string,fields:Record<string,'a'|'b'>={}){
-  const a=byId(s.contacts,aId),b=byId(s.contacts,bId);
-  if(!a||!b||a.id===b.id||a.owner!==b.owner)throw new Error('Contacts cannot be merged');
-  for(const k of ['first','last','mobile','email','owner','reason']){const v=(fields[k]==='b'?b:a)[k]||a[k]||b[k];if(v)a[k]=v;}
-  a.tags=[...new Set([...a.tags,...b.tags])];a.roles=[...new Set([...a.roles,...b.roles])];
-  a.notes=[...a.notes,...b.notes].sort((x,y)=>y.d.localeCompare(x.d));
-  a.rels=[...(a.rels||[]),...(b.rels||[])];
-  for(const p of s.properties)p.ownerIds=[...new Set(p.ownerIds.map(id=>id===b.id?a.id:id))];
-  for(const t of s.todos)if(t.cid===b.id)t.cid=a.id;
-  s.contacts=s.contacts.filter(x=>x.id!==b.id);
-  audit(s,'Merge',`${a.first} ${a.last}`);
-  return a;
-}

@@ -321,6 +321,22 @@ func saveImportRelations(db *sql.DB, account string, r importRow) error {
 		return err
 	}
 	defer tx.Rollback()
+	// Rex re-reads replace the set; an unchanged relation keeps its original time
+	// (contact merge resolves relation conflicts by it).
+	type prior struct{ relation, at string }
+	before := map[string]prior{}
+	rows, err := tx.Query(`SELECT contact_id,relation,updated_at FROM property_owners WHERE property_id=?`, pid)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var cid string
+		var p prior
+		if rows.Scan(&cid, &p.relation, &p.at) == nil {
+			before[cid] = p
+		}
+	}
+	rows.Close()
 	if _, err = tx.Exec(`DELETE FROM property_owners WHERE property_id=?`, pid); err != nil {
 		return err
 	}
@@ -340,7 +356,11 @@ func saveImportRelations(db *sql.DB, account string, r importRow) error {
 		if relation == "" {
 			relation = "owner"
 		}
-		if _, err = tx.Exec(`INSERT OR REPLACE INTO property_owners(property_id,contact_id,relation) VALUES(?,?,?)`, pid, cid, relation); err != nil {
+		at := now()
+		if p, ok := before[cid]; ok && p.relation == relation && p.at != "" {
+			at = p.at
+		}
+		if _, err = tx.Exec(`INSERT OR REPLACE INTO property_owners(property_id,contact_id,relation,updated_at) VALUES(?,?,?,?)`, pid, cid, relation, at); err != nil {
 			return err
 		}
 	}

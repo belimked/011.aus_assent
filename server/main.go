@@ -309,7 +309,7 @@ func (a *app) routes() http.Handler {
 			a.syncPull(w, r, p)
 		case r.Method == "POST" && r.URL.Path == "/api/v1/sync/push":
 			a.syncPush(w, r, p)
-		case strings.HasPrefix(r.URL.Path, "/api/v1/approvals") || strings.HasSuffix(r.URL.Path, "/merge") || strings.HasSuffix(r.URL.Path, "/reassign"):
+		case strings.HasPrefix(r.URL.Path, "/api/v1/approvals") || r.URL.Path == "/api/v1/contacts/merge-preview" || strings.HasSuffix(r.URL.Path, "/merge") || strings.HasSuffix(r.URL.Path, "/reassign"):
 			a.approvalRoute(w, r, p)
 		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/"):
 			if p.role != "admin" && p.role != "leader" {
@@ -914,12 +914,24 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 		}
 	}
 	if kind == "properties" && method != "DELETE" {
-		if _, err = tx.Exec(`DELETE FROM property_owners WHERE property_id=?`, id); err != nil {
+		// Keep the relation type and its time for contacts that stay linked; only
+		// removed links are deleted and new links are stamped with this write.
+		ownerIDs := stringsFrom(m["ownerIds"])
+		keep := strings.TrimSuffix(strings.Repeat("?,", len(ownerIDs)), ",")
+		del := `DELETE FROM property_owners WHERE property_id=?`
+		delArgs := []any{id}
+		if keep != "" {
+			del += ` AND contact_id NOT IN (` + keep + `)`
+			for _, cid := range ownerIDs {
+				delArgs = append(delArgs, cid)
+			}
+		}
+		if _, err = tx.Exec(del, delArgs...); err != nil {
 			problem(w, 400, "invalid owners")
 			return
 		}
-		for _, cid := range stringsFrom(m["ownerIds"]) {
-			if _, err = tx.Exec(`INSERT INTO property_owners(property_id,contact_id) VALUES (?,?)`, id, cid); err != nil {
+		for _, cid := range ownerIDs {
+			if _, err = tx.Exec(`INSERT INTO property_owners(property_id,contact_id,updated_at) VALUES (?,?,?) ON CONFLICT(property_id,contact_id) DO NOTHING`, id, cid, stamp); err != nil {
 				problem(w, 400, "invalid owners")
 				return
 			}

@@ -68,7 +68,8 @@ func TestB3IsolationAndApproval(t *testing.T) {
 	if w := request(a, "POST", "/api/v1/approvals/"+mid+"/decide", admin, map[string]any{"decision": "approve"}); w.Code != 200 {
 		t.Fatal(w.Body)
 	}
-	if request(a, "GET", "/api/v1/contacts/two", mary, nil).Code != 404 || obj(t, request(a, "GET", "/api/v1/contacts/three", mary, nil))["mobile"] != "123" {
+	// Legacy approval runs the new rules: the older record ("two") keeps its id.
+	if request(a, "GET", "/api/v1/contacts/three", mary, nil).Code != 404 || obj(t, request(a, "GET", "/api/v1/contacts/two", mary, nil))["mobile"] != "123" {
 		t.Fatal("merge failed")
 	}
 	reject := request(a, "POST", "/api/v1/approvals", john, map[string]any{"kind": "reassign", "entity": "contacts", "id": "one", "targetId": target})

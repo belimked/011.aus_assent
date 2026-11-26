@@ -131,6 +131,10 @@ func (w *rexWorker) step(ctx context.Context) error {
 		}
 		return tx.Commit()
 	}
+	// Contact merge jobs have their own bounded wait and follow-up writes (rexmerge_worker.go).
+	if j.entity == "rex_merge" || j.entity == "rex_merge_relation" {
+		return w.stepMerge(ctx, j, finish)
+	}
 	// Outbox is not a create queue. No job may write an unlinked demo/app record.
 	linkID := j.localID
 	if strings.HasPrefix(j.entity, "rex_contact_") {
@@ -184,13 +188,6 @@ func (w *rexWorker) step(ctx context.Context) error {
 	var data map[string]any
 	actor := ""
 	switch j.entity {
-	case "rex_merge":
-		winning, losing := w.link("contacts", str(m, "primaryId")), w.link("contacts", str(m, "secondaryId"))
-		if winning == "" || losing == "" {
-			return w.deferJob(j, "waiting for contact links")
-		}
-		service, method = "Dedupe", "combineRecords"
-		body = map[string]any{"service_name": "Contacts", "winning_id": winning, "losing_ids": []string{losing}}
 	case "rex_contact_tag", "rex_contact_relation", "rex_contact_letter", "rex_contact_dnd":
 		contact := w.link("contacts", str(m, "contactId"))
 		if contact == "" {

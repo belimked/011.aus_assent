@@ -106,7 +106,7 @@ func dedupeParcels(db *sql.DB, dry bool) (dedupeCounts, error) {
 				return counts, err
 			}
 		}
-		if _, err = tx.Exec(`INSERT OR IGNORE INTO property_owners(property_id,contact_id,relation) SELECT ?,contact_id,relation FROM property_owners WHERE property_id=?`, to.id, from.id); err != nil {
+		if _, err = tx.Exec(`INSERT OR IGNORE INTO property_owners(property_id,contact_id,relation,updated_at) SELECT ?,contact_id,relation,updated_at FROM property_owners WHERE property_id=?`, to.id, from.id); err != nil {
 			return counts, err
 		}
 		if _, err = tx.Exec(`DELETE FROM property_owners WHERE property_id=?`, from.id); err != nil {

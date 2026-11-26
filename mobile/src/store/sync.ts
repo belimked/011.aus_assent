@@ -5,6 +5,7 @@ import {AppState as RNAppState,Platform} from 'react-native';
 import {cancelStateWrite,flushState,getState,onLocalWrite,replaceState,showToast} from './index';
 import {diff,attendeeOps,enqueue,merge,mapRecord,field,type Op,type Pull} from './sync-logic';
 import type {Account,AppState} from '../data/types';
+import type {MergePreview,MergeResult} from '../domain/mergePreview';
 import {l2} from '../i18n';
 import {uploadPendingPhotos} from '../lib/photos';
 import {registerDevice,unregisterDevice} from '../lib/notifications';
@@ -34,7 +35,9 @@ export async function restoreSync(){token=await tokenGet();if(!token){if(getStat
  schedule(60000);}}
 function account(user:{id:string;name:string;email:string;role:string}):Account{return {name:user.name,email:user.email,role:user.role,team:'Axleo',rex:'Not connected',since:new Date().toLocaleString(),device:'This device'};}
 export async function login(email:string,password:string){const response=await fetch(`${apiUrl}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,device:'AxleoCollect'})});if(!response.ok)throw new Error(response.status===401?'credentials':'network');const result=await response.json();token=result.token;await tokenSet(token);cursor='';queue=[];lastSync='';await save();const s=getState();replaceState({...s,auth:account(result.user),contacts:[],properties:[],todos:[],captures:[],enquiries:[],leads:[],listings:[],ofi_attendees:[],sales:[],contracts:[],referrals:[],market:[],zones:[],myTags:[],audit:[],approvals:[],syncq:[],queue:0});await syncNow();void registerDevice(token!,apiUrl);}
-export async function requestApproval(request:Record<string,string>){await api('/approvals',{method:'POST',body:JSON.stringify(request)});showToast(l2('Submitted for admin approval','已提交管理员审批'));await syncNow();}
+/** Contact merge: no approval step. The server computes the preview; executing it with a changed preview returns 409 and a fresh preview. */
+export async function contactMergePreview(aId:string,bId:string):Promise<MergePreview>{return api('/contacts/merge-preview',{method:'POST',body:JSON.stringify({aId,bId})});}
+export async function contactMerge(primaryId:string,secondaryId:string,previewHash:string):Promise<MergeResult>{const response=await fetch(`${apiUrl}/contacts/${encodeURIComponent(primaryId)}/merge`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({secondaryId,previewHash})});if(response.status===409){const body=await response.json().catch(()=>({}));if(body?.preview)return {stale:body.preview};}if(!response.ok)throw new Error(`HTTP ${response.status}`);const out=await response.json();await syncNow();return out;}
 export async function decideApproval(id:string,decision:'approve'|'reject'){await api(`/approvals/${encodeURIComponent(id)}/decide`,{method:'POST',body:JSON.stringify({decision})});await syncNow();}
 export async function propertiesWithin(polygon:number[][],limit=100,offset=0):Promise<{items:import('../domain/patch').AreaProperty[];total:number;linked:number}>{return api('/properties/within',{method:'POST',body:JSON.stringify({polygon,limit,offset})});}
 export async function teamMembers():Promise<{id:string;name:string}[]>{return api('/team');}
