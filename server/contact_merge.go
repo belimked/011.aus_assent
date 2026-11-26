@@ -893,11 +893,10 @@ func (a *app) executeMerge(tx *sql.Tx, p principal, aID, bID, hash string) (*mer
 		}
 	}
 	if plan.Rex != "none" {
+		// Every merged property is aligned in Rex, not only changed ones:
+		// combineRecords can change the winner's relation type (sandbox 2057).
 		rels := []any{}
 		for _, r := range plan.Properties {
-			if !r.Changed && len(r.Replaced) == 0 {
-				continue
-			}
 			replaces := []string{}
 			for _, x := range r.Replaced {
 				replaces = append(replaces, x.Relation)

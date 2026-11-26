@@ -276,7 +276,15 @@ func (w *rexWorker) step(ctx context.Context) error {
 			j.entity = "contact_notes"
 			j.localID = str(m, "id")
 			entityLink = w.link("contact_notes", j.localID)
-			contact := w.link("contacts", str(m, "contactId"))
+			// A merge moves contact_notes to the primary; a note still queued for the
+			// merged-away contact goes to the primary's Rex record, not the trashed loser.
+			noteContact := str(m, "contactId")
+			var current string
+			_ = w.db.QueryRow(`SELECT contact_id FROM contact_notes WHERE id=?`, j.localID).Scan(&current)
+			if current != "" {
+				noteContact = current
+			}
+			contact := w.link("contacts", noteContact)
 			if contact == "" {
 				return w.deferJob(j, "waiting for contact")
 			}
@@ -335,6 +343,9 @@ func (w *rexWorker) step(ctx context.Context) error {
 				break
 			}
 			method = "update"
+			if m["merge"] == true { // after rex_merge: read back and correct what combineRecords left
+				return w.stepMergeContact(ctx, j, c, entityLink, finish)
+			}
 			// Read the current sub-row identifiers before updating, never append duplicates.
 			if w.client.Token == "" {
 				if _, e := w.client.Login(ctx, w.email, w.password, w.account); e != nil {

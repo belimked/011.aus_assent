@@ -422,33 +422,15 @@ func outboxJobs(t *testing.T, a *app) []string {
 	return out
 }
 
-type rexMock struct {
-	bodies map[string][]map[string]any
-}
-
-func mergeWorker(t *testing.T, a *app, relations []any) (*rexWorker, *rexMock) {
+// mergeWorker runs the worker against mergeRex (rexmerge_fix_test.go) with the
+// given contact_reln_property rows on property 501.
+func mergeWorker(t *testing.T, a *app, relations []any) (*rexWorker, *mergeRex) {
 	t.Helper()
-	m := &rexMock{bodies: map[string][]map[string]any{}}
-	w, _ := sandboxWorker(t, a, func(path string, b map[string]any) (any, int) {
-		m.bodies[path] = append(m.bodies[path], b)
-		switch path {
-		case "/v1/rex/dedupe/combine-records":
-			return map[string]any{}, 200
-		case "/v1/rex/contacts/read":
-			return map[string]any{"id": b["id"], "etag": "e", "related": map[string]any{"contact_names": []any{map[string]any{"id": 11}}, "contact_phones": []any{map[string]any{"id": 22}}}}, 200
-		case "/v1/rex/contacts/update":
-			return map[string]any{"id": 91, "etag": "e2"}, 200
-		case "/v1/rex/properties/read":
-			return map[string]any{"id": 501, "related": map[string]any{"contact_reln_property": relations}}, 200
-		case "/v1/rex/properties/update":
-			return map[string]any{"id": 501}, 200
-		case "/v1/rex/notes/create":
-			return 7001, 200
-		}
-		t.Errorf("unexpected Rex call %s", path)
-		return nil, 500
-	})
-	return w, m
+	f := newMergeRex(t)
+	for _, r := range relations {
+		f.props["501"] = append(f.props["501"], imap(r))
+	}
+	return mergeRexWorker(t, a, f), f
 }
 func drain(t *testing.T, a *app, w *rexWorker, n int) {
 	t.Helper()
@@ -488,7 +470,7 @@ func TestRexMergeBothLinked(t *testing.T) {
 		t.Fatalf("note job %v", jobs)
 	}
 	upd := imap(m.bodies["/v1/rex/contacts/update"][0]["data"])
-	if upd["id"] != "91" || upd["contact_by_sms"] != float64(0) || ijson(imap(upd["related"])["contact_phones"]) != `[{"id":22,"phone_number":"0400000002","phone_primary":true,"phone_type":"mobile"}]` {
+	if upd["id"] != "91" || upd["contact_by_sms"] != float64(0) || ijson(imap(upd["related"])["contact_phones"]) != `[{"phone_number":"0400000002","phone_primary":true,"phone_type":"mobile"}]` {
 		t.Fatalf("contact update %v", upd)
 	}
 	var dnd map[string]any
@@ -500,11 +482,13 @@ func TestRexMergeBothLinked(t *testing.T) {
 	if dnd == nil || dnd["is_dnd"] != true || dnd["id"] != "91" {
 		t.Fatalf("dnd %v", m.bodies["/v1/rex/contacts/update"])
 	}
-	// The superseded tenant row of the winner is destroyed; the owner row from the
-	// losing record is not duplicated by an add; another contact is untouched.
-	prop := m.bodies["/v1/rex/properties/update"]
-	if len(prop) != 1 || ijson(prop[0]) != `{"data":{"id":"501","related":{"contact_reln_property":[{"_destroy":true,"id":"801"},{"contact":{"id":"91"},"reln_type":{"id":"owner"}}]}}}` {
+	// combineRecords left the winner's row 801 with the loser's type (owner), which
+	// is the merge result: the relation job only reads. The other contact's row stays.
+	if prop := m.bodies["/v1/rex/properties/update"]; len(prop) != 0 {
 		t.Fatalf("property update %v", prop)
+	}
+	if r := m.rows("501"); len(r) != 2 || r["801"] != "91:owner" || r["803"] != "55:tenant" {
+		t.Fatalf("rows %v", r)
 	}
 	note := m.bodies["/v1/rex/notes/create"]
 	if len(note) != 1 || !strings.Contains(ijson(note[0]), "Merged with Pat B (0400000002) by Mary on") || !strings.Contains(ijson(note[0]), `"note_contacts":[{"contact":{"id":"91"}}]`) {

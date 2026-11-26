@@ -55,6 +55,10 @@ func linkedContact(t *testing.T, a *app) {
 		t.Fatal(e)
 	}
 }
+
+// rexTestError returned by a sandboxWorker handler is sent as {"error":{"message":...}}.
+type rexTestError string
+
 func sandboxWorker(t *testing.T, a *app, handle func(string, map[string]any) (any, int)) (*rexWorker, *[]string) {
 	t.Helper()
 	t.Setenv("REX_WRITE_ACCOUNT_ID", "2057")
@@ -73,6 +77,10 @@ func sandboxWorker(t *testing.T, a *app, handle func(string, map[string]any) (an
 			result, code = handle(r.URL.Path, b)
 		}
 		w.WriteHeader(code)
+		if e, ok := result.(rexTestError); ok { // error envelope, as Rex rejects a request
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": nil, "error": map[string]any{"message": string(e)}})
+			return
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"result": result, "error": nil})
 	}))
 	t.Cleanup(srv.Close)

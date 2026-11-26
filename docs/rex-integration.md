@@ -369,6 +369,35 @@ GET  /api/captures/:id        → 进度，以及每一步的结果
 | 确认地址匹配 | 不调用 Rex | `address_links.status=confirmed` |
 | 合并重复联系人 | `Dedupe::combineRecords`，只有管理员能手动执行 | 审计 |
 
+#### 合并联系人后的 Rex 处理（沙箱 2057 实测，2026-11-26）
+
+请求：`Dedupe::combineRecords {service_name:"Contacts", winning_id:A, losing_ids:[B]}`。
+
+实测结果：
+
+- 返回 `{"result":[{"losing_id":"B","records_reassigned":[{"service_name":"Notes","record_ids":[…]}]}]}`。同步完成，B 立即变为 `trashed`。
+- **A 的姓名被改成两个名字的拼接**（"AXLEO MERGE TEST A & AXLEO MERGE TEST B"）。
+- B 的电话、邮箱、标签全部追加到 A，Rex 不去重；B 的电话 `phone_primary=null`。
+- B 的备注转到 A。
+- **同一房产上的关系冲突**：合并前 23138536 上 A=owner（行 17077130）、B=tenant（行 17077142）。合并后只剩行 17077130，contact=A，**reln=tenant**。即 Rex 保留赢家的行 id，但关系类型取输家的；B 的行消失。
+- 不同房产上 B 的关系行如何转给 A（新 id 还是原 id）未测。worker 不做假设，一律读回 A 的实际行再对齐。
+- `Properties::update` 带 `contact_reln_property:[{id:17077130,_destroy:true}]` 只删除该行，其他行（Teddie Bear owner 17016203）不受影响。
+
+因此 worker（`server/rexmerge_worker.go`）在 combine 之后**必须读回 A 并改写为本地合并结果**：
+
+- 姓名：覆盖第一行 `contact_names`，其余行 `_destroy`。
+- 电话按 `normAUMobile`、邮箱按小写去重，重复行 `_destroy`。主号码/主邮箱设为本地合并后的值；其他号码保留。
+- 标签按忽略大小写去重，单独发一个请求；Rex 拒绝时跳过，并记入 `rex_sync_events`。
+- 房产关系：对本地合并结果中的每个房产读 `contact_reln_property`，只处理 contact=A 的行：
+  - 类型对 → 不动。
+  - 类型错 → 同一行 id 改 `reln_type`。Rex 拒绝或忽略时，改为 `_destroy` 该行再新增。
+  - 没有行 → 新增。
+  - 多行 → 保留一行，其余 `_destroy`。
+  - 绝不触碰其他联系人的行。
+- 合并日志备注写到 A。B 已在 Rex 的备注由 combine 自动转到 A，不会再次创建。
+
+细节见 docs/contact-merge.md。
+
 ---
 
 ## 7. 对前端的 API（初稿）

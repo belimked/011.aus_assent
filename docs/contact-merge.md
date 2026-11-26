@@ -151,22 +151,47 @@ The local merge commits first. Rex work runs afterwards through the outbox (`rex
 
 | Rex state at merge | What happens |
 |---|---|
-| Both linked | `Dedupe::combineRecords` (`winning_id` = A, `losing_ids` = [B]). Then A is updated (names, phone, email, `contact_by_*`), DNC is set if needed, relations are fixed, and the log note is created. |
+| Both linked | `Dedupe::combineRecords` (`winning_id` = A, `losing_ids` = [B]). Then A is read back and corrected (see below), DNC is set if needed, relations are aligned, and the log note is created on A. |
 | Only B linked | B's `rex_links` row is moved to A, then A is updated as above. |
 | Only A linked | A is updated only. |
 | Neither linked | No Rex job. |
 | A create is still queued | The job waits for the link, for at most 10 minutes (`mergeLinkWait`). After that it is skipped with "timed out waiting for the Rex contact link". Legacy jobs without a deadline use the outbox `created_at`. |
 
-**Relation fix (`rex_merge_relation`, one job per changed property):**
-1. `Properties::read`.
-2. `Properties::update`. Rows of A or B whose relation type was superseded are sent as `{id, _destroy: true}`. The winning relation is added for A if Rex does not already have it.
+**What `combineRecords` does (sandbox 2057, 2026-11-26):**
+- Response: `{"result":[{"losing_id":"B","records_reassigned":[{"service_name":"Notes","record_ids":[…]}]}]}`. It is synchronous: B is `trashed` immediately.
+- A's name becomes both names joined: "AXLEO MERGE TEST A & AXLEO MERGE TEST B".
+- All of B's phones, emails and tags are appended to A. Nothing is de-duplicated; B's phone arrives with `phone_primary = null`.
+- B's notes move to A (`note_contacts` now A).
+- Property both were related to (23138536: A owner row 17077130, B tenant row 17077142): one row is left, **id 17077130 (A's), contact A, type tenant (B's)**. B's row is gone. So Rex keeps the winner's row id but takes the loser's relation type.
+- Not measured: B's rows on properties A had no relation to. The worker does not assume anything; it reads A's actual rows.
+- `Properties::update` with `contact_reln_property: [{id: 17077130, _destroy: true}]` removes that row only; other rows (Teddie Bear owner 17016203) are untouched.
 
-If a row id cannot be found, the job fails with a reconcile reason instead of guessing.
+**Contact correction (`contacts` PATCH job with `merge: true`, `stepMergeContact`):**
+1. `Contacts::read` A (with `related`).
+2. One `Contacts::update`:
+   - Name: the first `contact_names` row gets the local merged first/last; any other name rows are sent as `{id, _destroy: true}`.
+   - Phones: grouped by `normAUMobile`; every duplicate row is destroyed. The row of the local merged mobile gets `phone_primary: true`, any other primary row gets `false`. If the local mobile is missing it is added as a primary mobile. Numbers not in the local result are kept (no user data in Rex is deleted, only duplicates).
+   - Emails: the same, compared in lower case, with `email_primary`.
+   - `contact_by_*` from the local consent.
+3. Tags: case-insensitive duplicates are removed in a **separate** `Contacts::update` (`contact_tags: [{id, _destroy: true}]`). Tag removal is not confirmed in the sandbox: if Rex rejects it, the job still finishes as `sent` with "duplicate tags left in Rex" and a `skipped` row in `rex_sync_events`; the name/phone fix stays.
 
-**Needs sandbox verification:**
-- The exact parameters `combineRecords` expects.
-- That `_destroy` removes `contact_reln_property` rows.
-- That relation rows of the losing contact are reassigned to the winner after combining.
+Each run reads A first, so a retry recomputes from Rex and never appends twice.
+
+**Relation alignment (`rex_merge_relation`, one job per property in the merge result):**
+1. `Properties::read`; only rows with contact = A are considered. Rows of any other contact (including B) are never touched.
+2. One A row already has the expected type → extra A rows are destroyed, nothing else.
+3. A has rows, none of the expected type → the first one is corrected in place: `{id, reln_type: {id: kind}}`. The property is read again; if Rex rejected or ignored the change, that row is destroyed and the expected type is added in one request (`[{id, _destroy: true}, {contact: {id: A}, reln_type: {id: kind}}]`).
+4. A has no row → `{contact: {id: A}, reln_type: {id: kind}}` is added.
+5. Several A rows → one is kept with the expected type, the others are destroyed.
+
+Every pass re-reads the property, so the job is idempotent; an unknown write outcome is retried instead of failing. Rows without an id cannot be addressed and are reported in the job reason. The earlier rule "no row id found → fail for manual reconcile" is gone.
+
+**Notes:** the merge log note is created on A once (`contact_notes` link). B's notes that were already in Rex move to A with `combineRecords` and are not created again: moving `contact_notes` locally does not queue anything, and a note that is already linked (`rex_links` entity `contact_notes`) is never sent twice. A note of B that was still queued at merge time is sent to the contact its `contact_notes` row now points at (A), not to the trashed B.
+
+**Still to confirm in the sandbox** (`.tmp/contacts/sandbox-merge2.sh` runs the same correction requests and reads back):
+- Whether a `contact_names` row update replaces the joined name in every place Rex shows it.
+- Whether `Properties::update` accepts an in-place `reln_type` change (the worker falls back to destroy + add either way).
+- Whether `contact_tags` accepts `_destroy`.
 
 ## Mobile
 
