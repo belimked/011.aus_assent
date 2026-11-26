@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"sort"
@@ -558,7 +559,7 @@ func main() {
 		return
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed [--with-demo]|reset-data [--yes] [--rex-import] [--with-demo]|passwd <email>|backup <dir>|verify <file>|restore <file>|market-import|market-purge-synthetic [--dry-run]|rex-probe|rex-import")
+		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed [--with-demo]|reset-data [--yes] [--rex-import] [--with-demo]|passwd <email>|backup <dir>|verify <file>|restore <file>|market-import|market-purge-synthetic [--dry-run]|rex-probe|rex-import|rex-dup-links")
 		os.Exit(2)
 	}
 	path := env("AXLEO_DB", "./axleo.db")
@@ -640,6 +641,13 @@ func main() {
 		}
 		_, err = db.Exec(`DELETE FROM sessions WHERE user_id=(SELECT id FROM users WHERE email=?)`, os.Args[2])
 		fatal(err)
+	case "rex-dup-links": // read-only: list Rex records referenced by several local contacts
+		dups, err := duplicateRexLinks(db)
+		fatal(err)
+		fmt.Printf("duplicate Rex references: %d\n", len(dups))
+		for _, d := range dups {
+			fmt.Printf("rex_id=%s via=%s local=%s\n", d.RexID, d.Via, strings.Join(d.LocalIDs, ","))
+		}
 	case "market-pull":
 		_, err := (pricefinderAPISource{}).Fetch(context.Background(), time.Time{})
 		if err != nil {
@@ -725,6 +733,9 @@ func main() {
 	case "serve":
 		a := &app{db: db, failures: map[string][]time.Time{}}
 		loadRexConfig().logStartup()
+		if dups, err := duplicateRexLinks(db); err == nil && len(dups) > 0 {
+			log.Printf("Rex: %d Rex contact(s) referenced by more than one local contact; run `axleo rex-dup-links` (read-only)", len(dups))
+		}
 		if _, err := db.Exec(`DELETE FROM rex_request_log WHERE at < ?`, time.Now().UTC().AddDate(0, 0, -180).Format(layout)); err != nil {
 			fmt.Fprintln(os.Stderr, "Rex log cleanup:", err)
 		}

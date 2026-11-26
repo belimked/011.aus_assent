@@ -492,3 +492,103 @@ App 房产详情里的备注（`properties.data.notes[]`）在房产已关联 Re
 `AXLEO_REX_READ=1` 且 Rex 凭证完整时，房产/联系人 poll 后每账户至少间隔 5 分钟读取 `Listings::search` 和 `ListingEvents::search`（分页、无过滤条件；沙箱尚未确认日期和类型的 search criteria），只保留 `event_type` 精确为 `open_home`（兼容旧值 `ofi`）的事件。`listing.id` 关联 Listings；Listings `property.id` / `property_id` 经 `rex_links(properties,account_id,rex_id)` 找房产，缺失时 `Properties::read` 后走现有房产导入。挂牌 owner/team 跟房产 owner/team；未分配房产由导入默认 admin 持有。所有挂牌继续沿用当前 listings 全团队可见规则。按每场 `event_timezone` 的当地日历日保留昨天到未来 14 天（可设 `REX_OFI_PAST_DAYS` / `REX_OFI_FUTURE_DAYS`，0–365；缺时区回退 Brisbane），显示事件当地时间。本地 `listings.data.ofi[]` 保存 `{d,time,attendees:[],rexEventId,rexAttendeeCount}`；本地签到仍在独立 `ofi_attendees`，UI 数字为 Rex 计数 + 本地签到数（如果两边重复签到可能重复计数）。重新轮询只替换窗口内 Rex 场次、不动本地场次及本地签到；变更才更新 listings 版本，写 rex_links 和 rex_sync_events。未找到场次则显示下一场或空状态。
 
 **已实测 / 待确认**：2057 的 `ListingEvents::search` 真实开放日样本中 `event_type="open_home"`、`event_time="09:45:00"`、`event_timezone="Australia/Perth"`、`event_duration_minutes="30"`（字符串），没有 `event_end_time` / `end_time`；结束时间优先用这两个显式字段，缺失时由当地开始时间加时长分钟计算，时长无效才显示同一时刻。`Listings::search` 已在 probe 配置；Listings 的 `property` 引用及挂牌状态字段、登记数字段仍待确认。计数字段可用 `REX_OFI_COUNT_FIELD` 配置（默认 `attendee_count`）；字段缺失返回 0。`OpenHomeCheckIns` 已确认有 read/checkIn，但需要未知 token，未确认可搜索或聚合人数，因此**未调用**；不能把 0 当成已证实 Rex 无访客。须在沙箱对 16 Gager St 建真实场次并核对字段/人数，必要时再调整 event/count 映射。`CalendarEvents::search` 沙箱报内部错误，不作为数据源。
+
+## 联系人搜索（feat/contact-search）
+
+**流程**（`mobile/src/screens/Search.tsx`，判断逻辑在 `mobile/src/lib/contactSearch.ts`）：
+
+1. 先搜手机本地数据（联系人、房产、挂牌、询盘）。**只要本地有任何结果就直接显示**，不请求后台，也不查 Rex。
+2. 本地没有结果，且查询 ≥2 个字符（号码需要 ≥3 位数字）时，停止输入 500ms 后调用 `GET /api/v1/contacts/search?q=`。
+   - 输入变化时，上一个请求会被取消（AbortController）。
+   - 已在手机上的结果按 id 或 rexId 去重。
+3. 后台**同时**查本地数据库和 Rex，合并后一次返回。手机只显示一个列表，标题为"后台与 Rex"：
+   - **自己的联系人**：显示完整信息，点按打开（不在本机时先 sync）。
+   - **其他中介的联系人**：只显示首字母加点，以及"归属：XX"；点按后提示联系归属人或申请改派。
+   - **只在 Rex 的联系人**：标"在 Rex 中 / In Rex"，点按后调用 `import-rex`、sync，然后打开联系人。
+4. Rex 相关的提示只显示为一行灰字，不作为错误：
+   - `rexTimedOut` → "Rex 未及时响应 / Rex didn't respond in time"
+   - `rexError` → "Rex 暂不可用，仅显示后台结果"
+   - 限流 → "Rex 搜索稍后可用"
+5. 离线且本地无结果时，提示"联网后可搜索后台和 Rex"。
+6. 已删除"在 Rex 中搜索"按钮，也不再要求输入完整手机号才自动查 Rex。
+
+**`GET /api/v1/contacts/search?q=`**（`server/contactsearch.go`）
+
+- 查询少于 2 个字符时返回空列表（`rexSkipped`, `rexReason:"query too short"`）。
+- **号码查询**：只由数字、空格、`+()-.` 组成，且至少 3 位数字。
+  - 用 `normAUMobile` 规范化（`+61 4…`、`614…`、`04…`、带空格的写法都视为同一个号码）。
+  - 在数据库中按 `mobile` 去掉符号后的数字做包含匹配，也匹配 `data.mobileNorm`。
+- **名字查询**：匹配 名 / 姓 / 全名 / email（不区分大小写）。
+- 数据库结果最多 20 条，自己的联系人排在前面。
+- **Rex 查询**（与数据库查询并行，一次调用）：
+  - 号码查询：规范化后 ≥8 位数字时调用 `Contacts::findMatchingContacts {"contact_type":"any","phones":[q],"limit":20}`。号码更短时不查 Rex（`rexReason:"partial number"`）。
+  - 名字查询：调用 `Contacts::search {"criteria":[{"name":"contact.name_full","type":"like","value":"%q%"}],"limit":20}`。
+    - **`like` 写法待沙箱确认**，文档没有列出 like，脚本 `.tmp/search/sandbox-check.sh` 会验证；不行就改用 `Contacts::autocomplete`。
+- **合并规则**：
+  - Rex 命中的记录如果已经通过 `rex_links` 关联到本地联系人，就以本地联系人的身份出现，遵守下面的权限规则。
+  - 未关联的记录作为 `source:"rex"` 项返回（`rexId`、名字、`mobileMasked`、Rex 归属人），**不返回 email 或完整号码**。
+- **时间上限 3 秒**：
+  - Rex 的预算是 2.5s（`searchRexBudget`），登录、排队都算在内。
+  - 超时只返回数据库结果，并带 `rexTimedOut:true`。
+  - Rex 出错时返回 `rexError:true`，同样只返回数据库结果。
+- **限流**：
+  - 每个用户每分钟最多 20 次 Rex 调用（`allowEndpointCall(...,"rex_search",20)`）。超过时返回数据库结果，并带 `rexSkipped:true, rexReason:"rate limited"`。
+  - 命中缓存不计入次数。
+- **缓存**：按规范化后的查询缓存 60 秒（键为 `phone:0401999088` 或 `name:teddie bear`）。失败不缓存。
+- **客户端**：
+  - 只读（`ReadOnly`），Caller 为 `search`，只用 `REX_ACCOUNT_ID` 账户，登录后校验账户号。
+  - 和 worker / poller 共用账户级闸门 `rexAccountGate`（默认间隔 1s，可用 `REX_GLOBAL_INTERVAL_MS` 调整）。
+  - 每次调用都写入 `rex_request_log`。
+  - 同一时间只发出一个 Rex 搜索请求。
+- **响应格式**：`{items:[...], rexTimedOut, rexSkipped, rexReason, rexError}`。每一项包含：
+  - `source:"local"|"rex"`、`full`、`name`、`ownerName`、`inRex`
+  - `full:true` 时还会带 `id`、`first`、`last`、`mobile`、`email` 等字段
+
+**权限规则（`contactSearchView`，待 Ping 确认）**：
+
+| 情况 | 返回内容 |
+|---|---|
+| 管理员，或联系人归属于自己 | 完整信息 |
+| 其他中介的联系人 | 只返回 id、首字母打码后的名字（`T••• B•••`）、`ownerName`、`inRex`；不含电话、email、备注 |
+| 只在 Rex 中的联系人 | 名字、打码号码（`0401 999 •••`）、Rex 归属人；不含 email |
+
+这些规则全部写在一个函数里，以后要调整只改这一处。
+
+**`POST /api/v1/contacts/import-rex {"rexId":"..."}`**
+
+- 只能导入**本用户最近 10 分钟搜索结果里出现过**的 rexId，否则返回 404。
+- 和搜索共用每分钟 20 次的限流。
+- 已关联的记录直接返回现有联系人（`imported:false`, 200）。
+- 未关联的记录：先 `Contacts::read`，再走 `rexAdoptOrImport`。
+  - 归属人是调用者本人，`REX_USER_MAP` 不覆盖。
+  - 如果本地已有同号码、未关联的联系人，就接管它，不新建。
+- 返回 `{imported, item}`（201），手机端随后执行 sync。
+
+## 同号码查重（问题02）
+
+**worker 新建前查 Rex**（`rexworker.go` → `rexdedupe.go: rexPreCreate`）。新建联系人前，用手机号调用 `Contacts::findMatchingContacts {"contact_type":"person","phones":[mobile]}`：
+
+| 结果 | 处理 |
+|---|---|
+| 没有匹配 | 正常 `Contacts::create` |
+| 唯一匹配，且该 Rex 记录没有关联到别的本地联系人 | **接管**：写 `rex_links`，create 任务标记为 `sent`；排一个 `PATCH {"rexAdopt":true}`，把 App 中非空的名字、号码、email 写回 Rex（不清空 Rex 字段，缺少的电话或 email 子行会补上） |
+| 唯一匹配，但已经关联到另一个本地联系人 | 不关联，任务标 `skipped`；两个联系人都写入 `data.possibleDuplicateOf`，联系人页的重复提示会显示，提醒人工合并 |
+| 多个匹配 | 任务 `failed "several Rex contacts share this mobile"`，等人工处理 |
+| 查询失败（网络错误、5xx） | 按 worker 原有的退避策略重试，**不会盲目新建** |
+
+另外，本地已有同号码、已关联的联系人（`findLocalDuplicate`）时，现在也标记 `possibleDuplicateOf` 并跳过，不再把同一个 rex_id 再关联一次。
+
+**poller 接管未关联的本地联系人**（`rexpoll.go` → `rexAdoptOrImport`）。Rex 新出现、本地没有关联的联系人，先按规范化手机号找本地联系人：
+
+- **本地联系人未关联，且它的 create 任务还没有 sent**：
+  - 接管它，写 `rex_links`，把 create 任务标为 `sent`。
+  - 字段合并按"最后写入者胜"：Rex 的 `system_modtime`（Unix 秒）和本地的 `updated_at` 比较，Rex 的空值不覆盖本地。
+  - 本地较新时，排一个 `rexAdopt` PATCH 写回 Rex。
+- **本地联系人已经关联到另一个 rex_id**：照常导入成新联系人，两边都写入 `data.possibleDuplicateOf`。
+- **没有找到**：照常导入。
+
+**检查已有的重复关联**（只读）：
+
+- `axleo rex-dup-links` 列出多个本地联系人指向同一个 rex_id 的情况，包括 `rex_links` 和 `data.rexId` 两个来源。
+- `serve` 启动时如果发现重复，会打一条 warning 日志，但不做任何修改。
+- 确认后通过合并联系人处理（docs/contact-merge.md）。合并后只清除这一对的 `possibleDuplicateOf`，指向第三个联系人的标记保留；poller 不会恢复已被合并掉的联系人。

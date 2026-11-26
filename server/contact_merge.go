@@ -249,7 +249,82 @@ func relLabel(kind string) string {
 }
 
 var mergeIdentityKeys = map[string]bool{"id": true, "ownerId": true, "owner": true, "version": true, "updated_at": true, "deleted_at": true, "mobileNorm": true, "rexId": true, "source": true, "fieldTimes": true, "updated": true,
-	"notes": true, "tags": true, "roles": true, "rels": true, "flags": true, "consent": true, "optedOut": true}
+	"notes": true, "tags": true, "roles": true, "rels": true, "flags": true, "consent": true, "optedOut": true, "possibleDuplicateOf": true}
+
+// mergedDuplicateFlags is the primary's possibleDuplicateOf (问题02, rexdedupe.go)
+// after the merge: both lists combined, minus the merged pair itself. Flags that
+// name a third contact stay.
+func mergedDuplicateFlags(p, s *mergeContact) []string {
+	out := []string{}
+	seen := map[string]bool{p.ID: true, s.ID: true}
+	for _, c := range []*mergeContact{p, s} {
+		for _, id := range stringsFrom(c.Data["possibleDuplicateOf"]) {
+			if id != "" && !seen[id] {
+				seen[id] = true
+				out = append(out, id)
+			}
+		}
+	}
+	return out
+}
+
+// clearMergedDuplicateFlags removes the secondary's flags (its flags to third
+// contacts were carried over to the primary by mergedDuplicateFlags) and points
+// third contacts that flagged the secondary at the primary instead (the
+// secondary's record now lives there). Runs inside the merge transaction.
+func clearMergedDuplicateFlags(tx *sql.Tx, primary, secondary, stamp string) error {
+	rows, err := tx.Query(`SELECT id,data FROM contacts WHERE id<>? AND (deleted_at IS NULL OR id=?) AND instr(data,'"possibleDuplicateOf"')>0 AND instr(data,?)>0`, primary, secondary, `"`+secondary+`"`)
+	if err != nil {
+		return err
+	}
+	type upd struct{ id, data string }
+	updates := []upd{}
+	for rows.Next() {
+		var id, raw string
+		if err = rows.Scan(&id, &raw); err != nil {
+			rows.Close()
+			return err
+		}
+		var data map[string]any
+		if json.Unmarshal([]byte(raw), &data) != nil || data == nil {
+			continue
+		}
+		old := stringsFrom(data["possibleDuplicateOf"])
+		list := []string{}
+		seen := map[string]bool{id: true}
+		for _, x := range old {
+			if id == secondary {
+				break // carried over to the primary
+			}
+			if x == secondary {
+				x = primary
+			}
+			if x != "" && !seen[x] {
+				seen[x] = true
+				list = append(list, x)
+			}
+		}
+		if ijson(list) == ijson(old) {
+			continue
+		}
+		if len(list) == 0 {
+			delete(data, "possibleDuplicateOf")
+		} else {
+			data["possibleDuplicateOf"] = list
+		}
+		updates = append(updates, upd{id, ijson(data)})
+	}
+	rows.Close()
+	if err = rows.Err(); err != nil {
+		return err
+	}
+	for _, u := range updates {
+		if _, err = tx.Exec(`UPDATE contacts SET data=?,updated_at=?,version=version+1 WHERE id=?`, u.data, stamp, u.id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // computeMerge is pure: the same two loaded contacts always give the same plan
 // (apart from the merge log note, which carries the actor and the date).
@@ -483,6 +558,11 @@ func computeMerge(a, b *mergeContact, addresses map[string]string, actor string,
 	plan.Relations = rels
 	if len(rels) > 0 || p.Data["rels"] != nil || s.Data["rels"] != nil {
 		data["rels"] = rels
+	}
+	if dups := mergedDuplicateFlags(p, s); len(dups) > 0 {
+		data["possibleDuplicateOf"] = dups
+	} else {
+		delete(data, "possibleDuplicateOf")
 	}
 	data["id"] = p.ID
 	delete(data, "rexId")
@@ -797,6 +877,9 @@ func (a *app) executeMerge(tx *sql.Tx, p principal, aID, bID, hash string) (*mer
 	}
 	// Other contacts' relationship entries pointing at the merged-away record.
 	if _, err = tx.Exec(`UPDATE contacts SET data=replace(data,?,?),updated_at=?,version=version+1 WHERE id NOT IN (?,?) AND deleted_at IS NULL AND instr(data,?)>0`, `"contactId":"`+secondary+`"`, `"contactId":"`+primary+`"`, stamp, primary, secondary, `"contactId":"`+secondary+`"`); err != nil {
+		return nil, err
+	}
+	if err = clearMergedDuplicateFlags(tx, primary, secondary, stamp); err != nil {
 		return nil, err
 	}
 	if _, err = tx.Exec(`UPDATE contacts SET deleted_at=?,updated_at=?,version=version+1 WHERE id=?`, stamp, stamp, secondary); err != nil {

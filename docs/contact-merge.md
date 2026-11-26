@@ -128,6 +128,23 @@ These ignore time:
 - B is soft-deleted (`deleted_at`), so phones receive a tombstone.
 - `audit_log` gets two rows: `merge` on A and `merged-into` on B. Both contain the full before-snapshots of the two records (data, notes rows, property rows, Rex link) and the plan.
 
+### Possible-duplicate flags (`data.possibleDuplicateOf`)
+
+The same-mobile dedupe (docs/rex-integration.md, 同号码查重) flags contacts with `data.possibleDuplicateOf`. A merge clears only the merged pair:
+
+- A gets both lists combined, minus A and B. Flags that name a third contact stay. If nothing is left, the key is removed.
+- B's flags are removed (they now live on A).
+- A third contact that flagged B now flags A instead, and its version is bumped so phones receive the change.
+
+### Poller after a merge
+
+- When the link has moved to A (only B was linked), the poller finds A through `rex_links` and updates A. It never imports a second contact.
+- Until `rex_merge` has run, the link still names the merged-away B. The poller skips such a contact (`mergedAway`: soft-deleted with a `merged-into` audit row). Otherwise the import would clear B's `deleted_at` and bring it back.
+
+### Search results
+
+Contact search shows other agents' contacts only in the limited view. Merge preview and merge return `404` for any contact the caller cannot read, so a limited search result can never be merged. A Rex-only result has to be imported first (`import-rex`, which makes the caller the owner).
+
 ## Rex
 
 The local merge commits first. Rex work runs afterwards through the outbox (`rex_merge`) and follows the normal authorisation and retry rules.

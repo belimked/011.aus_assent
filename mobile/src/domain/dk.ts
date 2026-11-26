@@ -60,4 +60,5 @@ export function commitDK(s:AppState, propId:string, r:DKFields, pick?:string) {
   audit(s,'DK',`${c.first} ${c.last} · ${p?.street||'new contact'}`);
   return c;
 }
-export function duplicatesOf(s:AppState,c:Contact){return s.contacts.filter(x=>x.id!==c.id&&((!!c.mobile&&normMobile(c.mobile)===normMobile(x.mobile))||!!c.email&&c.email.toLowerCase()===x.email.toLowerCase()));}
+// possibleDuplicateOf is set by the server when an app contact and a Rex contact share a mobile (问题02).
+export function duplicatesOf(s:AppState,c:Contact){const flagged=(x:Contact)=>(c.possibleDuplicateOf||[]).includes(x.id)||(x.possibleDuplicateOf||[]).includes(c.id);return s.contacts.filter(x=>x.id!==c.id&&((!!c.mobile&&normMobile(c.mobile)===normMobile(x.mobile))||!!c.email&&c.email.toLowerCase()===(x.email||'').toLowerCase()||flagged(x)));}
