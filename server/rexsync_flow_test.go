@@ -66,6 +66,8 @@ func TestCreateLinkThenRelation(t *testing.T) {
 	creates, relations := 0, 0
 	w, _ := sandboxWorker(t, a, func(path string, b map[string]any) (any, int) {
 		switch path {
+		case "/v1/rex/contacts/find-matching-contacts": // pre-create duplicate check (问题02)
+			return map[string]any{"verdict": "none", "truncated": false, "contacts": []any{}}, 200
 		case "/v1/rex/contacts/create":
 			creates++
 			return map[string]any{"id": 456}, 200

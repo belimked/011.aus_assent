@@ -178,6 +178,7 @@ type app struct {
 	mu       sync.Mutex
 	failures map[string][]time.Time
 	calls    map[string][]time.Time
+	search   *contactSearch // lazily created; see contactsearch.go
 }
 type principal struct {
 	id, role, device, name, email string
@@ -305,6 +306,10 @@ func (a *app) routes() http.Handler {
 			a.team(w, p)
 		case r.Method == "POST" && r.URL.Path == "/api/v1/properties/within":
 			a.propertiesWithin(w, r, p)
+		case r.Method == "GET" && r.URL.Path == "/api/v1/contacts/search":
+			a.contactSearchHandler(w, r, p)
+		case r.Method == "POST" && r.URL.Path == "/api/v1/contacts/import-rex":
+			a.contactImportRex(w, r, p)
 		case r.Method == "GET" && r.URL.Path == "/api/v1/sync":
 			a.syncPull(w, r, p)
 		case r.Method == "POST" && r.URL.Path == "/api/v1/sync/push":

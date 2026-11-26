@@ -18,6 +18,7 @@ func startRexPoller(ctx context.Context, db *sql.DB) {
 	}
 	c := newRexClient(cfg.BaseURL, cfg.AppID)
 	c.ReadOnly, c.AccountID, c.Caller, c.Password, c.Log = true, cfg.AccountID, "poller", cfg.Password, rexDBLogger(db)
+	c.Gate = rexAccountGate // shared account quota with the worker and contact search
 	seconds, _ := strconv.Atoi(os.Getenv("REX_POLL_SECONDS"))
 	if seconds == 0 {
 		seconds = 60
@@ -117,16 +118,23 @@ func pollRex(ctx context.Context, db *sql.DB, c *rexClient, account string) erro
 					detail["etag"] = etag
 				}
 				flattenRexRead(detail)
-				if local == "" {
-					added := newContacts
-					if kind == "properties" {
-						added = newProps
+				if local == "" && kind == "contacts" {
+					// 问题02: adopt an unlinked same-mobile app contact instead of a second record.
+					saved, created, e := rexAdoptOrImport(db, account, detail, ids["admin"])
+					if e != nil {
+						return e
 					}
-					added["rex-"+kind+"-"+account+"-"+rid] = true
-				}
-				stats := &importStats{}
-				if e = importSave(db, kind, account, detail, ids["admin"], false, stats); e != nil {
-					return e
+					if created {
+						newContacts[saved] = true
+					}
+					local = saved
+				} else {
+					if local == "" {
+						newProps["rex-"+kind+"-"+account+"-"+rid] = true
+					}
+					if e = importSave(db, kind, account, detail, ids["admin"], false, &importStats{}); e != nil {
+						return e
+					}
 				}
 				if kind == "properties" {
 					changedProps = append(changedProps, detail)
@@ -273,10 +281,13 @@ func pollRex(ctx context.Context, db *sql.DB, c *rexClient, account string) erro
 					return fmt.Errorf("contact read missing id: %s", rid)
 				}
 				flattenRexRead(detail)
-				if err = importSave(db, "contacts", account, detail, ids["admin"], false, &importStats{}); err != nil {
+				saved, created, err := rexAdoptOrImport(db, account, detail, ids["admin"])
+				if err != nil {
 					return err
 				}
-				newContacts["rex-contacts-"+account+"-"+rid] = true
+				if created {
+					newContacts[saved] = true
+				}
 			} else if e != nil {
 				return e
 			}

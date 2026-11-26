@@ -32,6 +32,7 @@ func newRexWorker(db *sql.DB) *rexWorker {
 	w.client.Caller = "worker"
 	w.client.Password = c.Password
 	w.client.Log = rexDBLogger(db)
+	w.client.Gate = rexAccountGate // shared account quota with poller and contact search
 	if ms, e := strconv.Atoi(os.Getenv("REX_INTERVAL_MS")); e == nil && ms >= 1000 {
 		w.client.Interval = time.Duration(ms) * time.Millisecond
 	}
@@ -316,8 +317,12 @@ func (w *rexWorker) step(ctx context.Context) error {
 				if permitted == 0 {
 					return finish("skipped", "contact owner not in write account", "", "")
 				}
+				// 问题02: same mobile already linked locally → flag, never a second link (rexdedupe.go).
 				if found := w.findLocalDuplicate(j.localID, str(c, "mobile")); found != "" {
-					return finish("sent", "", found, "Contacts")
+					return w.duplicateOfLinked(j, found, finish)
+				}
+				if done, e := w.rexPreCreate(ctx, j, c, finish); done {
+					return e
 				}
 				related := map[string]any{"contact_names": []any{map[string]any{"name_first": str(c, "first"), "name_last": str(c, "last")}}}
 				if phone := str(c, "mobile"); phone != "" {
@@ -361,7 +366,13 @@ func (w *rexWorker) step(ctx context.Context) error {
 				}
 				return nil
 			}
+			adopt := m["rexAdopt"] == true // linked to an existing Rex contact: only non-empty app fields, add missing sub-rows
 			name := map[string]any{"name_first": str(c, "first"), "name_last": str(c, "last")}
+			for _, k := range []string{"name_first", "name_last"} {
+				if adopt && name[k] == "" {
+					delete(name, k)
+				}
+			}
 			if id := subID("contact_names"); id != nil {
 				name["id"] = id
 			} else {
@@ -372,7 +383,7 @@ func (w *rexWorker) step(ctx context.Context) error {
 				phone := map[string]any{"phone_number": s, "phone_type": "mobile", "phone_primary": true}
 				if id := subID("contact_phones"); id != nil {
 					phone["id"] = id
-				} else {
+				} else if !adopt {
 					return finish("failed", "contact phone subrow id missing; re-import detailed Rex record", "", "")
 				}
 				related["contact_phones"] = []any{phone}
@@ -381,7 +392,7 @@ func (w *rexWorker) step(ctx context.Context) error {
 				email := map[string]any{"email_address": s, "email_desc": "home", "email_primary": true}
 				if id := subID("contact_emails"); id != nil {
 					email["id"] = id
-				} else {
+				} else if !adopt {
 					return finish("failed", "contact email subrow id missing; re-import detailed Rex record", "", "")
 				}
 				related["contact_emails"] = []any{email}

@@ -36,6 +36,45 @@ type rexClient struct {
 	VerifiedAccount, VerifiedAccountName string // Never inferred from the requested login account.
 	VerifiedIsTest                       bool
 	Entity, LocalID, RexID               string
+	// Gate, when set, replaces the per-client spacing with one shared per-account slot
+	// schedule (Rex: 3,600 requests/hour per account, i.e. one per second overall).
+	Gate *rexGate
+}
+
+// rexGate is a FIFO slot reservation shared by every production Rex client
+// (poller, worker, contact search), so together they stay inside the account quota.
+type rexGate struct {
+	mu       sync.Mutex
+	next     time.Time
+	Interval time.Duration
+}
+
+var rexAccountGate = &rexGate{Interval: rexGateInterval()}
+
+func rexGateInterval() time.Duration {
+	if ms, e := strconv.Atoi(os.Getenv("REX_GLOBAL_INTERVAL_MS")); e == nil && ms >= 0 {
+		return time.Duration(ms) * time.Millisecond
+	}
+	return time.Second
+}
+func (g *rexGate) reserve() (time.Duration, time.Time) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	d := time.Until(g.next)
+	if d < 0 {
+		d = 0
+	}
+	g.next = time.Now().Add(d + g.Interval)
+	return d, g.next
+}
+
+// release returns an unused slot (the caller gave up before its turn) when it is still the last one.
+func (g *rexGate) release(slotEnd time.Time) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.next.Equal(slotEnd) {
+		g.next = g.next.Add(-g.Interval)
+	}
 }
 
 func rexPath(s string) string {
@@ -63,13 +102,19 @@ func newRexClient(base, appID string) *rexClient {
 	return &rexClient{BaseURL: strings.TrimRight(base, "/"), AppID: appID, HTTP: &http.Client{Timeout: 60 * time.Second}, Interval: time.Second, Retries: 2}
 }
 func (c *rexClient) wait(ctx context.Context) error {
-	c.mu.Lock()
-	d := time.Until(c.next)
-	if d < 0 {
-		d = 0
+	var d time.Duration
+	var slotEnd time.Time
+	if c.Gate != nil {
+		d, slotEnd = c.Gate.reserve()
+	} else {
+		c.mu.Lock()
+		d = time.Until(c.next)
+		if d < 0 {
+			d = 0
+		}
+		c.next = time.Now().Add(d + c.Interval)
+		c.mu.Unlock()
 	}
-	c.next = time.Now().Add(d + c.Interval)
-	c.mu.Unlock()
 	if d == 0 {
 		return ctx.Err()
 	}
@@ -77,6 +122,9 @@ func (c *rexClient) wait(ctx context.Context) error {
 	defer t.Stop()
 	select {
 	case <-ctx.Done():
+		if c.Gate != nil {
+			c.Gate.release(slotEnd)
+		}
 		return ctx.Err()
 	case <-t.C:
 		return nil
