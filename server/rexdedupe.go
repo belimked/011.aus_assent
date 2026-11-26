@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -409,8 +411,59 @@ func duplicateRexLinks(db *sql.DB) ([]dupRexLink, error) {
 	}
 	// … and contacts whose data.rexId names a record linked to another contact
 	// (the old findLocalDuplicate path finished "sent" without a link row).
-	if err := scan("data.rexId", `SELECT l.rex_id,group_concat(DISTINCT c.id) FROM contacts c JOIN rex_links l ON l.entity='contacts' AND l.rex_id=json_extract(c.data,'$.rexId') AND l.local_id<>c.id WHERE c.deleted_at IS NULL GROUP BY l.rex_id ORDER BY l.rex_id`); err != nil {
+	// Joined in Go: rex_links has no index usable on rex_id alone, and a SQL join
+	// against json_extract scans contacts × links (minutes on production sizes).
+	// Each query is fully read and closed before the next (single connection).
+	linked := map[string][]string{}
+	rows, err := db.Query(`SELECT rex_id,local_id FROM rex_links WHERE entity='contacts'`)
+	if err != nil {
 		return nil, err
+	}
+	for rows.Next() {
+		var rid, local string
+		if err = rows.Scan(&rid, &local); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		linked[rid] = append(linked[rid], local)
+	}
+	if err = rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+	type ref struct{ id, rex string }
+	refs := []ref{}
+	rows, err = db.Query(`SELECT id,CAST(json_extract(data,'$.rexId') AS TEXT) FROM contacts WHERE deleted_at IS NULL AND json_extract(data,'$.rexId') IS NOT NULL`)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var r ref
+		if err = rows.Scan(&r.id, &r.rex); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		refs = append(refs, r)
+	}
+	if err = rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+	byRex := map[string][]string{}
+	for _, r := range refs {
+		if locals := linked[r.rex]; slices.ContainsFunc(locals, func(l string) bool { return l != r.id }) && !slices.Contains(byRex[r.rex], r.id) {
+			byRex[r.rex] = append(byRex[r.rex], r.id)
+		}
+	}
+	keys := make([]string, 0, len(byRex))
+	for k := range byRex {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		out = append(out, dupRexLink{RexID: k, LocalIDs: byRex[k], Via: "data.rexId"})
 	}
 	return out, nil
 }
