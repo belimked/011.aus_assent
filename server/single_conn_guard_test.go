@@ -59,7 +59,7 @@ func TestSyncSingleConnection(t *testing.T) {
 	t.Setenv("REX_ACCOUNT_ID", "2057")
 	mary := tokens["mary"]
 	var cursor string
-	singleConnGuard(t, a.db, "sync push+pull", func() error {
+	appConnGuard(t, a, "sync push+pull", func() error {
 		if err := syncPushOps(a, mary,
 			map[string]any{"opId": "z", "kind": "zones", "op": "upsert", "id": "zone-1", "data": map[string]any{"id": "zone-1", "name": "Z", "poly": [][]float64{{-27.6, 153.0}, {-27.6, 153.1}, {-27.5, 153.1}, {-27.5, 153.0}}}},
 			map[string]any{"opId": "c", "kind": "contacts", "op": "upsert", "id": "c-1", "data": map[string]any{"id": "c-1", "first": "Tom", "last": "Lee", "mobile": "0412345678", "roles": []string{"owner"}, "tags": []string{}, "flags": map[string]any{}, "notes": []any{}}},
@@ -159,7 +159,7 @@ func TestRexPollSingleConnection(t *testing.T) {
 	c.Log = rexDBLogger(a.db)
 	lastRelationPoll = time.Time{}
 	t.Cleanup(func() { lastRelationPoll = time.Time{} })
-	singleConnGuard(t, a.db, "pollRex", func() error {
+	appConnGuard(t, a, "pollRex", func() error {
 		for i := 0; i < 2; i++ { // second pass: etags unchanged, relation refresh only
 			if err := pollRex(context.Background(), a.db, c, "2057"); err != nil {
 				return err
@@ -205,7 +205,7 @@ func TestRexOFISingleConnection(t *testing.T) {
 	c := newRexClient(srv.URL, "test")
 	c.Interval, c.ReadOnly = 0, true
 	c.Log = rexDBLogger(a.db)
-	singleConnGuard(t, a.db, "pollRexOFI", func() error {
+	appConnGuard(t, a, "pollRexOFI", func() error {
 		for i := 0; i < 2; i++ {
 			if err := pollRexOFI(context.Background(), a.db, c, "2057", day.Add(time.Duration(i)*6*time.Minute)); err != nil {
 				return err
@@ -245,7 +245,7 @@ func TestRexWorkerSingleConnection(t *testing.T) {
 		return nil, 500
 	})
 	w.client.Log = rexDBLogger(a.db)
-	singleConnGuard(t, a.db, "rex worker", func() error {
+	appConnGuard(t, a, "rex worker", func() error {
 		// Early return from inside the rows loop must still release the connection.
 		if got := w.findLocalDuplicate("c", "+61 499 999 999"); got != "501" {
 			return fmt.Errorf("duplicate %q", got)
@@ -269,7 +269,7 @@ func TestPropertyNoteSingleConnection(t *testing.T) {
 	created := 777
 	w, _ := sandboxWorker(t, a, func(path string, b map[string]any) (any, int) { created++; return created, 200 })
 	w.client.Log = rexDBLogger(a.db)
-	singleConnGuard(t, a.db, "property notes", func() error {
+	appConnGuard(t, a, "property notes", func() error {
 		if err := syncPushOps(a, mary, map[string]any{"opId": "p", "kind": "properties", "op": "upsert", "id": "p-1", "data": map[string]any{"id": "p-1", "no": "1", "street": "Test St", "suburb": "Sunnybank", "ownerIds": []string{}, "flags": map[string]any{}, "notes": []any{note("n-1", "2026-11-25", "Mary", "Hi")}}}); err != nil {
 			return err
 		}
@@ -311,7 +311,7 @@ func TestMarketImportSingleConnection(t *testing.T) {
 	_ = a.db.QueryRow(`SELECT id FROM users WHERE role='admin' LIMIT 1`).Scan(&admin)
 	p := principal{id: admin, role: "admin"}
 	b := rpFixture(t, "10 Jul 2016", "First Example")
-	singleConnGuard(t, a.db, "market import", func() error {
+	appConnGuard(t, a, "market import", func() error {
 		for _, dry := range []bool{true, false} {
 			report, err := a.importMarket(b, "propertyExport_20261125103259.xlsx", "rpdata", "auto", dry, p)
 			if err != nil {

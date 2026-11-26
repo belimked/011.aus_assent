@@ -73,7 +73,7 @@ func (a *app) adminWork(w http.ResponseWriter, r *http.Request, p principal, pat
 			}
 		}
 		q += ` ORDER BY updated_at DESC LIMIT 500`
-		rows, err := a.db.Query(q, args...)
+		rows, err := a.rd().Query(q, args...)
 		if err != nil {
 			problem(w, 500, "database error")
 			return
@@ -98,19 +98,19 @@ func (a *app) adminWork(w http.ResponseWriter, r *http.Request, p principal, pat
 			}
 			if kind == "todos" {
 				var no, street, suburb string
-				_ = a.db.QueryRow(`SELECT no,street,suburb FROM properties WHERE id=? AND deleted_at IS NULL`, str(item, "propId")).Scan(&no, &street, &suburb)
+				_ = a.rd().QueryRow(`SELECT no,street,suburb FROM properties WHERE id=? AND deleted_at IS NULL`, str(item, "propId")).Scan(&no, &street, &suburb)
 				item["propertyAddress"] = strings.Trim(strings.TrimSpace(no+" "+street)+", "+suburb, ", ")
 			}
 			if kind == "ofi_attendees" {
 				var first, last, mobile string
-				_ = a.db.QueryRow(`SELECT first,last,mobile FROM contacts WHERE id=? AND deleted_at IS NULL`, str(item, "contactId")).Scan(&first, &last, &mobile)
+				_ = a.rd().QueryRow(`SELECT first,last,mobile FROM contacts WHERE id=? AND deleted_at IS NULL`, str(item, "contactId")).Scan(&first, &last, &mobile)
 				item["contactFirst"] = first
 				item["contactLast"] = last
 				item["contactMobile"] = mobile
 			}
 			if kind == "listings" {
 				var no, street, suburb, raw string
-				_ = a.db.QueryRow(`SELECT no,street,suburb,data FROM properties WHERE id=?`, str(item, "propertyId")).Scan(&no, &street, &suburb, &raw)
+				_ = a.rd().QueryRow(`SELECT no,street,suburb,data FROM properties WHERE id=?`, str(item, "propertyId")).Scan(&no, &street, &suburb, &raw)
 				item["propertyAddress"] = strings.Trim(strings.TrimSpace(no+" "+street)+", "+suburb, ", ")
 				item["propertySuburb"] = suburb
 				var property map[string]any
@@ -126,7 +126,7 @@ func (a *app) adminWork(w http.ResponseWriter, r *http.Request, p principal, pat
 			}
 			if kind == "captures" {
 				var agent string
-				_ = a.db.QueryRow(`SELECT name FROM users WHERE id=?`, item["ownerId"]).Scan(&agent)
+				_ = a.rd().QueryRow(`SELECT name FROM users WHERE id=?`, item["ownerId"]).Scan(&agent)
 				item["agentName"] = agent
 			}
 			out = append(out, item)
@@ -293,7 +293,7 @@ func reviewLotMatch(event, parcel string) bool {
 
 func (a *app) marketReview(w http.ResponseWriter, r *http.Request, p principal, parts []string) {
 	if r.Method == "GET" && len(parts) == 1 {
-		rows, err := a.db.Query(`SELECT id,provider,kind,address,COALESCE(lot_plan,''),
+		rows, err := a.rd().Query(`SELECT id,provider,kind,address,COALESCE(lot_plan,''),
 			COALESCE(suburb,''),price,COALESCE(event_date,'')
 			FROM market_events WHERE property_id IS NULL AND review_status='pending'
 			ORDER BY event_date DESC LIMIT 200`)
@@ -318,7 +318,7 @@ func (a *app) marketReview(w http.ResponseWriter, r *http.Request, p principal, 
 	}
 	if r.Method == "GET" && len(parts) == 3 && parts[2] == "candidates" {
 		var address, lot, sub string
-		err := a.db.QueryRow(`SELECT address,COALESCE(lot_plan,''),COALESCE(suburb,'')
+		err := a.rd().QueryRow(`SELECT address,COALESCE(lot_plan,''),COALESCE(suburb,'')
 			FROM market_events WHERE id=? AND property_id IS NULL AND review_status='pending'`,
 			parts[1],
 		).Scan(&address, &lot, &sub)
@@ -330,7 +330,7 @@ func (a *app) marketReview(w http.ResponseWriter, r *http.Request, p principal, 
 		if fields := strings.Fields(lot); len(fields) > 1 {
 			plan = "%" + fields[len(fields)-1]
 		}
-		rows, err := a.db.Query(`SELECT p.id,p.no,p.street,p.suburb,p.registered,p.data,
+		rows, err := a.rd().Query(`SELECT p.id,p.no,p.street,p.suburb,p.registered,p.data,
 			COALESCE(o.owner_names,'') FROM properties p
 			LEFT JOIN property_ownership o ON o.property_id=p.id
 			WHERE p.deleted_at IS NULL AND (upper(p.suburb)=upper(?)

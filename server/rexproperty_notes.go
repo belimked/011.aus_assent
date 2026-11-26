@@ -84,7 +84,7 @@ func propertyNoteText(m map[string]any, author string, today time.Time) string {
 }
 
 // attachPropertyNoteSync gives the phone a per-note Rex status keyed by note id.
-func attachPropertyNoteSync(db *sql.DB, propertyID string, item map[string]any) {
+func attachPropertyNoteSync(db querier, propertyID string, item map[string]any) {
 	// entity_id is "<propertyId>:<noteKey>"; ';' sorts right after ':'.
 	rows, err := db.Query(`SELECT json_extract(payload,'$.noteKey'),status,COALESCE(last_error,''),created_at FROM rex_outbox WHERE entity='rex_property_note' AND entity_id>? AND entity_id<? AND json_extract(payload,'$.propertyId')=? ORDER BY id`, propertyID+":", propertyID+";", propertyID)
 	if err != nil {

@@ -70,7 +70,7 @@ func (a *app) propertiesWithin(w http.ResponseWriter, r *http.Request, p princip
 	scopeSQL, scopeArgs := scope("properties", p)
 	args := []any{south, north, west, east}
 	args = append(args, scopeArgs...)
-	rows, err := a.db.Query(`SELECT p.id,coalesce(p.no,''),coalesce(p.street,''),coalesce(p.suburb,''),
+	rows, err := a.rd().Query(`SELECT p.id,coalesce(p.no,''),coalesce(p.street,''),coalesce(p.suburb,''),
  `+withinLat+`,`+withinLng+`,coalesce(json_extract(p.data,'$.source'),''),
  EXISTS(SELECT 1 FROM rex_links rl WHERE rl.entity='properties' AND rl.local_id=p.id),
  EXISTS(SELECT 1 FROM property_owners po JOIN contacts c ON c.id=po.contact_id AND c.deleted_at IS NULL WHERE po.property_id=p.id AND (c.owner_id=? OR ?='admin'))

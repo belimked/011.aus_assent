@@ -91,7 +91,7 @@ func pollOnce(t *testing.T, a *app, rid, etag string, detail importRow) {
 	c := newRexClient(srv.URL, "test")
 	c.Token, c.Interval, c.ReadOnly, c.AccountID, c.Log = "mock", 0, true, "2057", rexDBLogger(a.db)
 	lastRelationPoll = time.Now()
-	singleConnGuard(t, a.db, "poll", func() error { return pollRex(context.Background(), a.db, c, "2057") })
+	appConnGuard(t, a, "poll", func() error { return pollRex(context.Background(), a.db, c, "2057") })
 }
 
 func aliveContacts(t *testing.T, a *app) []string {

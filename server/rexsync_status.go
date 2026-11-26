@@ -1,8 +1,6 @@
 package main
 
-import "database/sql"
-
-func attachRexSync(db *sql.DB, kind, id string, item map[string]any) {
+func attachRexSync(db querier, kind, id string, item map[string]any) {
 	var status, reason, at string
 	query := `SELECT status,COALESCE(last_error,''),created_at FROM rex_outbox WHERE entity=? AND entity_id=? ORDER BY id DESC LIMIT 1`
 	if kind == "properties" {

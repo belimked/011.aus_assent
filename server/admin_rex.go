@@ -18,14 +18,14 @@ func (a *app) adminRex(w http.ResponseWriter, r *http.Request, path string) {
 	if path == "rex/status" {
 		c := loadRexConfig()
 		var calls, failures int
-		_ = a.db.QueryRow(`SELECT count(*),COALESCE(sum(CASE WHEN ok=0 THEN 1 ELSE 0 END),0) FROM rex_request_log WHERE at>=?`, time.Now().UTC().Add(-time.Hour).Format(layout)).Scan(&calls, &failures)
+		_ = a.rd().QueryRow(`SELECT count(*),COALESCE(sum(CASE WHEN ok=0 THEN 1 ELSE 0 END),0) FROM rex_request_log WHERE at>=?`, time.Now().UTC().Add(-time.Hour).Format(layout)).Scan(&calls, &failures)
 		var loginAt string
 		var loginOK int
-		err := a.db.QueryRow(`SELECT at,ok FROM rex_request_log WHERE kind='auth' AND direction='out' ORDER BY id DESC LIMIT 1`).Scan(&loginAt, &loginOK)
+		err := a.rd().QueryRow(`SELECT at,ok FROM rex_request_log WHERE kind='auth' AND direction='out' ORDER BY id DESC LIMIT 1`).Scan(&loginAt, &loginOK)
 		if err == sql.ErrNoRows {
 			loginAt = ""
 		}
-		verified, name, isTest, verificationError := rexVerifiedStatus(a.db)
+		verified, name, isTest, verificationError := rexVerifiedStatus(a.rd())
 		blocked := !c.Write || verified == "" || verified != c.AccountID || verified != c.WriteAccountID || !rexAccountAllowed(verified) || !isTest && os.Getenv("REX_ALLOW_PRODUCTION_WRITE") != "1"
 		reason := ""
 		switch {
@@ -44,7 +44,7 @@ func (a *app) adminRex(w http.ResponseWriter, r *http.Request, path string) {
 		}
 		var lastPoll string
 		var pollOK int
-		_ = a.db.QueryRow(`SELECT at,ok FROM rex_poll_status WHERE id=1`).Scan(&lastPoll, &pollOK)
+		_ = a.rd().QueryRow(`SELECT at,ok FROM rex_poll_status WHERE id=1`).Scan(&lastPoll, &pollOK)
 		respond(w, 200, map[string]any{"accountId": c.AccountID, "verifiedAccount": verified, "verifiedAccountName": name, "verifiedIsTest": isTest, "writeBlocked": blocked, "writeBlockReason": reason, "pollEnabled": c.Read, "lastPollAt": lastPoll, "lastPollOK": pollOK == 1 && lastPoll != "", "baseUrl": c.BaseURL, "appId": c.AppID, "read": c.Read, "write": c.Write, "readReason": c.ReadReason, "writeReason": c.WriteReason, "lastLoginAt": loginAt, "lastLoginOK": loginOK == 1 && loginAt != "", "callsHour": calls, "failuresHour": failures})
 		return
 	}
@@ -58,7 +58,7 @@ func (a *app) adminRex(w http.ResponseWriter, r *http.Request, path string) {
 			problem(w, 400, "invalid id")
 			return
 		}
-		row := a.db.QueryRow(`SELECT id,at,account_id,direction,kind,service,method,path,caller,attempt,request_json,http_status,ok,error,duration_ms,result_summary,response_excerpt,entity,local_id,rex_id FROM rex_request_log WHERE id=?`, id)
+		row := a.rd().QueryRow(`SELECT id,at,account_id,direction,kind,service,method,path,caller,attempt,request_json,http_status,ok,error,duration_ms,result_summary,response_excerpt,entity,local_id,rex_id FROM rex_request_log WHERE id=?`, id)
 		item, err := scanRexRow(row.Scan)
 		if err != nil {
 			problem(w, 404, "not found")
@@ -94,7 +94,7 @@ func (a *app) adminRex(w http.ResponseWriter, r *http.Request, path string) {
 	}
 	q += " ORDER BY id DESC LIMIT ?"
 	args = append(args, limit)
-	rows, err := a.db.Query(q, args...)
+	rows, err := a.rd().Query(q, args...)
 	if err != nil {
 		problem(w, 500, "database error")
 		return
@@ -117,7 +117,7 @@ func (a *app) adminRex(w http.ResponseWriter, r *http.Request, path string) {
 	}
 	respond(w, 200, map[string]any{"items": items})
 }
-func rexVerifiedStatus(db *sql.DB) (account, name string, isTest bool, reason string) {
+func rexVerifiedStatus(db querier) (account, name string, isTest bool, reason string) {
 	var raw string
 	_ = db.QueryRow(`SELECT response_excerpt,error FROM rex_request_log WHERE service='AccountSettings' AND method='read' AND caller='verification' ORDER BY id DESC LIMIT 1`).Scan(&raw, &reason)
 	var result struct {
