@@ -89,6 +89,14 @@ func (w *rexWorker) step(ctx context.Context) error {
 			return e
 		}
 		defer tx.Rollback()
+		if j.entity == "rex_contact_note" { // a merge may have re-keyed the job to the primary
+			if e = tx.QueryRow(`SELECT entity_id FROM rex_outbox WHERE id=?`, j.id).Scan(&j.localID); e != nil {
+				return e
+			}
+			if _, e = tx.Exec(`UPDATE contacts SET updated_at=?,version=version+1 WHERE id=(SELECT json_extract(payload,'$.contactId') FROM rex_outbox WHERE id=?)`, now(), j.id); e != nil {
+				return e
+			}
+		}
 		if link != "" {
 			if _, e = tx.Exec(`INSERT OR IGNORE INTO rex_links(entity,local_id,rex_id,rex_service,created_at,account_id) VALUES(?,?,?,?,?,?)`, j.entity, j.localID, link, service, now(), w.account); e != nil {
 				return e
@@ -150,7 +158,7 @@ func (w *rexWorker) step(ctx context.Context) error {
 		}
 		return finish("sent", "", "", "")
 	}
-	if j.entity != "contacts" && j.entity != "rex_contact_relation" && j.entity != "rex_contact_dnd" && j.entity != "rex_contact_tag" && j.entity != "rex_contact_letter" && j.entity != "rex_property_note" {
+	if j.entity != "contacts" && j.entity != "rex_contact_relation" && j.entity != "rex_contact_dnd" && j.entity != "rex_contact_tag" && j.entity != "rex_contact_letter" && j.entity != "rex_property_note" && j.entity != "rex_contact_note" {
 		return finish("skipped", "not linked to Rex sandbox record", "", "")
 	}
 	if j.entity != "rex_property_note" { // property notes need the Rex property, not a contact
@@ -167,12 +175,20 @@ func (w *rexWorker) step(ctx context.Context) error {
 			if createStatus == "failed" {
 				return finish("failed", "contact creation failed; reconcile before retry", "", "")
 			}
+			if j.entity == "rex_contact_note" && createStatus != "pending" && createStatus != "waiting_auth" {
+				// A merge still to run can give this contact the other one's Rex record.
+				var merging int
+				_ = w.db.QueryRow(`SELECT count(*) FROM rex_outbox WHERE entity='rex_merge' AND entity_id>? AND entity_id<? AND status IN ('pending','waiting_auth')`, "merge:"+linkID+":", "merge:"+linkID+";").Scan(&merging)
+				if merging > 0 {
+					return w.deferJob(j, "waiting for contact merge")
+				}
+			}
 			if createStatus == "" || createStatus == "skipped" || createStatus == "sent" {
 				return finish("skipped", "contact not in Rex", "", "")
 			}
 			return w.deferJob(j, "waiting for contact link")
 		}
-		if linked != "" && source != "rex_import" && j.entity != "contacts" && j.entity != "rex_contact_relation" {
+		if linked != "" && source != "rex_import" && j.entity != "contacts" && j.entity != "rex_contact_relation" && j.entity != "rex_contact_note" {
 			return finish("skipped", "not linked to Rex sandbox record", "", "")
 		}
 	}
@@ -260,6 +276,28 @@ func (w *rexWorker) step(ctx context.Context) error {
 			actor = str(m, "a")
 		}
 		data = map[string]any{"note": propertyNoteText(m, actor, time.Now()), "note_type": rexRef("note"), "related": map[string]any{"note_properties": []any{map[string]any{"property": rexRef(property)}}}}
+	case "rex_contact_note":
+		contact := w.link("contacts", str(m, "contactId"))
+		if contact == "" {
+			return w.deferJob(j, "waiting for contact")
+		}
+		if str(m, "t") == "" {
+			return finish("skipped", "empty note", "", "")
+		}
+		entityLink = w.link("rex_contact_note", j.localID) // already created: never a second note
+		service = "Notes"
+		actor = w.userName(str(m, "actorId"))
+		if actor == "" {
+			actor = str(m, "a")
+		}
+		related := map[string]any{"note_contacts": []any{map[string]any{"contact": rexRef(contact)}}}
+		// The note's property only when it is already in Rex; never created for a note.
+		if propertyID := str(m, "propertyId"); propertyID != "" {
+			if property := w.link("properties", propertyID); property != "" {
+				related["note_properties"] = []any{map[string]any{"property": rexRef(property)}}
+			}
+		}
+		data = map[string]any{"note": propertyNoteText(m, actor, time.Now()), "note_type": rexRef("note"), "related": related}
 	case "rex_completion_note":
 		if str(m, "contactId") == "" {
 			return finish("skipped", "completion note needs a contact", "", "")
@@ -487,7 +525,7 @@ func (w *rexWorker) step(ctx context.Context) error {
 		}
 	}
 	w.client.Entity, w.client.LocalID, w.client.RexID = "contacts", linkID, linked
-	if j.entity == "rex_property_note" {
+	if j.entity == "rex_property_note" || j.entity == "rex_contact_note" {
 		w.client.Entity, w.client.LocalID, w.client.RexID = j.entity, j.localID, ""
 	}
 	if w.client.Token == "" {

@@ -661,6 +661,9 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 		if kind == "properties" {
 			previousOwners = map[string]any{"ownerIds": append([]string(nil), stringsFrom(old["ownerIds"])...), "notes": copyPropertyNotes(old["notes"])}
 		}
+		if kind == "contacts" {
+			previousOwners = map[string]any{"notes": copyPropertyNotes(old["notes"])}
+		}
 		if kind == "listings" && p.role != "admin" && a.b3Owner(kind, id) != p.id {
 			problem(w, 404, "not found")
 			return
@@ -719,6 +722,7 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 	}
 	if kind == "contacts" && method != "DELETE" {
 		m["mobileNorm"] = normAUMobile(str(m, "mobile"))
+		delete(m, "noteRexSync") // server-computed on pull
 	}
 	if kind == "todos" {
 		if method == "POST" {
@@ -1004,11 +1008,11 @@ func (a *app) record(tx *sql.Tx, p principal, action, kind, id string, diff any,
 	if _, err := tx.Exec(`INSERT INTO audit_log(user_id,device,action,entity,entity_id,diff,at) VALUES(?,?,?,?,?,?,?)`, p.id, p.device, action, kind, id, string(b), stamp); err != nil {
 		return err
 	}
+	var old map[string]any
+	if len(previous) > 0 {
+		old = previous[0]
+	}
 	if kind == "properties" && action != "DELETE" {
-		var old map[string]any
-		if len(previous) > 0 {
-			old = previous[0]
-		}
 		if err := enqueuePropertyOwners(tx, id, diff, old, stamp); err != nil {
 			return err
 		}
@@ -1020,7 +1024,10 @@ func (a *app) record(tx *sql.Tx, p principal, action, kind, id string, diff any,
 			return err
 		}
 		if (kind == "contacts" || kind == "todos") && action != "DELETE" {
-			return enqueueRexDetails(tx, kind, id, diff, stamp)
+			if err = enqueueRexDetails(tx, kind, id, diff, stamp); err != nil || kind != "contacts" {
+				return err
+			}
+			return enqueueContactNotes(tx, id, diff, old, p.id, stamp)
 		}
 		return nil
 	}
@@ -1045,7 +1052,8 @@ func (a *app) note(w http.ResponseWriter, r *http.Request, p principal, id strin
 	defer tx.Rollback()
 	m["id"] = nid
 	m["contactId"] = id
-	if _, err = tx.Exec(`INSERT INTO contact_notes(id,contact_id,user_id,d,a,t,created_at) VALUES(?,?,?,?,?,?,?)`, nid, id, p.id, str(m, "d"), str(m, "a"), str(m, "t"), now()); err == nil {
+	stamp := now()
+	if _, err = tx.Exec(`INSERT INTO contact_notes(id,contact_id,user_id,d,a,t,created_at) VALUES(?,?,?,?,?,?,?)`, nid, id, p.id, str(m, "d"), str(m, "a"), str(m, "t"), stamp); err == nil {
 		var raw string
 		err = tx.QueryRow(`SELECT data FROM contacts WHERE id=?`, id).Scan(&raw)
 		if err == nil {
@@ -1053,16 +1061,21 @@ func (a *app) note(w http.ResponseWriter, r *http.Request, p principal, id strin
 			err = json.Unmarshal([]byte(raw), &contact)
 			if err == nil {
 				notes, _ := contact["notes"].([]any)
-				contact["notes"] = append(notes, map[string]any{"d": str(m, "d"), "a": str(m, "a"), "t": str(m, "t")})
+				prior := map[string]any{"notes": copyPropertyNotes(notes)}
+				// The contact_notes id is the note id: one Rex note through the data.notes path.
+				contact["notes"] = append(notes, map[string]any{"id": nid, "d": str(m, "d"), "a": str(m, "a"), "t": str(m, "t"), "at": stamp})
 				var b []byte
 				b, err = json.Marshal(contact)
 				if err == nil {
-					_, err = tx.Exec(`UPDATE contacts SET data=?,version=version+1,updated_at=?,roles=?,tags=?,flags=?,consent=? WHERE id=?`, append([]any{string(b), now()}, append(contactColumns(contact), id)...)...)
+					_, err = tx.Exec(`UPDATE contacts SET data=?,version=version+1,updated_at=?,roles=?,tags=?,flags=?,consent=? WHERE id=?`, append([]any{string(b), stamp}, append(contactColumns(contact), id)...)...)
+				}
+				if err == nil {
+					_, err = tx.Exec(`INSERT INTO audit_log(user_id,device,action,entity,entity_id,diff,at) VALUES(?,?,?,?,?,?,?)`, p.id, p.device, "POST", "contacts", id, ijson(m), stamp)
+				}
+				if err == nil {
+					err = enqueueContactNotes(tx, id, contact, prior, p.id, stamp)
 				}
 			}
-		}
-		if err == nil {
-			err = a.record(tx, p, "POST", "contacts", id, m)
 		}
 	}
 	if err == nil {
