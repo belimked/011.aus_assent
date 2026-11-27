@@ -8,12 +8,15 @@ import {useHoldRecorder,holdStartText,holdShortText} from './useHoldRecorder';
 import {voiceErrorText} from '../lib/voice';
 import {getVoiceLang} from '../lib/voicePref';
 
-/** Inline dictation mic: hold to dictate into the field beside it, release to finish; the words are appended. */
-export function NoteMic({value,onChangeText,onTranscript,size=40}:{value:string;onChangeText:(v:string)=>void;onTranscript?:(v:string)=>void;size?:number}){
+/**
+ * Inline dictation mic: hold to dictate into the field beside it, release to finish; the words are appended.
+ * `onWords` gets the transcript alone instead (a search box replaces its text rather than appending).
+ */
+export function NoteMic({value,onChangeText,onTranscript,onWords,size=40}:{value:string;onChangeText:(v:string)=>void;onTranscript?:(v:string)=>void;onWords?:(text:string)=>void;size?:number}){
   const {l2,lang:appLang}=useT();const latest=useRef(value);useEffect(()=>{latest.current=value},[value]);
   const rec=useHoldRecorder({lang:()=>getVoiceLang(appLang),
     onStart:r=>{const message=holdStartText(r,l2);if(message)showToast(message)},
-    onResult:r=>{if(r.kind==='text'){const v=latest.current.trim();(onTranscript||onChangeText)(v?`${v} ${r.text}`:r.text)}else showToast(r.kind==='short'?holdShortText(l2):r.kind==='empty'?l2('Could not hear that','没有听清'):voiceErrorText(r.error,l2))}});
+    onResult:r=>{if(r.kind==='text'&&onWords)onWords(r.text);else if(r.kind==='text'){const v=latest.current.trim();(onTranscript||onChangeText)(v?`${v} ${r.text}`:r.text)}else showToast(r.kind==='short'?holdShortText(l2):r.kind==='empty'?l2('Could not hear that','没有听清'):voiceErrorText(r.error,l2))}});
   const live=rec.phase==='recording';
   const web=()=>showToast(l2('Dictation works in the iPhone app. Type instead.','听写请在 iPhone App 里使用，这里请直接输入。'));
   return <View style={{alignItems:'center'}}><Pressable accessibilityRole="button" accessibilityLabel={live?l2('Release to finish dictation','松开结束听写'):l2('Hold to dictate','按住听写')} accessibilityHint={l2('Press and hold while you speak, release to finish','说话时按住，松开结束')} disabled={rec.phase==='transcribing'} {...(Platform.OS==='web'?{onPress:web}:rec.pressProps)} hitSlop={6} style={{width:size,height:size,borderRadius:size/2,backgroundColor:colors.mic,alignItems:'center',justifyContent:'center'}}>
