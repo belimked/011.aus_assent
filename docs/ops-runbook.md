@@ -12,6 +12,8 @@
 
 在本地 `server/` 执行 `go test ./... && go vet ./...`；审核变更后用 `deploy/release.sh` 发布（默认目标 `admin@16.178.91.22`、密钥 `../aws-lightsail.pem`，可用 `AXLEO_TARGET` / `AXLEO_SSH_KEY` 覆盖）。脚本切换 `/opt/axleo/current`、重启 `axleo.service`，健康检查失败自动回滚。手动回滚：在 65 以 root 执行 `ln -sfn "$(cat /data/axleo/previous-release)" /opt/axleo/current && systemctl restart axleo`；检查 `curl -fsS http://127.0.0.1:8082/api/v1/health` 和 `journalctl -u axleo -n 100`。**回滚二进制不能自动回退数据库 schema**；如需回退数据，按下面的恢复流程操作。发布前保留快照。
 
+**发版检查（2026-11-27 起）**：这次改动是否改变了“服务器下发给手机的记录内容”（新增/删除/改名字段、可见范围变化）？是，且没有同时出新的手机包 → 把 `server/sync.go` 的 `syncScopeVersion` 加 1。出了新包则不必（新包首次启动会自动全量同步）。详见 `docs/backend-design.md` §6.1。
+
 ## 备份与恢复
 
 `axleo-backup.timer` 每日 03:30 调用 `/opt/axleo/current/axleo backup /data/axleo/backup`，用 SQLite 在线快照；保留最近 14 份，文件位于 `/data/axleo/backup/axleo-*.db`。可手动执行相同命令。备份验证：`/opt/axleo/current/axleo verify /data/axleo/backup/<文件>.db`，输出完整性检查与各表行数。备份应额外异机保存。
