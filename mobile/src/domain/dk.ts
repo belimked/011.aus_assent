@@ -60,5 +60,34 @@ export function commitDK(s:AppState, propId:string, r:DKFields, pick?:string) {
   audit(s,'DK',`${c.first} ${c.last} · ${p?.street||'new contact'}`);
   return c;
 }
+export type ConfirmSave = {propId?:string;contactId?:string;pick?:string;fields:DKFields};
+const CONSENT_KEYS=['email','sms','phone','letter'];
+/** Consent shown on the confirm sheet: a DNC tag turns everything off, otherwise the contact's current value (default on). */
+export function confirmConsent(c:Contact|undefined,tags:string[]){return Object.fromEntries(CONSENT_KEYS.map(k=>[k,tags.includes('Do not contact')?0:c?.consent?.[k]??1]))}
+/** True when saving the confirm sheet would create a contact with neither first nor last name (Rex rejects those). */
+export function confirmNeedsName(s:AppState,a:ConfirmSave){
+  if(a.contactId||a.pick)return false;
+  if(matchContacts(s,a.fields).status!=='none')return false;
+  return !a.fields.first.trim()&&!a.fields.last.trim();
+}
+/**
+ * Save of the DK "Check before saving" sheet.
+ * With contactId (Update record on a contact page) that contact is the target: no new contact, and no property's
+ * ownerIds change unless the relation was explicitly set to owner/landlord; the note is a plain contact note.
+ */
+export function saveConfirm(s:AppState,a:ConfirmSave){
+  if(a.contactId){
+    const c=byId(s.contacts,a.contactId);if(!c)throw new Error('Contact not found');
+    const link=['owner','landlord'].includes(a.fields.relation);
+    let consent:Record<string,number>|undefined;
+    if(a.fields.consent){const now=confirmConsent(c,[]);const diff=Object.entries(a.fields.consent).filter(([k,v])=>now[k]!==v);consent=diff.length?Object.fromEntries(diff):undefined}
+    const out=commitDK(s,link?a.propId||'':'',{...a.fields,consent},c.id);
+    // Same DNC sync as the contact page's tag field, without the door-knock visit side effects.
+    const owned=s.properties.find(p=>p.ownerIds.includes(c.id));if(owned&&!link&&a.fields.tags.length)owned.flags.dnc=!!c.flags.dnc;
+    return out;
+  }
+  if(confirmNeedsName(s,a))throw new Error('contact name required');
+  return commitDK(s,a.propId||'',a.fields,a.pick||undefined);
+}
 // possibleDuplicateOf is set by the server when an app contact and a Rex contact share a mobile (问题02).
 export function duplicatesOf(s:AppState,c:Contact){const flagged=(x:Contact)=>(c.possibleDuplicateOf||[]).includes(x.id)||(x.possibleDuplicateOf||[]).includes(c.id);return s.contacts.filter(x=>x.id!==c.id&&((!!c.mobile&&normMobile(c.mobile)===normMobile(x.mobile))||!!c.email&&c.email.toLowerCase()===(x.email||'').toLowerCase()||flagged(x)));}
