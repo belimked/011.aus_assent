@@ -207,6 +207,7 @@ func (w *rexWorker) step(ctx context.Context) error {
 	update := false
 	var data map[string]any
 	actor := ""
+	presetTag, sentNote := "", "" // rex_contact_tag: AdminTags preset (rextagpreset.go)
 	switch j.entity {
 	case "rex_contact_tag", "rex_contact_relation", "rex_contact_letter", "rex_contact_dnd":
 		contact := w.link("contacts", str(m, "contactId"))
@@ -220,6 +221,7 @@ func (w *rexWorker) step(ctx context.Context) error {
 			// Tags are written exactly as shown in the app (no "DK - " style group prefix); older queued jobs may still carry "group", which is ignored.
 			tag := str(m, "tag")
 			data["related"] = map[string]any{"contact_tags": []any{map[string]any{"tag": tag}}}
+			presetTag = tag // removals never get here (DELETE is skipped above)
 		case "rex_contact_relation":
 			rel, _ := m["relation"].(map[string]any)
 			if propertyID := str(rel, "propertyId"); propertyID != "" {
@@ -535,6 +537,10 @@ func (w *rexWorker) step(ctx context.Context) error {
 			return w.retry(j, "Rex login failed", 0)
 		}
 	}
+	if presetTag != "" {
+		// Best effort, never blocks the contact write. AdminTags::create is not sandbox-verified.
+		sentNote = w.ensureRexTagPreset(ctx, presetTag)
+	}
 	call := func() (json.RawMessage, json.RawMessage, error) {
 		_, env, x := w.client.Call(ctx, service, method, body)
 		return env.Result, env.Error, x
@@ -575,7 +581,7 @@ func (w *rexWorker) step(ctx context.Context) error {
 			_, _ = w.db.Exec(`UPDATE rex_links SET etag=? WHERE entity=? AND local_id=?`, str(resultRow, "etag"), j.entity, j.localID)
 		}
 		_, _ = w.db.Exec(`INSERT INTO rex_sync_events(at,direction,entity,local_id,rex_id,changes,result) VALUES(?,?,?,?,?,?,?)`, now(), "app_to_rex", j.entity, j.localID, entityLink, ijson(map[string]any{"etag": map[string]any{"old": nil, "new": str(resultRow, "etag")}}), "ok")
-		return finish("sent", "", "", "")
+		return finish("sent", sentNote, "", "")
 	}
 	id := probeID(result)
 	if id == "" {
