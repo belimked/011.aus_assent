@@ -69,7 +69,37 @@ export function commitDK(s:AppState, propId:string, r:DKFields, pick?:string) {
   audit(s,'DK',`${c.first} ${c.last} · ${p?.street||'new contact'}`);
   return c;
 }
-export type ConfirmSave = {propId?:string;contactId?:string;pick?:string;fields:DKFields};
+export type IdentityField='first'|'last'|'mobile'|'email';
+export const IDENTITY_FIELDS:IdentityField[]=['first','last','mobile','email'];
+export type IdentityReplace=Partial<Record<IdentityField,string>>;
+/**
+ * replace: identity fields the user explicitly chose to overwrite on an existing contact (contactId, a picked or a
+ * unique match). Only these are written; fields.first/last/mobile/email never overwrite an existing contact.
+ */
+export type ConfirmSave = {propId?:string;contactId?:string;pick?:string;fields:DKFields;replace?:IdentityReplace};
+export type IdentitySuggestion={field:IdentityField;from:string;to:string;unsure:boolean};
+const sameIdentity=(f:IdentityField,a:string,b:string)=>f==='mobile'?normMobile(a)===normMobile(b):(a||'').trim().toLowerCase()===(b||'').trim().toLowerCase();
+/**
+ * Extracted identity values that differ from the existing contact (mobile compared with normMobile, name/email
+ * ignoring case and surrounding space). Empty extracted values are never suggested; an empty current value is.
+ */
+export function identitySuggestions(c:Pick<Contact,IdentityField>,extracted:Partial<Record<IdentityField,string>>,unsure:string[]=[]):IdentitySuggestion[]{
+  return IDENTITY_FIELDS.flatMap(field=>{
+    const to=(extracted[field]||'').trim();const from=c[field]||'';
+    if(!to||sameIdentity(field,from,to))return [];
+    return [{field,from,to,unsure:unsure.includes(field)||((field==='first'||field==='last')&&unsure.includes('name'))}];
+  });
+}
+/** The replace map for the suggestions the user switched to Replace. */
+export const chosenReplace=(suggestions:IdentitySuggestion[],chosen:string[]):IdentityReplace=>Object.fromEntries(suggestions.filter(x=>chosen.includes(x.field)).map(x=>[x.field,x.to]));
+/** The existing contact the confirm sheet will update, or undefined when it creates one (or must ask to choose). */
+export function confirmTarget(s:AppState,a:{contactId?:string;pick?:string;fields:{mobile:string;email:string}}):Contact|undefined{
+  if(a.contactId)return byId(s.contacts,a.contactId);
+  if(a.pick)return a.pick==='new'?undefined:byId(s.contacts,a.pick);
+  const m=matchContacts(s,a.fields);return m.status==='unique'?m.list[0].c:undefined;
+}
+/** Fields for commitDK on an existing contact: identity comes only from replace. */
+const keepIdentity=(f:DKFields,replace:IdentityReplace={}):DKFields=>({...f,first:replace.first||'',last:replace.last||'',mobile:replace.mobile||'',email:replace.email||''});
 const CONSENT_KEYS=['email','sms','phone','letter'];
 /** Consent shown on the confirm sheet: a DNC tag turns everything off, otherwise the contact's current value (default on). */
 export function confirmConsent(c:Contact|undefined,tags:string[]){return Object.fromEntries(CONSENT_KEYS.map(k=>[k,tags.includes('Do not contact')?0:c?.consent?.[k]??1]))}
@@ -82,6 +112,7 @@ export function confirmNeedsName(s:AppState,a:ConfirmSave){
  * Save of the DK "Check before saving" sheet.
  * With contactId (Update record on a contact page) that contact is the target: no new contact, and no property's
  * ownerIds change unless the relation was explicitly set to owner/landlord; the note is a plain contact note.
+ * On any existing contact, name/mobile/email change only via a.replace.
  */
 export function saveConfirm(s:AppState,a:ConfirmSave){
   if(a.contactId){
@@ -89,11 +120,14 @@ export function saveConfirm(s:AppState,a:ConfirmSave){
     const link=['owner','landlord'].includes(a.fields.relation);
     let consent:Record<string,number>|undefined;
     if(a.fields.consent){const now=confirmConsent(c,[]);const diff=Object.entries(a.fields.consent).filter(([k,v])=>now[k]!==v);consent=diff.length?Object.fromEntries(diff):undefined}
-    const out=commitDK(s,link?a.propId||'':'',{...a.fields,consent},c.id);
+    const out=commitDK(s,link?a.propId||'':'',{...keepIdentity(a.fields,a.replace),consent},c.id);
     // Same DNC sync as the contact page's tag field, without the door-knock visit side effects.
     const owned=s.properties.find(p=>p.ownerIds.includes(c.id));if(owned&&!link&&a.fields.tags.length)owned.flags.dnc=!!c.flags.dnc;
     return out;
   }
+  // A picked or uniquely matched contact: the typed mobile/email did the matching but are not written back.
+  const target=confirmTarget(s,a);
+  if(target)return commitDK(s,a.propId||'',keepIdentity(a.fields,a.replace),target.id);
   return commitDK(s,a.propId||'',a.fields,a.pick||undefined);
 }
 // possibleDuplicateOf is set by the server when an app contact and a Rex contact share a mobile (问题02).
