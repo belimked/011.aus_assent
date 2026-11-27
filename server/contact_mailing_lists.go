@@ -362,7 +362,7 @@ func mergeMailingLists(tx *sql.Tx, primary, secondary, rex, stamp string) error 
 
 // attachMailingLists puts the server state on a pulled contact: mailingLists
 // (current names), mailingListSync (latest job per lower(name)) and rexLinked.
-func attachMailingLists(db *sql.DB, id string, item map[string]any) {
+func attachMailingLists(db querier, id string, item map[string]any) {
 	rows, err := loadMailingRows(db, id)
 	if err != nil {
 		return

@@ -59,7 +59,7 @@
 **修正**
 - App 新建的联系人会在 Rex 里新建联系人，并关联为这套房产的 **Owner**。
 - 联系人和房产下面显示同步状态：**Pending Rex / In Rex / Rex failed / Rex skipped**。
-- **限制**：只有已经在 Rex 里的房产才能建立关联。不在 Rex 的房产（如 9 Boorman St），联系人照样写进 Rex，但不会自动在 Rex 里新建房产，App 显示 "Not in Rex yet"。
+- **2026-11-27 起（UAT3 问题3）**：给不在 Rex 的房产（如 9 Boorman St）添加业主时，会先在 Rex 按地址查找这处房产，找到就关联，找不到就新建，然后写 Owner 关系。只有“添加业主”会这样做，浏览、打标签、敲门记录不建房产。地址缺门牌、街名、suburb 或 postcode 时不建，显示 **Rex skipped** 和原因。联系人页每处 Linked property、房产页每位业主都显示自己的关系状态。
 
 **怎么验证**（必须用 **16 Gager St**，这套在 Rex 里）
 1. 打开 16 Gager St → **Edit record** → 填虚构姓名和 0491 570 156 → 保存。
@@ -133,9 +133,9 @@
 
 **修正**
 - 在 Rex 里的房产：按钮打开 `app.rexsoftware.com/properties/#tab=key_details&id=<Rex ID>`。
-- 不在 Rex 的房产：按钮置灰，显示 **"Not in Rex yet"**。
+- 不在 Rex 的房产：按钮置灰，显示 **"Not in Rex yet"**。2026-11-27 起，给它添加业主后 App 会在 Rex 建这处房产，同步后按钮可用。
 
-**怎么验证**：16 Gager St → Open in Rex ↗ 打开 Rex 网页；9 Boorman St 显示 "Not in Rex yet"。
+**怎么验证**：16 Gager St → Open in Rex ↗ 打开 Rex 网页；9 Boorman St（还没有业主）显示 "Not in Rex yet"；给它添加业主，等 1–2 分钟拉取刷新后 Open in Rex 可用。
 
 ### 3. 无联系人时备注语音不可用；录音方式不一致（中）
 

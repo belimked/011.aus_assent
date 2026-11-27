@@ -43,6 +43,7 @@ func assignPollOwners(db *sql.DB, props, contacts map[string]bool) error {
 	}
 	return nil
 }
+
 // rexLocalUser maps a Rex user reference to an active app user: REX_USER_MAP
 // (Rex id or email:local email), then the same email or users.rex_user_id,
 // then fallback (an email; empty for no fallback). Returns "" when unmatched.

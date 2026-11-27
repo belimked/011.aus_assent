@@ -484,7 +484,29 @@ GET  /api/captures/:id        → 进度，以及每一步的结果
 ### UAT2 owner synchronisation
 Poll imports changed properties and contacts before saving `contact_reln_property`; missing contact references are read directly. Rex property etags change on owner-relation-only edits (verified in `rex_sync_events`: property 23138536 changed etag within two minutes). As a safety net, `REX_RELATION_REFRESH_SECONDS` (default 86400, minimum 60) re-reads up to `REX_RELATION_REFRESH_LIMIT` (default 100, positive integer) properties updated in the last seven days per run. This is a bounded fallback, not a full historical repair. New polled records use `REX_USER_MAP` (`Rex id or email:local email`, comma-separated), automatic identical email or local rex_user_id, then `REX_DEFAULT_OWNER_EMAIL`, then the sandbox ranking. New owner contacts inherit the property agent; existing assignments remain unchanged.
 
-App-created contacts require an enabled local owner and the existing `AXLEO_REX_WRITE=1`/`REX_WRITE_ACCOUNT_ID` account verification. Outbox POST creates Contacts with related name/phone/email, records the account-scoped link, then queued property owner relations write `Properties::update`. Before create, linked local AU-normalised phones are checked. Ambiguous create results fail closed for manual reconciliation; they are **not** retried blindly. Rejected writes retain `last_error`; transient login/rate/update failures use exponential retries. Properties with no Rex link are skipped as "not in Rex" (product decision 2026-11-25: the contact is still created in Rex, but the app never auto-creates the property in Rex; the owner link stays local and the property shows "Not in Rex yet"). Latest outbox state is delivered as `rexSync`; clients can pull to refresh. Voice DK transcription/extraction audit is stored internally, not written to Rex.
+App-created contacts require an enabled local owner and the existing `AXLEO_REX_WRITE=1`/`REX_WRITE_ACCOUNT_ID` account verification. Outbox POST creates Contacts with related name/phone/email, records the account-scoped link, then queued property owner relations write `Properties::update`. Before create, linked local AU-normalised phones are checked. Ambiguous create results fail closed for manual reconciliation; they are **not** retried blindly. Rejected writes retain `last_error`; transient login/rate/update failures use exponential retries. Properties with no Rex link: see **App 新建 Rex 房产** below (2026-11-27 supersedes the 2026-11-25 decision that never created properties). Latest outbox state is delivered as `rexSync`; clients can pull to refresh. Voice DK transcription/extraction audit is stored internally, not written to Rex.
+
+### App 新建 Rex 房产（UAT3 问题3，2026-11-27）
+
+**规则**：在 App 里给一处**不在 Rex 的房产添加业主**时，worker 先在 Rex 找或建这处房产，再照常写 Owner 关系。替代 2026-11-25“不自动建房产”的决定。
+
+- **触发范围**：只有 `rex_contact_relation` 且 `relation.type="Owner of"` 的任务，而且要等联系人已有 Rex 关联（联系人还没建好时任务照旧等待）。浏览、打标签、敲门记录、房产备注、租客等其他关系都不建房产，依旧 skipped "not in Rex"。
+- **开关**：沿用 `AXLEO_REX_WRITE=1` / `REX_WRITE_ACCOUNT_ID` 和账户验证；另加 `REX_PROPERTY_CREATE`（默认开，`=0` 恢复旧行为）。`REX_PROPERTY_CATEGORY` 默认 `residential`，`REX_PROPERTY_STATE` 默认 `QLD`（房产 `data.state` 优先）。
+- **地址**：门牌（`no`，`3/11` 拆成 `adr_unit_number=3`、`adr_street_number=11`；`data.unit` 优先）、街名（含 St/Pl 缩写，Rex 文档说缩写与全称互相匹配）、suburb、postcode（`data.postcode`，没有时用 seed 的 suburb→postcode 表）。缺门牌、街名、suburb 或 postcode 时**不调 Rex**，标 skipped，原因写给中介看，例如 "Address has no street number, so it was not added to Rex. Add the property in Rex by hand"。
+- **流程**（`server/rexproperty_create.go`）：
+  1. `Properties::findPossibleDuplicate`（`property_category_id=null`，同时试住宅和土地格式）。查重失败（超时等）按读请求退避重试，**不**盲建。
+  2. 查到 id：若这个 Rex id 未被本账号别的本地房产关联，写 `rex_links`（按 `account_id`），`rex_property_creates.state=linked`。
+  3. 没查到：先提交 `rex_property_creates.state=sending`，再 `Properties::create`（`data.adr_*`、`property_category.id`、有坐标时带 `adr_latitude/adr_longitude`，`return_id=true`）。成功写 `rex_links` + `state=created`。不发 `system_owner_user`，与 `Contacts::create` 一致，由 Rex 记为集成用户；App 自己的分配（`properties.owner_id`）不变。
+  4. 同一任务接着写 `Properties::update` 的 `contact_reln_property`。
+- **防重复**：worker 一次只处理一个任务，同一房产的两个业主任务先后执行，第二个看到第一个写的 `rex_links`，不会再查重或新建。重试同一任务同理。create 无响应（超时、空 5xx、无 id）或进程在请求中途退出时，`rex_property_creates` 留在 `unknown`/`sending`：之后**这处房产的所有业主任务都 failed**，原因 "Rex property create outcome unknown; check Rex for this address, then run `axleo rex-property-backfill --retry-unknown`"，与联系人创建一样保守。Rex 明确拒绝（错误信封、429、登录失败）时没有建出东西，清掉标记，按普通失败/重试处理。
+- **Rex 房产已被另一条本地房产关联**：`rex_links_remote(entity,account_id,rex_id)` 唯一索引本来就不允许两条本地房产指向同一 Rex id。worker 不合并、不改指向，标 skipped："Rex already has this address, linked to app property <地址>. Add the owner there"。中介到那条已在 Rex 的房产上加业主；两条本地房产是否合并由人决定。
+- **建好后**：`rex_links` 与导入的房产一样，同步下发 `rexId`，Open in Rex 可用。轮询在 Properties::search 里看到这个 id 时按 `rex_links` 认出是同一条本地房产，只更新、不再建 `rex-properties-*`（`TestPropertyCreatePollDoesNotDuplicate`）。
+- **手机状态**：同步给每处房产下发 `ownerRexSync: {<contactId>: {status, reason, at}}`（每对业主/房产最新的关系任务）。联系人页 Linked properties 每项、房产页 Owner 区每位业主都用 `RexSyncLabel` 显示。字段由服务端计算，PATCH 时丢弃。
+- **单连接**：所有查询读完即关；批量补做先把候选读完再开事务；状态一次查询加载到内存。新测试用 `singleConnGuard` 跑每一步 worker。
+
+**历史 skipped 补做**：`axleo rex-property-backfill [--dry-run] [--retry-unknown]`，手动运行，不在启动时执行。只处理每对业主/房产**最新**一条、原因为 "not in Rex" 的 Owner 关系任务，且本地业主关系仍在；把它改回 pending，由 worker 走上面的流程（地址不完整的会再次 skipped，原因改为新的说明）。`--retry-unknown` 另外处理 create 结果不明的任务：运维先在 Rex 里核对该地址，再运行；它清除标记，下次从 `findPossibleDuplicate` 开始，Rex 里若已有就关联，不会再建。`--dry-run` 只列出，不写库。需要 `REX_WRITE_ACCOUNT_ID`。
+
+**沙箱依据**：`Properties::create` 已验证（2026-11-17 F5，`.tmp/rex/write/raw/F5-4.json`：缺 `property_category` 返回 ValidationException；带 `property_category.id=residential` 返回数字 id）。`findPossibleDuplicate` 只按 `.tmp/rexdocs/svc_Properties.json`（返回 id 或 false），**未在沙箱验证**；`axleo rex-probe` 的 F5 写入检查已加 `propertyDuplicate`：建完测试房产后用同一地址查重，结果须等于新建的 id。create 带坐标、街道缩写匹配、postcode 由 Rex 补全均未验证。
 
 ## 房产备注 → Rex Notes
 

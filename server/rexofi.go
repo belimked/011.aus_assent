@@ -43,6 +43,7 @@ func rexOFIRef(v any) string {
 	}
 	return istring(v)
 }
+
 // rexListingStatus maps a Listings row to the app status. Rex system_listing_state
 // (sandbox dry run: current / sold / leased / withdrawn) is preferred; listing_status
 // is the legacy field this importer used before. Only "listed" means a current

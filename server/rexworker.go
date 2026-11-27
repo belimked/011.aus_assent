@@ -224,6 +224,12 @@ func (w *rexWorker) step(ctx context.Context) error {
 			rel, _ := m["relation"].(map[string]any)
 			if propertyID := str(rel, "propertyId"); propertyID != "" {
 				property := w.link("properties", propertyID)
+				if property == "" && str(rel, "type") == "Owner of" { // UAT3 问题3: create or link it (rexproperty_create.go)
+					var done bool
+					if property, done, err = w.ensureRexProperty(ctx, j, propertyID, finish); done {
+						return err
+					}
+				}
 				if property == "" {
 					return finish("skipped", "not in Rex", "", "")
 				}
