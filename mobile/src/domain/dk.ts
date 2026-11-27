@@ -20,7 +20,7 @@ export function applyPreference(s:AppState,c:Contact,k:string,val:number,reason=
   if(k==='junk')c.tags=val?c.tags.filter(t=>t!=='No junk mail'):[...new Set([...c.tags,'No junk mail'])];
   const label=({sms:'Text',phone:'Call',email:'Email',letter:'Letter',junk:'Junk mail'} as Record<string,string>)[k]||k;
   c.prefLog={d:today(),by:s.auth?.name||'Owen Chen',t:`${label}: ${val?'opted in':'opted out'}${reason?' · “'+reason+'”':''}`};
-  noteOn(s,c,`Preferences · ${label} ${val?'opted in':'opted out'}${reason?' · '+reason:''}`);audit(s,'Preferences',`${c.first} ${c.last}`.trim()+` · ${label}=${val}`);
+  noteOn(s,c,`Preferences · ${label} ${val?'opted in':'opted out'}${reason?' · '+reason:''}`,{sys:'preference'});audit(s,'Preferences',`${c.first} ${c.last}`.trim()+` · ${label}=${val}`);
 }
 /** Stable note id: the server keys its one-time Rex Notes::create job on it. */
 export const propertyNoteId=()=>'pn'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
@@ -51,7 +51,7 @@ export function commitDK(s:AppState, propId:string, r:DKFields, pick?:string) {
   c.optedOut=c.consent?.sms===0;
   if(r.consent)c.consentRec={d:today(),how:'At the door'};
   if(r.linked){c.rels=c.rels||[];c.rels.push({type:'Partner of',name:r.linked});}
-  if(r.note)noteOn(s,c,r.note);
+  if(r.note)noteOn(s,c,r.note,{propId:p?.id});
   if(r.voiceAudit) c.voiceAudit=[...(c.voiceAudit||[]),{...r.voiceAudit,d:today()}];
   if(p&&['owner','landlord'].includes(r.relation))linkOwner(s,c,p);
   if(p)p.visits=[...(p.visits||[]),{d:today(),o:'spoke'}];

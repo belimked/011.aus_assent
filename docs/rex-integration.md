@@ -516,6 +516,37 @@ App 房产详情里的备注（`properties.data.notes[]`）在房产已关联 Re
 
 **App 状态**：`/sync` 拉取的房产带 `noteRexSync: {<noteKey>: {status, reason, at}}`（服务端计算，写入时丢弃），房产备注卡片用 `RexSyncLabel` 显示 Pending Rex / In Rex / Rex failed / Rex skipped；无 id 的旧备注不显示状态。
 
+## 联系人备注 → Rex Notes
+
+App 里给联系人加的备注（`contacts.data.notes[]`，History 里显示的那些）在联系人已关联 Rex 时，每条写成一条挂在 Rex 联系人上的 Note（出现在联系人 Stream）；备注带已关联 Rex 的房产时同时挂房产。做法与房产备注相同：只同步**新增**，修改、删除不同步，也不从 Rex 拉回。
+
+**入队**：联系人 POST/PATCH（含 `/sync/push`）时，用修改前的 `data.notes`（`mutate` 里从已读出的记录复制，不另外查库）和新 `data.notes` 对比，每条新增备注入队 `rex_outbox(entity='rex_contact_note', entity_id='<contactId>:<noteKey>', op='POST', payload={contactId,noteKey,t,a,d,at,propertyId,actorId})`。`noteKey` 规则同房产备注：App 生成的 `id`（`cn…`，`noteOn` 生成）；没有 id 的备注（旧版 App）用 `"h"+sha1(at 或 d ␟ a ␟ t)`。同一 entity_id 已有 outbox 记录就不再入队，重复 PATCH、同步重放、离线补推、删除后恢复都只有一条任务。`propertyId` 取备注上的 `propId`（DK、OFI、市场复核、预约估价等有房产上下文的地方由 App 写入）。
+
+- **不补写历史**：上线前已存的 `data.notes` 都在“修改前”里，不算新增，不会写入 Rex。没有自动补写；如需补写，应做一个单独的、管理员手动触发的脚本（按联系人列出已关联 Rex 且无 `rex_contact_note` 任务的备注，预览数量后按同样的 key 入队），目前未实现。
+- **不写入 Rex 的备注**：App 活动日志带 `sys` 标记（`todo` 待办创建/完成/改派，`market` Market monitor，`preference` 渠道偏好/退订，`edit` 字段修改，`reassign` 联系人改派，`reminder` 提醒），以及作者为 `AxleoCollect` 的备注（旧版 App 的待办日志），不入队。合并日志由 `rex_merge` 单独写（见下）。其余（手写/语音备注、通话/短信记录、预约估价、OFI 发资料、转介、发房源、询盘“Lead received”等）都写入。**此划分待产品确认**，改动只需调整 `contactNoteToRex`。
+- 旧接口 `POST /contacts/{id}/notes`（手机端没有调用方）也走这条路径：`contact_notes` 行的 id 即备注 `id`，入队同样的 `rex_contact_note`，不再入队旧的 `contacts` 备注任务。worker 里旧的 `contacts`+`contactId`+`t` 分支保留，只处理已在队列里的旧任务和合并日志。
+
+**worker**（`rexworker.go`，`rex_contact_note`）：
+- 联系人未关联时与 `rex_contact_tag` 等一致：联系人已删除 → `skipped`；创建任务 pending → 等待（`waiting for contact link`）；创建失败 → `failed`；没有创建任务、创建被跳过（如疑似重复）或已完成却无关联 → `skipped "contact not in Rex"`。另外：该联系人作为主记录还有未完成的 `rex_merge` 时等待（合并可能让它接手对方的 Rex 记录）。
+- 与 `contacts`、`rex_contact_relation` 一样，不要求 `source=rex_import`：App 新建并已由 worker 建到 Rex 的联系人也写备注。
+- `rex_links(rex_contact_note, '<contactId>:<noteKey>')` 已存在 → 直接 `sent`。
+- 否则 `Notes::create`，挂 `note_contacts`；`propertyId` 对应的房产已关联 Rex 时再挂 `note_properties`，未关联只挂联系人（不为备注在 Rex 建房产）。成功后写 `rex_links(entity='rex_contact_note', …, rex_service='Notes')`，联系人 version+1。
+- 响应丢失时 `failed "Rex write outcome unknown; reconcile before retry"`，不重放；Rex 拒绝记 `Rex rejected: …`。写入开关和账户验证同上。
+
+```json
+// Notes::create（POST /v1/rex/notes/create）
+{"data":{"note":"[2026-01-02] <正文>\n— via AxleoCollect · <经纪人>","note_type":{"id":"note"},
+  "related":{"note_contacts":[{"contact":{"id":91}}],"note_properties":[{"property":{"id":23138536}}]}},"return_id":true}
+```
+
+只挂联系人的写法与 `rex_completion_note`/旧联系人备注相同。同一请求同时挂联系人和房产：`rex-feedback-2026-11.md` A1（2026-11-17，沙箱 2057）记录过此结构可用，本功能上线前**未再次在沙箱验证**，也未验证 Rex Stream 中的显示方式。
+
+**署名与日期**：同房产备注：正文末尾 `\n— via AxleoCollect · <经纪人>`（写入备注的登录用户，找不到时用备注上的 `a`）；`d` 不是发送当天（Brisbane）时正文前加 `[YYYY-MM-DD] `。
+
+**合并**（`contact_merge.go`）：合并直接改写主记录 `data.notes`，不经过 `mutate`，所以搬过来的备注不会被当成新增；合并后的备注保留 `id`/`at`/`propId`/`sys`，key 不变，下一次 PATCH 也不会入队。同一事务里副记录的 `rex_contact_note` 任务和链接改成主记录的 key（`<primary>:<noteKey>`，payload `contactId` 改为主记录、加 `mergedFrom`）：仍在排队的备注写到主记录的 Rex 联系人，已发送的由 `combineRecords` 在 Rex 里搬到主记录；主记录已有同 key 任务的排队备注置 `skipped`。worker 完成时按任务当前 entity_id 写链接，防止与合并并发时写到旧 key。副记录因未关联 Rex 而被 `skipped` 的备注合并后不会补写（待确认）。合并日志仍由 `rex_merge` 完成后的旧联系人备注任务写入一次。
+
+**App 状态**：`/sync` 拉取的联系人带 `noteRexSync: {<noteKey>: {status, reason, at}}`（服务端计算，写入时丢弃）；联系人 History 和房产备注里的业主备注用 `RexSyncLabel` 显示 Pending Rex / In Rex / Rex failed / Rex skipped。无 id 的旧备注和不写入 Rex 的活动日志不显示状态。
+
 ## OFI 只读导入（UAT2）
 
 `AXLEO_REX_READ=1` 且 Rex 凭证完整时，房产/联系人 poll 后每账户至少间隔 5 分钟读取 `Listings::search` 和 `ListingEvents::search`（分页、无过滤条件；沙箱尚未确认日期和类型的 search criteria），只保留 `event_type` 精确为 `open_home`（兼容旧值 `ofi`）的事件。`listing.id` 关联 Listings；Listings `property.id` / `property_id` 经 `rex_links(properties,account_id,rex_id)` 找房产，缺失时 `Properties::read` 后走现有房产导入。挂牌 owner/team 跟房产 owner/team；未分配房产由导入默认 admin 持有。所有挂牌继续沿用当前 listings 全团队可见规则。按每场 `event_timezone` 的当地日历日保留昨天到未来 14 天（可设 `REX_OFI_PAST_DAYS` / `REX_OFI_FUTURE_DAYS`，0–365；缺时区回退 Brisbane），显示事件当地时间。本地 `listings.data.ofi[]` 保存 `{d,time,attendees:[],rexEventId,rexAttendeeCount}`；本地签到仍在独立 `ofi_attendees`，UI 数字为 Rex 计数 + 本地签到数（如果两边重复签到可能重复计数）。重新轮询只替换窗口内 Rex 场次、不动本地场次及本地签到；变更才更新 listings 版本，写 rex_links 和 rex_sync_events。未找到场次则显示下一场或空状态。
