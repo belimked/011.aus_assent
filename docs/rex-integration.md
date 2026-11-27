@@ -703,3 +703,14 @@ App 里给联系人加的备注（`contacts.data.notes[]`，History 里显示的
   - search 是否接受这个 extra field；
   - mailing list 行能不能用 `_destroy`（还是要改成 unsubscribe）；
   - `combineRecords` 会不会合并列表。
+
+## 自定义标签加入 Rex 预设标签列表（UAT3，2026-11-27）
+
+代码：`server/rextagpreset.go`，在 `server/rexworker.go` 的 `rex_contact_tag` 任务里调用。
+
+- **流程**：把标签写到联系人（`Contacts::update related.contact_tags:[{tag}]`，不变）之前，先 `AdminTags::search`（criteria `[{name:"tag",value}]`）查预设列表，按名称大小写不敏感比较，只认 `object_type` 为 contact（或为空）的行；查不到再 `AdminTags::create`（`data:{tag, object_type:"contact"}, return_id:true`）。
+- **缓存**：进程内按 Rex 账号缓存已知的预设标签名（小写），1 小时过期。只缓存查到或建成的名称，查询或创建失败不缓存，下一个任务会重试。
+- **不阻断**：查询或创建失败（权限、报错、超时，20 秒上限）时写日志，任务照样把标签写到联系人上，状态仍是 `sent`，`last_error` 记录 `Rex tag list lookup/create failed (tag still written to contact): <原因>`；新建成功时记录 `added to Rex tag list`。
+- **范围**：只针对新增标签。移除标签（`op=DELETE`）的任务不触发。受现有写开关约束（`AXLEO_REX_WRITE=1` 且 `REX_WRITE_ACCOUNT_ID` 与 `REX_ACCOUNT_ID` 一致时才有 worker）。设 `REX_TAG_PRESET=0` 可关闭，恢复原来的行为。
+- **未在沙箱验证**：`AdminTags::create` 及其 data 字段（文档只写了通用的 `create(data, return_id)`）；`object_type` 是字符串还是 `{id}`；`tag` 条件是否大小写不敏感。`AdminTags::search` 的条件格式和行字段（`id, object_type, tag, cached_count`）已在 2026-11-17 验证。
+- **部署后验证**：`axleo rex-probe -account <ID> -only TP`（只读：列出几行 AdminTags、`describeSearchFields`，再用第一个标签的大写形式查找，检查是否大小写不敏感；不会调用 create）。然后在 App 里给测试联系人加一个新标签，在 Rex 后台确认它出现在预设标签列表里，同时看该任务的 `last_error`。

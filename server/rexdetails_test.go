@@ -84,6 +84,7 @@ func TestRexDetailsEnqueueAndSkip(t *testing.T) {
 func TestRexDetailsTagWrittenVerbatim(t *testing.T) {
 	a := workerDB(t)
 	linkedContact(t, a)
+	t.Setenv("REX_TAG_PRESET", "0") // AdminTags preset: rextagpreset_test.go
 	workerQueue(t, a, "rex_contact_tag", "c:Hot", `{"contactId":"c","tag":"Hot","group":"Enquiry"}`)
 	workerQueue(t, a, "rex_contact_tag", "c:Not at home", `{"contactId":"c","tag":"Not at home","group":"DK"}`)
 	workerQueue(t, a, "rex_contact_tag", "c:Pool", `{"contactId":"c","tag":"Pool"}`)

@@ -89,6 +89,11 @@ var probeMethods = map[string]probeSpec{
 	"oabs":       {"Oabs", "search", func(_ map[string]string) any { return map[string]any{"limit": 1} }},
 	"categories": {"SystemValues", "getValueCategories", func(_ map[string]string) any { return map[string]any{} }},
 	"values":     {"SystemValues", "getCategoryValues", func(v map[string]string) any { return map[string]any{"list_name": v["category"]} }},
+	// TP (read-only): the worker's AdminTags preset lookup (rextagpreset.go). AdminTags::create is
+	// not sandbox-verified and is never called by the probe.
+	"tagList":   {"AdminTags", "search", func(_ map[string]string) any { return map[string]any{"limit": 5} }},
+	"tagLookup": {"AdminTags", "search", func(v map[string]string) any { return rexTagPresetSearchBody(v["presetTag"]) }},
+	"tagFields": {"AdminTags", "describeSearchFields", func(_ map[string]string) any { return map[string]any{} }},
 }
 var probeS1 = []string{"remindees", "dedupe", "tags", "leads", "reminders", "matches", "oabs", "events", "categories", "values"}
 
@@ -453,6 +458,9 @@ func (p *probeRun) runCheck(ctx context.Context, id string) {
 	case "ML": // read-only: contact_mailing_lists.go
 		verdict, msg := p.probeMailing(call)
 		p.row(id, verdict, msg, files...)
+	case "TP": // read-only: AdminTags preset lookup (rextagpreset.go)
+		verdict, msg := p.probeTagPreset(call)
+		p.row(id, verdict, msg, files...)
 	case "S1":
 		failures := 0
 		for _, key := range probeS1 {
@@ -602,12 +610,12 @@ func rexProbe(args []string) error {
 			selected[strings.TrimSpace(id)] = true
 		}
 		for id := range selected {
-			if !strings.Contains("|P0|F1|F2|F3|F4|F5|F7|ML|S1|", "|"+id+"|") {
+			if !strings.Contains("|P0|F1|F2|F3|F4|F5|F7|ML|TP|S1|", "|"+id+"|") {
 				return fmt.Errorf("unknown check %s", id)
 			}
 		}
 	}
-	for _, id := range []string{"P0", "F1", "F2", "F3", "F4", "F5", "F7", "ML", "S1"} {
+	for _, id := range []string{"P0", "F1", "F2", "F3", "F4", "F5", "F7", "ML", "TP", "S1"} {
 		if len(selected) > 0 && !selected[id] {
 			continue
 		}
