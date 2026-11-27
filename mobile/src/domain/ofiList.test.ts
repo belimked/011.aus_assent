@@ -47,3 +47,14 @@ test('Listed with <company>; sold or withdrawn Rex listings are not listed; P ma
  expect(markerKind({...p,pending:true,otherListing:true},true)).toBe('listed');
  expect(markerKind({...p,flags:{dnc:true}},true)).toBe('dnc');
 });
+test('competitor listing from market data: Listed with <agency> and competitor marker; own Rex listing and own company win',()=>{
+ const p:Property={id:'p1',no:'16',street:'Gager St',suburb:'Sunnybank',ownerIds:[],pfOwner:'',lastSale:'',flags:{},competitorListing:{agency:'Harcourts Sunnybank',date:'2025-02-03',provider:'other'}};
+ const t=(k:string)=>({listed_with:'Listed with {company}',listed_with_us:'Listed with our agency'} as Record<string,string>)[k];
+ expect(listingStatusText(undefined,p,'Place',t)).toBe('Listed with Harcourts Sunnybank');
+ expect(markerKind(p,false,'Place')).toBe('other');
+ expect(listingStatusText(mary,p,'Place',t)).toBe('Listed with Place');
+ expect(markerKind(p,true,'Place')).toBe('listed');
+ expect(listingStatusText(undefined,p,'harcourts - sunnybank',t)).toBe('Not listed');
+ expect(markerKind(p,false,'Harcourts Sunnybank')).toBe('dot');
+ expect(markerKind({...p,competitorListing:{agency:'  '}},false,'Place')).toBe('dot');
+});

@@ -20,7 +20,7 @@ const Web=WebView as unknown as React.ComponentType<WebViewProps&{ref?:React.Ref
 // follow: with no selection, keep re-centring on the phone as it moves (about every 25 m) instead of only on the first fix.
 // locate: bump it to jump back to the phone's position once (full-screen "My location" button).
 export function MapView({properties,selected,onSelect,satellite=false,height=400,square=false,onTap,follow=false,locate=0,drawing}:{ properties:Property[];selected?:string;onSelect:(id:string)=>void;satellite?:boolean;height?:number;square?:boolean;onTap?:(lat:number,lng:number)=>void;follow?:boolean;locate?:number;drawing?:MapDrawing}){
-  const live=useLivePosition().position;const listings=useStore(s=>s.listings);
+  const live=useLivePosition().position;const listings=useStore(s=>s.listings);const company=useStore(s=>s.auth?.company);
   const web=useRef<WebView>(null);const [ready,setReady]=useState(false);
   const sel=properties.find(p=>p.id===selected&&p.ll?.length===2);
   // No selection: centre on the phone's real position; before the first fix, show the data area (no "you are here" marker).
@@ -30,11 +30,11 @@ export function MapView({properties,selected,onSelect,satellite=false,height=400
   const state=useMemo<MapState>(()=>{
     const placed=properties.filter(p=>p.ll?.length===2);
     const marks:MapMark[]=placed.map(p=>{const c=propColor(p);const listed=listings.some(l=>l.propertyId===p.id&&l.status==='listed');
-      return {id:p.id,ll:[p.ll![0],p.ll![1]],no:p.no,color:tint[c]||colors.steel,kind:markerKind(p,listed)}});
+      return {id:p.id,ll:[p.ll![0],p.ll![1]],no:p.no,color:tint[c]||colors.steel,kind:markerKind(p,listed,company)}});
     return {sat:satellite,selected,center,centerKey,locate,zoom:17,marks,me:live?[live.lat,live.lng]:null,labels:marks.length<=120,drawing};
   // center is derived from selected/properties
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[properties,listings,selected,satellite,live?.lat,live?.lng,centerKey,locate,drawing]);
+  },[properties,listings,company,selected,satellite,live?.lat,live?.lng,centerKey,locate,drawing]);
   const lastSent=useRef('');
   useEffect(()=>{if(!ready)return;const js=JSON.stringify(state);if(js!==lastSent.current){lastSent.current=js;web.current?.injectJavaScript(`window.axUpdate(${js});true;`)}},[ready,state]);
   const onMessage=(e:WebViewMessageEvent)=>{let m:MapMsg;try{m=JSON.parse(e.nativeEvent.data)}catch{return}

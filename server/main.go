@@ -610,6 +610,7 @@ func (a *app) getFrom(db querier, kind, id string, p principal, deleted bool) (m
 	if kind == "properties" {
 		ownersFrom(db, m, p)
 		a.marketPropertyFrom(db, m, p)
+		competitorListingFrom(db, m)
 		if p.role != "admin" && !a.marketCoveredFrom(db, m, p) {
 			delete(m, "pfOwner")
 		}
