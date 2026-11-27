@@ -4,25 +4,20 @@ import {Icon} from './ui/Icon';
 import {colors} from '../theme';
 import {useT} from '../i18n';
 import {showToast} from '../store';
-import {useHoldRecorder} from './useHoldRecorder';
-import {recordingAction} from './recordingAction';
+import {useHoldRecorder,holdStartText,holdShortText} from './useHoldRecorder';
 import {voiceErrorText} from '../lib/voice';
 import {getVoiceLang} from '../lib/voicePref';
 
-/** Prototype "nmic": tap to dictate into the field beside it, tap again to stop; the words are appended. */
-export function NoteMic({value,onChangeText,onTranscript,maxMs=60000,size=40}:{value:string;onChangeText:(v:string)=>void;onTranscript?:(v:string)=>void;maxMs?:number;size?:number}){
-  const {l2,lang:appLang}=useT();const rec=useHoldRecorder();const latest=useRef(value);useEffect(()=>{latest.current=value},[value]);const timer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);
-  useEffect(()=>()=>clearTimeout(timer.current),[]);
-  const stop=async()=>{clearTimeout(timer.current);try{const words=await rec.finish(getVoiceLang(appLang));if(words===null)return;if(!words){showToast(l2('Could not hear that','没有听清'));return}const v=latest.current.trim();(onTranscript||onChangeText)(v?`${v} ${words}`:words)}catch(e){showToast(voiceErrorText(e,l2))}};
-  const start=async()=>{
-    if(Platform.OS==='web'){showToast(l2('Dictation works in the iPhone app. Type instead.','听写请在 iPhone App 里使用，这里请直接输入。'));return}
-    const r=await rec.start();
-    if(r==='ok'){timer.current=setTimeout(()=>void stop(),maxMs);return}
-    showToast(r==='asked'?l2('Microphone ready. Tap the mic again to dictate.','麦克风已开启，再点一次话筒开始听写。'):r==='offline'?l2('Sign in with your email to use voice. Type instead.','请用邮箱登录后使用语音，或直接输入。'):r==='denied'?l2('Microphone access is off. Enable it in Settings, or type instead.','麦克风权限已关闭，请在设置中开启，或直接输入。'):l2('Could not start recording. Try again, or type instead.','无法开始录音，请重试或直接输入。'));
-  };
+/** Inline dictation mic: hold to dictate into the field beside it, release to finish; the words are appended. */
+export function NoteMic({value,onChangeText,onTranscript,size=40}:{value:string;onChangeText:(v:string)=>void;onTranscript?:(v:string)=>void;size?:number}){
+  const {l2,lang:appLang}=useT();const latest=useRef(value);useEffect(()=>{latest.current=value},[value]);
+  const rec=useHoldRecorder({lang:()=>getVoiceLang(appLang),
+    onStart:r=>{const message=holdStartText(r,l2);if(message)showToast(message)},
+    onResult:r=>{if(r.kind==='text'){const v=latest.current.trim();(onTranscript||onChangeText)(v?`${v} ${r.text}`:r.text)}else showToast(r.kind==='short'?holdShortText(l2):r.kind==='empty'?l2('Could not hear that','没有听清'):voiceErrorText(r.error,l2))}});
   const live=rec.phase==='recording';
-  return <View style={{alignItems:'center'}}><Pressable accessibilityRole="button" accessibilityLabel={live?l2('Stop dictation','停止听写'):l2('Dictate','听写')} disabled={rec.phase==='transcribing'} onPress={()=>void (recordingAction(rec.phase)==='stop'?stop():start())} hitSlop={6} style={{width:size,height:size,borderRadius:size/2,backgroundColor:colors.mic,alignItems:'center',justifyContent:'center'}}>
-    {rec.phase==='transcribing'?<ActivityIndicator color="#fff"/>:live?<View style={{width:14,height:14,borderRadius:3,backgroundColor:'#fff'}}/>:<Icon name="mic" size={18} color="#fff"/>}
+  const web=()=>showToast(l2('Dictation works in the iPhone app. Type instead.','听写请在 iPhone App 里使用，这里请直接输入。'));
+  return <View style={{alignItems:'center'}}><Pressable accessibilityRole="button" accessibilityLabel={live?l2('Release to finish dictation','松开结束听写'):l2('Hold to dictate','按住听写')} accessibilityHint={l2('Press and hold while you speak, release to finish','说话时按住，松开结束')} disabled={rec.phase==='transcribing'} {...(Platform.OS==='web'?{onPress:web}:rec.pressProps)} hitSlop={6} style={{width:size,height:size,borderRadius:size/2,backgroundColor:colors.mic,alignItems:'center',justifyContent:'center'}}>
+    {rec.phase==='transcribing'?<ActivityIndicator color="#fff"/>:<Icon name="mic" size={18} color="#fff"/>}
     {live&&<View pointerEvents="none" style={{position:'absolute',top:-5,left:-5,right:-5,bottom:-5,borderRadius:size/2+5,borderWidth:2,borderColor:colors.mic,opacity:.5}}/>}
-  </Pressable>{live&&<Text style={{fontSize:10,color:colors.mic,textAlign:'center'}}>{Math.floor(rec.durationMs/1000)}s · {l2('Tap to stop','点按停止')}</Text>}</View>;
+  </Pressable>{live&&<Text style={{fontSize:10,color:colors.mic,textAlign:'center'}}>{Math.floor(rec.durationMs/1000)}s · {l2('Release to finish','松开结束')}</Text>}</View>;
 }

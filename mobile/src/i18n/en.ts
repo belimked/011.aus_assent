@@ -134,7 +134,7 @@ export default {
   "tags": "Tags",
   "linked": "Linked contact",
   "listening": "Listening…",
-  "release": "Release to stop",
+  "release": "Release to finish",
   "transcript": "Transcript",
   "try_sample": "Try a sample:",
   "type_instead": "Or type what was said",
