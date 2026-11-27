@@ -65,25 +65,20 @@ func TestMarketImport(t *testing.T) {
 	if len(sync["properties"].([]any)) != 2 {
 		t.Fatalf("incremental property updates %v", sync["properties"])
 	}
-	for _, who := range []struct {
-		user   string
-		owners bool
-	}{{mary, true}, {john, false}} {
-		v := obj(t, request(a, "GET", "/api/v1/properties/p1", func() string {
-			if who.user == mary {
-				return tokens["mary"]
-			}
-			return tokens["john"]
-		}(), nil))
+	// Owner names never ride on a property read, covered or not; only hasOwners does.
+	for _, token := range []string{tokens["mary"], tokens["john"]} {
+		v := obj(t, request(a, "GET", "/api/v1/properties/p1", token, nil))
 		market := v["market"].(map[string]any)
-		_, seen := market["owners"]
-		if seen != who.owners {
-			t.Fatalf("owners visible %v for %s", seen, who.user)
+		if _, seen := market["owners"]; seen || market["hasOwners"] != true {
+			t.Fatalf("market %v", market)
 		}
 	}
 	admin := a.getMarketTest(t, "p1", principal{role: "admin"})
-	if admin["owners"] == nil {
-		t.Fatal("admin missing owner")
+	if _, seen := admin["owners"]; seen || admin["hasOwners"] != true {
+		t.Fatal("admin market", admin)
+	}
+	if names := obj(t, request(a, "GET", "/api/v1/properties/p1/owner-names", tokens["john"], nil)); names["owners"] == "" {
+		t.Fatal("uncovered agent cannot read owner names", names)
 	}
 	other := append([]byte{}, b...)
 	other = bytes.Replace(other, []byte("1250000"), []byte("1350000"), 1)

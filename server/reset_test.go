@@ -241,6 +241,7 @@ func TestResetData(t *testing.T) {
 		`INSERT INTO rex_outbox(entity,entity_id,op,payload,created_at) VALUES('contacts','app-contact','create','{}','now')`,
 		`INSERT INTO rex_links(entity,local_id,rex_id,rex_service,created_at) VALUES('contacts','app-contact','1','Contacts','now')`,
 		`INSERT INTO activity(id,owner_id,data) VALUES('app-activity',(SELECT id FROM users WHERE email='mary@axleo.local'),'{}')`,
+		`INSERT INTO owner_name_views(id,team_id,user_id,property_id,source,at) VALUES('app-view','default',(SELECT id FROM users WHERE email='mary@axleo.local'),'p1','rpdata','now')`,
 	} {
 		if _, err := db.Exec(s); err != nil {
 			t.Fatal(s, err)
@@ -300,7 +301,7 @@ func TestResetData(t *testing.T) {
 			t.Errorf("%s: want %d, got %d", table, n, after[table])
 		}
 	}
-	for _, table := range []string{"sessions", "audit_log", "sync_ops", "photos", "ofi_events", "approvals", "rex_outbox", "rex_links", "activity"} {
+	for _, table := range []string{"sessions", "audit_log", "sync_ops", "photos", "ofi_events", "approvals", "rex_outbox", "rex_links", "activity", "owner_name_views"} {
 		if after[table] != 0 {
 			t.Errorf("%s not cleared: %d", table, after[table])
 		}

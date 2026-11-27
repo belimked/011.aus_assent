@@ -95,6 +95,23 @@ func TestRPDataSnapshot(t *testing.T) {
 			}
 		}
 	}
+	adminView := obj(t, request(a, "GET", "/api/v1/properties/p1", tokens["admi"], nil))
+	if rp := adminView["rpdataAttributes"].(map[string]any); rp["owners"] != nil || rp["vendors"] != nil || adminView["market"].(map[string]any)["hasOwners"] != true {
+		t.Fatal("admin read carries names", adminView)
+	}
+	if names := obj(t, request(a, "GET", "/api/v1/properties/p1/owner-names", tokens["john"], nil)); names["owners"] != "First Example & Second Example & Third Example" || names["source"] != "rpdata" {
+		t.Fatal("on-demand owner names", names)
+	}
+	// A phone write of the stripped record keeps the stored RP names.
+	if w := request(a, "PATCH", "/api/v1/properties/p1", tokens["admi"], map[string]any{"version": adminView["version"], "rpdataAttributes": adminView["rpdataAttributes"], "visits": []any{"knocked"}}); w.Code != 200 {
+		t.Fatal(w.Code, w.Body)
+	}
+	_ = a.db.QueryRow(`SELECT data FROM properties WHERE id='p1'`).Scan(&raw)
+	prop = nil
+	_ = json.Unmarshal([]byte(raw), &prop)
+	if kept := prop["rpdataAttributes"].(map[string]any); kept["owners"] == nil || kept["vendors"] == nil {
+		t.Fatal("write erased stored RP names", kept)
+	}
 	newer := rpFixture(t, "11 Jul 2017", "New Example")
 	if _, err = a.importMarket(newer, "newer.xlsx", "rpdata", "auto", false, p); err != nil {
 		t.Fatal(err)

@@ -54,8 +54,8 @@ func TestAdminParcelQueriesAndZones(t *testing.T) {
 	}
 	before := map[string]any{"id": "parcel-a"}
 	a.marketProperty(before, principal{id: agent, role: "agent"})
-	if _, ok := before["market"].(map[string]any)["owners"]; ok {
-		t.Fatal("owner exposed before coverage")
+	if _, ok := before["market"].(map[string]any)["owners"]; ok || before["market"].(map[string]any)["hasOwners"] != true {
+		t.Fatal("owner exposed on property read")
 	}
 	geo := obj(t, request(a, "GET", "/api/v1/admin/properties?bbox=153.05,-27.58,153.07,-27.56", admin, nil))
 	if len(geo["features"].([]any)) != 1 {
@@ -90,8 +90,8 @@ func TestAdminParcelQueriesAndZones(t *testing.T) {
 	}
 	after := map[string]any{"id": "parcel-a"}
 	a.marketProperty(after, principal{id: agent, role: "agent"})
-	if after["market"].(map[string]any)["owners"] != "Fictional Owner" {
-		t.Fatal("covered agent cannot see market owner")
+	if _, ok := after["market"].(map[string]any)["owners"]; ok || after["market"].(map[string]any)["hasOwners"] != true {
+		t.Fatal("coverage put owner names back on a property read")
 	}
 	if len(list("q=parcel-a&hasOwner=true")) != 1 {
 		t.Fatal("ownership filter")

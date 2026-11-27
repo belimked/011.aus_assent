@@ -403,6 +403,12 @@ func (a *app) routes() http.Handler {
 			a.syncPull(w, r, p)
 		case r.Method == "POST" && r.URL.Path == "/api/v1/sync/push":
 			a.syncPush(w, r, p)
+		case strings.HasSuffix(r.URL.Path, "/owner-names") && strings.HasPrefix(r.URL.Path, "/api/v1/properties/"):
+			if id, ok := ownerNamesRoute(r); ok {
+				a.ownerNames(w, p, id)
+			} else {
+				problem(w, 404, "not found")
+			}
 		case strings.HasPrefix(r.URL.Path, "/api/v1/approvals") || r.URL.Path == "/api/v1/contacts/merge-preview" || strings.HasSuffix(r.URL.Path, "/merge") || strings.HasSuffix(r.URL.Path, "/reassign"):
 			a.approvalRoute(w, r, p)
 		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/"):
@@ -917,6 +923,9 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 	}
 	if kind == "properties" {
 		delete(m, "market")
+		if method != "POST" {
+			keepRPNames(a.db, id, m) // reads never carry them, so a write must not drop them
+		}
 		delete(m, "noteRexSync")  // server-computed on pull
 		delete(m, "ownerRexSync") // server-computed on pull
 		if p.role != "admin" {

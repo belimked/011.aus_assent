@@ -345,27 +345,32 @@ func (a *app) marketCoveredFrom(db querier, m map[string]any, p principal) bool 
 	return coveredFrom(db, str(m, "id"), p.id)
 }
 func (a *app) marketProperty(m map[string]any, p principal) { a.marketPropertyFrom(a.db, m, p) }
+
+// marketPropertyFrom attaches the market summary to a property read. Registered
+// owner names (ownership import / RP Data) are never part of a property read or
+// sync, for anyone, admins included: the phone reads them on demand from
+// GET /properties/{id}/owner-names (owner_names.go), which logs each view.
+// market.hasOwners only says that names exist.
 func (a *app) marketPropertyFrom(db querier, m map[string]any, p principal) {
 	id := str(m, "id")
-	visible := p.role == "admin" || a.marketCoveredFrom(db, m, p)
-	if attrs, ok := m["rpdataAttributes"].(map[string]any); ok && !visible {
+	rpOwners := false
+	if attrs, ok := m["rpdataAttributes"].(map[string]any); ok {
+		rpOwners = strings.TrimSpace(str(attrs, "owners")) != ""
 		delete(attrs, "owners")
 		delete(attrs, "vendors")
 	}
 	var names, source, stamp string
-	var absentee bool
 	var price sql.NullInt64
 	var date sql.NullString
-	if db.QueryRow(`SELECT owner_names,last_sale_price,last_sale_date,source,updated_at,absentee_owner FROM property_ownership WHERE property_id=?`, id).Scan(&names, &price, &date, &source, &stamp, &absentee) != nil {
+	if db.QueryRow(`SELECT owner_names,last_sale_price,last_sale_date,source,updated_at FROM property_ownership WHERE property_id=?`, id).Scan(&names, &price, &date, &source, &stamp) != nil {
+		if rpOwners {
+			m["market"] = map[string]any{"hasOwners": true}
+		}
 		return
 	}
-	market := map[string]any{"lastSalePrice": nil, "lastSaleDate": date.String, "source": source, "updatedAt": stamp}
+	market := map[string]any{"lastSalePrice": nil, "lastSaleDate": date.String, "source": source, "updatedAt": stamp, "hasOwners": strings.TrimSpace(names) != "" || rpOwners}
 	if price.Valid {
 		market["lastSalePrice"] = price.Int64
-	}
-	if visible {
-		market["owners"] = names
-		market["absenteeOwner"] = absentee
 	}
 	m["market"] = market
 }

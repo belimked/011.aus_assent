@@ -83,14 +83,13 @@ func TestPricefinderSnapshot(t *testing.T) {
 			t.Fatal("private raw header", h)
 		}
 	}
-	for _, tc := range []struct {
-		token   string
-		visible bool
-	}{{tokens["mary"], true}, {tokens["john"], false}} {
-		v := obj(t, request(a, "GET", "/api/v1/properties/p1", tc.token, nil))
-		_, ok := v["market"].(map[string]any)["absenteeOwner"]
-		if ok != tc.visible {
-			t.Fatal("absentee visibility", ok)
+	for _, token := range []string{tokens["mary"], tokens["john"]} {
+		v := obj(t, request(a, "GET", "/api/v1/properties/p1", token, nil))
+		if _, ok := v["market"].(map[string]any)["absenteeOwner"]; ok {
+			t.Fatal("absentee on a property read")
+		}
+		if _, ok := obj(t, request(a, "GET", "/api/v1/properties/p1/owner-names", token, nil))["absenteeOwner"]; !ok {
+			t.Fatal("absentee missing from owner-names")
 		}
 	}
 	older := time.Now().AddDate(-1, 0, 0).Format("02/01/2006")
