@@ -7,7 +7,9 @@ export const cname = (c:Contact) => `${c.first} ${c.last}`.trim();
 // Amounts are Australian dollars. English keeps the local $ shorthand; Chinese spells out 万澳元 so it is never read as 美元/人民币.
 export const money = (n:number,lang:string='en') => lang==='zh'?(n>=1e4?String(Number((n/1e4).toFixed(2)))+'万澳元':Math.round(n)+'澳元'):n>=1e6?'$'+(n/1e6).toFixed(2).replace(/0$/,'')+'m':'$'+Math.round(n/1000)+'k';
 export const propColor = (p:Property) => p.flags.dnc?'red':p.pending?'pending':p.ownerIds.length?(p.otherAgent||p.otherListing?'sky':'green'):'orange';
-export const yearsSince = (ym:string) => ym?2026-parseInt(ym.slice(0,4),10):'';
+// Whole years since a 'YYYY', 'YYYY-MM' or 'YYYY-MM-DD' date, counted from today.
+export const yearsSince = (ym:string,now:Date=new Date()):number|'' => {const m=/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?/.exec(ym||'');if(!m)return '';const month=now.getMonth()+1,day=now.getDate(),sm=Number(m[2]||1),sd=Number(m[3]||1);return Math.max(0,now.getFullYear()-Number(m[1])-(month<sm||(month===sm&&day<sd)?1:0));};
+export const yearsText = (n:number|'',l2:(en:string,zh:string)=>string) => n===''?'':l2(`${n} ${n===1?'year':'years'}`,`${n} 年`);
 export const normMobile = (m:string) => {const digits=(m||'').replace(/\D/g,'');const local=digits.startsWith('0061')?digits.slice(4):digits.startsWith('61')?digits.slice(2):null;return local===null?digits:local.startsWith('0')?local:'0'+local;};
 export const mask = (m:string) => {if(!m)return '—'; const d=normMobile(m);return d.length<8?m:d.slice(0,4)+' '+d.slice(4,7)+' ••••'};
 export const maskEmail = (e:string) => {if(!e)return '—';const [u,d]=e.split('@');return u.slice(0,2)+'••••@'+d};
