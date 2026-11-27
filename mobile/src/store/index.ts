@@ -51,8 +51,9 @@ const persist = () => {
     }).catch(() => {});
   }, 800);
 };
-export const flushState = () => {
-  if (!persistTimer) return;
+/** Writes a pending state snapshot now; the promise settles once queued writes have finished. */
+export const flushState = (): Promise<unknown> => {
+  if (!persistTimer) return persistChain;
   clearTimeout(persistTimer);
   persistTimer = undefined;
   const generation = ++persistGeneration;
@@ -61,6 +62,7 @@ export const flushState = () => {
     if (generation !== persistGeneration) return;
     return AsyncStorage.setItem('ax_state', snapshot);
   }).catch(() => {});
+  return persistChain;
 };
 export const cancelStateWrite = () => { clearTimeout(persistTimer); persistTimer = undefined; ++persistGeneration; };
 RNAppState.addEventListener('change', status => { if (status === 'background' || status === 'inactive') flushState(); });
