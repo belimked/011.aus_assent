@@ -301,7 +301,7 @@ func (a *app) routes() http.Handler {
 		case r.URL.Path == "/api/v1/devices":
 			a.devices(w, r, p)
 		case r.Method == "GET" && r.URL.Path == "/api/v1/me":
-			respond(w, 200, map[string]any{"id": p.id, "name": p.name, "email": p.email, "role": p.role})
+			respond(w, 200, map[string]any{"id": p.id, "name": p.name, "email": p.email, "role": p.role, "company": companyName(a.db)})
 		case r.Method == "GET" && r.URL.Path == "/api/v1/team":
 			a.team(w, p)
 		case r.Method == "POST" && r.URL.Path == "/api/v1/properties/within":
@@ -412,7 +412,7 @@ func (a *app) login(w http.ResponseWriter, r *http.Request) {
 		problem(w, 500, "database error")
 		return
 	}
-	respond(w, 200, map[string]any{"token": token, "user": map[string]any{"id": id, "name": name, "email": email, "role": role}})
+	respond(w, 200, map[string]any{"token": token, "user": map[string]any{"id": id, "name": name, "email": email, "role": role, "company": companyName(a.db)}})
 }
 
 // scope is the only authority for resource visibility. Every read and write uses it.
@@ -680,7 +680,7 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 			m = old
 		} else {
 			for k, v := range m {
-				if k != "id" && k != "version" && k != "updated_at" && k != "deleted_at" {
+				if k != "id" && k != "version" && k != "updated_at" && k != "deleted_at" && !rexOwnedKey(kind, old, k, v) {
 					old[k] = v
 				}
 			}
@@ -1075,6 +1075,18 @@ func (a *app) note(w http.ResponseWriter, r *http.Request, p principal, id strin
 	respond(w, 201, m)
 }
 
+// rexOwnedKey keeps Rex-owned fields of Rex records when a phone PATCH echoes
+// its copy: Rex listing agents (written only by pollRexOFI), and Rex property
+// attributes that a phone sends as null. Neither is ever written back to Rex.
+func rexOwnedKey(kind string, old map[string]any, k string, v any) bool {
+	switch kind {
+	case "listings":
+		return strings.HasPrefix(str(old, "id"), "rex-listings-") && (k == "agent" || k == "agents" || k == "agentIds" || k == "rexState" || k == "rexId" || k == "category")
+	case "properties":
+		return v == nil && old[k] != nil && str(old, "source") == "rex_import" && (k == "beds" || k == "baths" || k == "cars")
+	}
+	return false
+}
 func stripOFI(m map[string]any) {
 	if events, ok := m["ofi"].([]any); ok {
 		for _, v := range events {

@@ -120,3 +120,24 @@ func TestRexOFIPoll(t *testing.T) {
 		t.Fatalf("removed events: %s", raw)
 	}
 }
+
+func TestRexListingStatus(t *testing.T) {
+	for _, c := range []struct {
+		row  importRow
+		want string
+	}{
+		{importRow{"system_listing_state": "current"}, "listed"},
+		{importRow{"system_listing_state": map[string]any{"id": "current", "text": "Current"}}, "listed"},
+		{importRow{"system_listing_state": "Sold"}, "sold"},
+		{importRow{"system_listing_state": "leased"}, "leased"},
+		{importRow{"system_listing_state": "withdrawn"}, "withdrawn"},
+		{importRow{"system_listing_state": "current", "system_record_state": "archived"}, "archived"},
+		{importRow{"listing_status": "current"}, "listed"},
+		{importRow{}, "unknown"},
+		{importRow{"system_listing_state": "mystery"}, "unknown"},
+	} {
+		if got, _ := rexListingStatus(c.row); got != c.want {
+			t.Errorf("%v: %s, want %s", c.row, got, c.want)
+		}
+	}
+}

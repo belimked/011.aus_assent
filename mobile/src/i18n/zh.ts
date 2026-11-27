@@ -310,6 +310,8 @@ export default {
   "filed_ok": "已保存",
   "share_hint": "分享给 AxleoCollect：分享按钮、转发邮件 / 短信、截图，或说出来",
   "ofi_today": "今天的 Open home",
+  "listed_with": "{company} 挂牌",
+  "listed_with_us": "本公司挂牌",
   "attendees": "人已登记",
   "checkin": "Start check-in",
   "checkin_s": "Check in",

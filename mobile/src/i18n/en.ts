@@ -310,6 +310,8 @@ export default {
   "filed_ok": "Saved",
   "share_hint": "Share to AxleoCollect: share sheet, forward email / SMS, screenshot, or say it",
   "ofi_today": "Today's open homes",
+  "listed_with": "Listed with {company}",
+  "listed_with_us": "Listed with our agency",
   "attendees": "registered",
   "checkin": "Start check-in",
   "checkin_s": "Check in",

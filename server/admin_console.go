@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -151,7 +152,7 @@ func (a *app) consoleSettings(w http.ResponseWriter, r *http.Request, p principa
 		_ = a.db.QueryRow(`SELECT count(*) FROM rex_outbox WHERE status='failed'`).Scan(&failed)
 		var lastError string
 		_ = a.db.QueryRow(`SELECT COALESCE(last_error,'') FROM rex_outbox WHERE last_error IS NOT NULL ORDER BY id DESC LIMIT 1`).Scan(&lastError)
-		respond(w, 200, map[string]any{"sessionHours": hours, "provider": provider, "lastImport": imported.String, "importRows": count.Int64, "rexConfigured": loadRexConfig().canWrite(), "rexPending": pending, "rexFailed": failed, "rexError": lastError})
+		respond(w, 200, map[string]any{"sessionHours": hours, "provider": provider, "lastImport": imported.String, "importRows": count.Int64, "rexConfigured": loadRexConfig().canWrite(), "rexPending": pending, "rexFailed": failed, "rexError": lastError, "companyName": companyName(a.db)})
 		return
 	}
 	if r.Method != "PATCH" {
@@ -159,6 +160,10 @@ func (a *app) consoleSettings(w http.ResponseWriter, r *http.Request, p principa
 		return
 	}
 	m, e := body(r)
+	company, setCompany := m["companyName"].(string)
+	if _, ok := m["sessionHours"]; e == nil && setCompany && !ok {
+		m["sessionHours"] = strconv.Itoa(sessionHours(a.db))
+	}
 	hours, e2 := strconv.Atoi(str(m, "sessionHours"))
 	if e != nil || e2 != nil || hours < 1 || hours > 720 {
 		problem(w, 400, "session hours must be 1–720")
@@ -171,6 +176,9 @@ func (a *app) consoleSettings(w http.ResponseWriter, r *http.Request, p principa
 	}
 	defer tx.Rollback()
 	_, e = tx.Exec(`UPDATE settings SET value=? WHERE key='session_hours'`, strconv.Itoa(hours))
+	if e == nil && setCompany {
+		_, e = tx.Exec(`INSERT INTO settings(key,value) VALUES('company_name',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`, strings.TrimSpace(company))
+	}
 	if e == nil {
 		e = a.record(tx, p, "PATCH", "settings", "session_hours", m)
 	}
@@ -181,7 +189,26 @@ func (a *app) consoleSettings(w http.ResponseWriter, r *http.Request, p principa
 		problem(w, 500, "database error")
 		return
 	}
-	respond(w, 200, map[string]any{"sessionHours": hours})
+	respond(w, 200, map[string]any{"sessionHours": hours, "companyName": companyName(a.db)})
+}
+
+func sessionHours(db *sql.DB) int {
+	var hours int
+	if e := db.QueryRow(`SELECT value FROM settings WHERE key='session_hours'`).Scan(&hours); e != nil || hours < 1 {
+		hours = 720
+	}
+	return hours
+}
+
+// companyName is this customer's agency name ("Listed with <company>" on phones):
+// the admin setting company_name, else AXLEO_COMPANY_NAME, else "".
+func companyName(db *sql.DB) string {
+	var name string
+	_ = db.QueryRow(`SELECT value FROM settings WHERE key='company_name'`).Scan(&name)
+	if strings.TrimSpace(name) == "" {
+		name = os.Getenv("AXLEO_COMPANY_NAME")
+	}
+	return strings.TrimSpace(name)
 }
 
 func (a *app) metrics(w http.ResponseWriter, r *http.Request, p principal) {
