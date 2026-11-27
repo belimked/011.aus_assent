@@ -1,6 +1,7 @@
 import type {AppState, Contact, Listing, Property} from '../data/types';
 import {today,addLocalDays} from '../lib/today';
 import {addTodo, audit, byId, cname, matchContacts, normMobile, noteOn, propAddr, shortAddr} from './index';
+import {requireNewContactName} from './contactName';
 
 export const REQS = [
   ['form2','r_form2','listing agent · today'], ['bp','r_bp','listing agent · today'],
@@ -49,7 +50,7 @@ export function commitOH(state:AppState, listingId:string, r:Registration, event
   const matches=buyerMatches(state,r.mobile,r.email);
   // The prototype falls back to the first match when several contacts match.
   let c=matches.list[0]?.c;
-  if(!c){c={id:id('c'),first:r.first,last:r.last,mobile:r.mobile,email:r.email,owner:state.auth?.name||'Owen Chen',roles:['buyer'],tags:[],flags:{},notes:[],history:[]};state.contacts.push(c);}
+  if(!c){requireNewContactName(r);c={id:id('c'),first:r.first,last:r.last,mobile:r.mobile,email:r.email,owner:state.auth?.name||'Owen Chen',roles:['buyer'],tags:[],flags:{},notes:[],history:[]};state.contacts.push(c);}
   else {c.first=r.first||c.first;c.last=r.last||c.last;c.mobile=r.mobile||c.mobile;c.email=r.email||c.email;}
   if(!c.roles.includes('buyer')) c.roles.push('buyer');
   c.history??=[];

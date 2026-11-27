@@ -1,6 +1,7 @@
 import type {AppState,Contact} from '../data/types';
 import {filePropertyNote} from './dk';
 import {byId,linkOwner,normMobile} from './index';
+import {requireNewContactName} from './contactName';
 import {today} from '../lib/today';
 import {extract} from './extract';
 import {mergeAI,aiText} from './aiMerge';
@@ -31,6 +32,8 @@ export function savePropertyTranscript(s:AppState,propId:string,transcript:strin
   if(identity&&matches.length>1&&!pick)throw new Error('Choose a matching contact');
   let c:Contact|undefined=pick?byId(s.contacts,pick):matches.length===1?matches[0]:undefined;
   if(pick&&!c)throw new Error('Contact not found');
+  // A heard mobile with no name and no matching contact cannot become a new owner (Rex rejects it); refuse before filing the note.
+  if(identity&&!c)requireNewContactName(identity);
   const p=filePropertyNote(s,propId,transcript.trim());
   if(!identity)return p;
   if(!c){

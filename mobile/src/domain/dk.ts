@@ -1,6 +1,7 @@
 import type {AppState, Contact, Property} from '../data/types';
 import {today} from '../lib/today';
 import {addTodo, audit, byId, linkOwner, matchContacts, normMobile, noteOn} from './index';
+import {hasContactName, requireNewContactName} from './contactName';
 
 export const isLongHold=(durationMs:number)=>durationMs>=260;
 export const matchesAddress=(address:string,query:string)=>address.toLowerCase().includes(query.trim().toLowerCase());
@@ -29,12 +30,20 @@ export function filePropertyNote(s:AppState,propId:string,txt:string){
   p.notes=[{id:propertyNoteId(),d:today(),at:new Date().toISOString(),a:s.auth?.name||'Owen Chen',t:txt},...(p.notes||[])];
   p.visits=[...(p.visits||[]),{d:today(),o:'spoke'}];audit(s,'Note',`${p.no} ${p.street}`);return p;
 }
+/** True when commitDK would create a new contact (no usable pick, no unique match). Multiple matches without a pick fail in commitDK itself. */
+export function commitDKCreates(s:AppState,r:{mobile:string;email:string},pick?:string){
+  if(pick)return pick==='new'||!byId(s.contacts,pick);
+  return matchContacts(s,r).status==='none';
+}
+/** True when commitDK would create a contact with neither first nor last name. */
+export const dkNeedsName=(s:AppState,r:Pick<DKFields,'first'|'last'|'mobile'|'email'>,pick?:string)=>commitDKCreates(s,r,pick)&&!hasContactName(r);
 export function commitDK(s:AppState, propId:string, r:DKFields, pick?:string) {
   const p=byId(s.properties,propId);
   const matches=matchContacts(s,r);
   if(matches.status==='multiple'&&!pick) throw new Error('Choose a matching contact before approving');
   let c=pick==='new'?undefined:pick?byId(s.contacts,pick):matches.status==='unique'?matches.list[0].c:undefined;
   if(!c){
+    requireNewContactName(r);
     c={id:'c'+Date.now(),first:r.first,last:r.last,mobile:r.mobile,email:r.email,owner:s.auth?.name||'Owen Chen',roles:[],tags:[],flags:{},notes:[],rels:[],updated:{by:s.auth?.name||'Owen Chen',d:today()}};
     s.contacts.push(c);
   } else {
@@ -66,9 +75,8 @@ const CONSENT_KEYS=['email','sms','phone','letter'];
 export function confirmConsent(c:Contact|undefined,tags:string[]){return Object.fromEntries(CONSENT_KEYS.map(k=>[k,tags.includes('Do not contact')?0:c?.consent?.[k]??1]))}
 /** True when saving the confirm sheet would create a contact with neither first nor last name (Rex rejects those). */
 export function confirmNeedsName(s:AppState,a:ConfirmSave){
-  if(a.contactId||a.pick)return false;
-  if(matchContacts(s,a.fields).status!=='none')return false;
-  return !a.fields.first.trim()&&!a.fields.last.trim();
+  if(a.contactId)return false;
+  return dkNeedsName(s,a.fields,a.pick);
 }
 /**
  * Save of the DK "Check before saving" sheet.
@@ -86,7 +94,6 @@ export function saveConfirm(s:AppState,a:ConfirmSave){
     const owned=s.properties.find(p=>p.ownerIds.includes(c.id));if(owned&&!link&&a.fields.tags.length)owned.flags.dnc=!!c.flags.dnc;
     return out;
   }
-  if(confirmNeedsName(s,a))throw new Error('contact name required');
   return commitDK(s,a.propId||'',a.fields,a.pick||undefined);
 }
 // possibleDuplicateOf is set by the server when an app contact and a Rex contact share a mobile (问题02).
