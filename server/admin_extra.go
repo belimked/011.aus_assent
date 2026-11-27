@@ -13,19 +13,19 @@ func (a *app) overview(w http.ResponseWriter) {
 	counts := map[string]int64{}
 	for _, kind := range syncKinds {
 		var n int64
-		if err := a.db.QueryRow(`SELECT count(*) FROM ` + kind + ` WHERE deleted_at IS NULL`).Scan(&n); err != nil {
+		if err := a.rd().QueryRow(`SELECT count(*) FROM ` + kind + ` WHERE deleted_at IS NULL`).Scan(&n); err != nil {
 			problem(w, 500, "database error")
 			return
 		}
 		counts[kind] = n
 	}
 	var users, pending, writes, schema int64
-	_ = a.db.QueryRow(`SELECT count(*) FROM users WHERE deleted_at IS NULL`).Scan(&users)
-	_ = a.db.QueryRow(`SELECT count(*) FROM approvals WHERE status='pending' AND deleted_at IS NULL`).Scan(&pending)
-	_ = a.db.QueryRow(`SELECT count(*) FROM audit_log WHERE at>=?`, time.Now().UTC().Add(-24*time.Hour).Format(layout)).Scan(&writes)
-	_ = a.db.QueryRow(`SELECT count(*) FROM schema_migrations`).Scan(&schema)
+	_ = a.rd().QueryRow(`SELECT count(*) FROM users WHERE deleted_at IS NULL`).Scan(&users)
+	_ = a.rd().QueryRow(`SELECT count(*) FROM approvals WHERE status='pending' AND deleted_at IS NULL`).Scan(&pending)
+	_ = a.rd().QueryRow(`SELECT count(*) FROM audit_log WHERE at>=?`, time.Now().UTC().Add(-24*time.Hour).Format(layout)).Scan(&writes)
+	_ = a.rd().QueryRow(`SELECT count(*) FROM schema_migrations`).Scan(&schema)
 	rex := map[string]int64{"waiting_auth": 0, "pending": 0, "sent": 0, "failed": 0, "skipped": 0}
-	rows, err := a.db.Query(`SELECT status,count(*) FROM rex_outbox GROUP BY status`)
+	rows, err := a.rd().Query(`SELECT status,count(*) FROM rex_outbox GROUP BY status`)
 	if err != nil {
 		problem(w, 500, "database error")
 		return
@@ -62,7 +62,7 @@ func (a *app) adminData(w http.ResponseWriter, r *http.Request, p principal) {
 	}
 	q += ` ORDER BY id LIMIT ?`
 	args = append(args, pageLimit(r))
-	rows, err := a.db.Query(q, args...)
+	rows, err := a.rd().Query(q, args...)
 	if err != nil {
 		problem(w, 500, "database error")
 		return
@@ -102,7 +102,7 @@ func (a *app) adminApprovals(w http.ResponseWriter, r *http.Request) {
 	}
 	q += ` ORDER BY a.id DESC LIMIT ?`
 	args = append(args, pageLimit(r))
-	rows, err := a.db.Query(q, args...)
+	rows, err := a.rd().Query(q, args...)
 	if err != nil {
 		problem(w, 500, "database error")
 		return
@@ -135,7 +135,7 @@ func (a *app) adminApprovals(w http.ResponseWriter, r *http.Request) {
 		}
 		if (kind == "contacts" || kind == "todos") && id != "" {
 			var data string
-			if a.db.QueryRow(`SELECT data FROM `+kind+` WHERE id=?`, id).Scan(&data) == nil {
+			if a.rd().QueryRow(`SELECT data FROM `+kind+` WHERE id=?`, id).Scan(&data) == nil {
 				var target map[string]any
 				if json.Unmarshal([]byte(data), &target) == nil {
 					summary := strings.TrimSpace(str(target, "first") + " " + str(target, "last"))

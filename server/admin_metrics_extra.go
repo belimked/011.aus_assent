@@ -22,7 +22,7 @@ func (a *app) metricExtras(r *http.Request, p principal, from, to time.Time, tea
 		}
 		return q, args
 	}
-	count := func(query string, args ...any) int { var n int; _ = a.db.QueryRow(query, args...).Scan(&n); return n }
+	count := func(query string, args ...any) int { var n int; _ = a.rd().QueryRow(query, args...).Scan(&n); return n }
 	linkCount := func(lo, hi time.Time) int {
 		condition, extra := scope("c.owner_id")
 		args := append([]any{lo.Format(layout), hi.Format(layout)}, extra...)
@@ -35,7 +35,7 @@ func (a *app) metricExtras(r *http.Request, p principal, from, to time.Time, tea
 	cond, more := scope("c.owner_id")
 	linkSQL := `SELECT substr(c.created_at,1,10),count(DISTINCT c.id) FROM contacts c JOIN property_owners po ON po.contact_id=c.id WHERE c.deleted_at IS NULL AND c.created_at>=? AND c.created_at<?` + cond + ` GROUP BY 1 LIMIT 90`
 	linkArgs := append([]any{start, end}, more...)
-	if rows, e := a.db.Query(linkSQL, linkArgs...); e == nil {
+	if rows, e := a.rd().Query(linkSQL, linkArgs...); e == nil {
 		for rows.Next() {
 			var day string
 			var n int
@@ -61,7 +61,7 @@ func (a *app) metricExtras(r *http.Request, p principal, from, to time.Time, tea
 		coverageSQL += ` AND EXISTS (SELECT 1 FROM zones z WHERE z.owner_id=? AND z.team_id=a.team_id AND z.deleted_at IS NULL AND (upper(z.name)=upper(a.suburb) OR EXISTS (SELECT 1 FROM json_each(json_extract(z.data,'$.suburbs')) WHERE upper(value)=upper(a.suburb))))`
 		coverageArgs = append(coverageArgs, agent)
 	}
-	_ = a.db.QueryRow(coverageSQL, coverageArgs...).Scan(&total, &covered)
+	_ = a.rd().QueryRow(coverageSQL, coverageArgs...).Scan(&total, &covered)
 	// Bound the current-period results at the SQL layer, not in the client.
 	agendaSQL := `SELECT a.id,COALESCE(a.due,''),COALESCE(a.text,''),COALESCE(u.name,'') FROM todos a JOIN users u ON u.id=a.assignee_id WHERE a.deleted_at IS NULL AND COALESCE(json_extract(a.data,'$.done'),0)=0 AND a.due<=?`
 	agendaArgs := []any{time.Now().Format("2006-01-02")}
@@ -70,7 +70,7 @@ func (a *app) metricExtras(r *http.Request, p principal, from, to time.Time, tea
 	agendaArgs = append(agendaArgs, more...)
 	agendaSQL += ` ORDER BY a.due,a.id LIMIT 20`
 	agenda := []any{}
-	if rows, e := a.db.Query(agendaSQL, agendaArgs...); e == nil {
+	if rows, e := a.rd().Query(agendaSQL, agendaArgs...); e == nil {
 		for rows.Next() {
 			var id, due, text, name string
 			if rows.Scan(&id, &due, &text, &name) == nil {
@@ -91,7 +91,7 @@ func (a *app) metricExtras(r *http.Request, p principal, from, to time.Time, tea
 		args = append(args, agent)
 	}
 	q += ` ORDER BY name LIMIT 200`
-	if rows, e := a.db.Query(q, args...); e == nil {
+	if rows, e := a.rd().Query(q, args...); e == nil {
 		ids := [][2]string{}
 		for rows.Next() {
 			var id, name string
@@ -119,7 +119,7 @@ func (a *app) metricExtras(r *http.Request, p principal, from, to time.Time, tea
 	heatArgs = append(heatArgs, more...)
 	heatSQL += ` GROUP BY 1,2 LIMIT 168`
 	visitCount := 0
-	if rows, e := a.db.Query(heatSQL, heatArgs...); e == nil {
+	if rows, e := a.rd().Query(heatSQL, heatArgs...); e == nil {
 		for rows.Next() {
 			var day, hour, n int
 			if rows.Scan(&day, &hour, &n) == nil {
@@ -144,7 +144,7 @@ func (a *app) metricExtras(r *http.Request, p principal, from, to time.Time, tea
 			score               int
 		}
 		top := []opportunity{}
-		if rows, e := a.db.Query(query, args...); e == nil {
+		if rows, e := a.rd().Query(query, args...); e == nil {
 			for rows.Next() {
 				var id, address, suburb, sale, last string
 				if rows.Scan(&id, &address, &suburb, &sale, &last) != nil {

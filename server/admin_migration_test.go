@@ -41,7 +41,7 @@ func TestConsoleMigrationPreservesForeignKeysAndSession(t *testing.T) {
 	}
 	var id string
 	_ = db.QueryRow(`SELECT id FROM users WHERE email='legacy@example.com'`).Scan(&id)
-	a := &app{db: db, failures: map[string][]time.Time{}}
+	a := &app{db: db, rdb: testReaders(t, path), failures: map[string][]time.Time{}}
 	w := request(a, "POST", "/api/v1/auth/login", "", map[string]any{"email": "legacy@example.com", "password": "password123", "device": "legacy"})
 	if w.Code != 200 {
 		t.Fatalf("legacy login %s", w.Body)

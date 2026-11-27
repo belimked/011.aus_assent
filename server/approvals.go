@@ -168,14 +168,15 @@ func enqueueRexMerge(tx *sql.Tx, id string, m map[string]any) error {
 	_, err := tx.Exec(`INSERT INTO rex_outbox(entity,entity_id,op,payload,created_at) VALUES('rex_merge',?,'POST',?,?)`, id, string(b), now())
 	return err
 }
-func (a *app) validRequest(m map[string]any, p principal) bool {
+func (a *app) validRequest(m map[string]any, p principal) bool { return a.validRequestFrom(a.db, m, p) }
+func (a *app) validRequestFrom(db querier, m map[string]any, p principal) bool {
 	if str(m, "kind") == "merge" {
 		x, y := str(m, "primaryId"), str(m, "secondaryId")
 		if x == "" || y == "" || x == y {
 			return false
 		}
-		_, e := a.get("contacts", x, p, false)
-		_, f := a.get("contacts", y, p, false)
+		_, e := a.getFrom(db, "contacts", x, p, false)
+		_, f := a.getFrom(db, "contacts", y, p, false)
 		return e == nil && f == nil
 	}
 	if str(m, "kind") == "reassign" {
@@ -183,11 +184,11 @@ func (a *app) validRequest(m map[string]any, p principal) bool {
 		if kind != "contacts" && kind != "todos" {
 			return false
 		}
-		if _, err := a.get(kind, str(m, "id"), p, false); err != nil {
+		if _, err := a.getFrom(db, kind, str(m, "id"), p, false); err != nil {
 			return false
 		}
 		var n int
-		_ = a.db.QueryRow(`SELECT count(*) FROM users WHERE id=? AND team_id=(SELECT team_id FROM users WHERE id=?) AND disabled=0 AND deleted_at IS NULL`, str(m, "targetId"), p.id).Scan(&n)
+		_ = db.QueryRow(`SELECT count(*) FROM users WHERE id=? AND team_id=(SELECT team_id FROM users WHERE id=?) AND disabled=0 AND deleted_at IS NULL`, str(m, "targetId"), p.id).Scan(&n)
 		return n == 1
 	}
 	return false
@@ -197,7 +198,7 @@ func (a *app) approvalList(w http.ResponseWriter, p principal) {
 	if p.role == "admin" {
 		s += ` AND status='pending'`
 	}
-	rows, err := a.db.Query(`SELECT id FROM approvals WHERE deleted_at IS NULL`+s+` ORDER BY created_at DESC`, args...)
+	rows, err := a.rd().Query(`SELECT id FROM approvals WHERE deleted_at IS NULL`+s+` ORDER BY created_at DESC`, args...)
 	if err != nil {
 		problem(w, 500, "database error")
 		return
@@ -212,7 +213,7 @@ func (a *app) approvalList(w http.ResponseWriter, p principal) {
 	rows.Close()
 	items := []any{}
 	for _, id := range ids {
-		v, e := a.get("approvals", id, p, false)
+		v, e := a.getFrom(a.rd(), "approvals", id, p, false)
 		if e == nil {
 			items = append(items, v)
 		}

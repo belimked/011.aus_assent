@@ -925,12 +925,25 @@ func (a *app) mergeRoute(w http.ResponseWriter, r *http.Request, p principal, aI
 		return
 	}
 	// Both must be visible to the caller: agents merge their own, admins any.
-	if !a.validRequest(map[string]any{"kind": "merge", "primaryId": aID, "secondaryId": bID}, p) {
+	// The preview is a pure read on one read-pool snapshot (its hash must describe
+	// one consistent state); the merge re-checks and re-plans inside its write
+	// transaction (executeMerge), so it reads the writer.
+	var db querier = a.db
+	if preview {
+		snap, done, err := a.readSnapshot(r.Context())
+		if err != nil {
+			problem(w, 500, "database error")
+			return
+		}
+		defer done()
+		db = snap
+	}
+	if !a.validRequestFrom(db, map[string]any{"kind": "merge", "primaryId": aID, "secondaryId": bID}, p) {
 		problem(w, 404, "not found")
 		return
 	}
 	if preview {
-		plan, err := loadMergePlan(a.db, aID, bID, p.name, time.Now().UTC())
+		plan, err := loadMergePlan(db, aID, bID, p.name, time.Now().UTC())
 		if err != nil {
 			problem(w, 404, "not found")
 			return

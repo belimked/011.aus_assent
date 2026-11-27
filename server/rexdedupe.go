@@ -388,7 +388,7 @@ type dupRexLink struct {
 	Via      string   `json:"via"` // rex_links | data.rexId
 }
 
-func duplicateRexLinks(db *sql.DB) ([]dupRexLink, error) {
+func duplicateRexLinks(db querier) ([]dupRexLink, error) {
 	out := []dupRexLink{}
 	scan := func(via, q string) error {
 		rows, err := db.Query(q)

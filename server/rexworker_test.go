@@ -27,7 +27,7 @@ func workerDB(t *testing.T) *app {
 	if e != nil {
 		t.Fatal(e)
 	}
-	return &app{db: db}
+	return &app{db: db, rdb: testReaders(t, path)}
 }
 func workerQueue(t *testing.T, a *app, entity, id, payload string) {
 	t.Helper()

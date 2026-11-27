@@ -81,7 +81,7 @@ func (a *app) adminProperties(w http.ResponseWriter, r *http.Request, p principa
 		where += ` AND p.id>?`
 		args = append(args, v)
 	}
-	rows, err := a.db.Query(`SELECT p.id,p.no,p.street,p.suburb,p.registered,p.data,COALESCE(o.owner_names,''),o.last_sale_price,COALESCE(o.last_sale_date,''),COALESCE(o.absentee_owner,0) FROM properties p LEFT JOIN property_ownership o ON o.property_id=p.id`+where+` ORDER BY p.id LIMIT ?`, append(args, pageLimit(r))...)
+	rows, err := a.rd().Query(`SELECT p.id,p.no,p.street,p.suburb,p.registered,p.data,COALESCE(o.owner_names,''),o.last_sale_price,COALESCE(o.last_sale_date,''),COALESCE(o.absentee_owner,0) FROM properties p LEFT JOIN property_ownership o ON o.property_id=p.id`+where+` ORDER BY p.id LIMIT ?`, append(args, pageLimit(r))...)
 	if err != nil {
 		problem(w, 500, "database error")
 		return
@@ -128,7 +128,7 @@ func (a *app) adminProperties(w http.ResponseWriter, r *http.Request, p principa
 			q += ` AND team_id=(SELECT team_id FROM users WHERE id=?)`
 			args = append(args, p.id)
 		}
-		users, e := a.db.Query(q, args...)
+		users, e := a.rd().Query(q, args...)
 		if e != nil {
 			continue
 		}
@@ -141,7 +141,7 @@ func (a *app) adminProperties(w http.ResponseWriter, r *http.Request, p principa
 		}
 		users.Close()
 		for _, u := range ids {
-			if a.covered(item["id"].(string), u[0]) {
+			if coveredFrom(a.rd(), item["id"].(string), u[0]) {
 				agents = append(agents, map[string]string{"id": u[0], "name": u[1]})
 			}
 		}
@@ -184,7 +184,7 @@ func (a *app) adminParcelMap(w http.ResponseWriter, r *http.Request, p principal
 	}
 	query += ` ORDER BY p.id LIMIT ?`
 	args = append(args, limit)
-	rows, e := a.db.Query(query, args...)
+	rows, e := a.rd().Query(query, args...)
 	if e != nil {
 		problem(w, 500, "database error")
 		return
@@ -214,7 +214,7 @@ func (a *app) adminParcelStats(w http.ResponseWriter, p principal) {
 		args = append(args, p.id)
 	}
 	q += ` GROUP BY p.suburb ORDER BY p.suburb`
-	rows, e := a.db.Query(q, args...)
+	rows, e := a.rd().Query(q, args...)
 	if e != nil {
 		problem(w, 500, "database error")
 		return
@@ -247,7 +247,7 @@ func (a *app) adminZones(w http.ResponseWriter, r *http.Request, p principal, pa
 			args = append(args, p.id)
 		}
 		query += ` ORDER BY id`
-		rows, e := a.db.Query(query, args...)
+		rows, e := a.rd().Query(query, args...)
 		if e != nil {
 			problem(w, 500, "database error")
 			return

@@ -27,7 +27,7 @@ func setup(t *testing.T) (*app, map[string]string) {
 			t.Fatal(err)
 		}
 	}
-	a := &app{db: db, failures: map[string][]time.Time{}}
+	a := &app{db: db, rdb: testReaders(t, path), failures: map[string][]time.Time{}}
 	tokens := map[string]string{}
 	for _, email := range []string{"mary@axleo.local", "john@axleo.local", "admin@axleo.local"} {
 		w := request(a, "POST", "/api/v1/auth/login", "", map[string]any{"email": email, "password": "password123", "device": "test"})

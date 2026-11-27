@@ -20,7 +20,7 @@ func (a *app) adminRexEvents(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	var total int
-	if err := a.db.QueryRow(`SELECT count(*)`+q, args...).Scan(&total); err != nil {
+	if err := a.rd().QueryRow(`SELECT count(*)`+q, args...).Scan(&total); err != nil {
 		problem(w, 500, "database error")
 		return
 	}
@@ -32,7 +32,7 @@ func (a *app) adminRexEvents(w http.ResponseWriter, r *http.Request) {
 	if offset < 0 {
 		offset = 0
 	}
-	rows, err := a.db.Query(`SELECT id,at,direction,entity,local_id,rex_id,changes,result,error`+q+` ORDER BY id DESC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
+	rows, err := a.rd().Query(`SELECT id,at,direction,entity,local_id,rex_id,changes,result,error`+q+` ORDER BY id DESC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
 	if err != nil {
 		problem(w, 500, "database error")
 		return

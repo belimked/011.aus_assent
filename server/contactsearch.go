@@ -310,7 +310,7 @@ func (a *app) searchDB(q searchQuery, p principal, account string) ([]searchRow,
 		args = append(args, like, like)
 	}
 	args = append(args, p.id, searchLimit)
-	rows, err := a.db.Query(searchSelect+where+` ORDER BY c.owner_id=? DESC,c.updated_at DESC LIMIT ?`, args...)
+	rows, err := a.rd().Query(searchSelect+where+` ORDER BY c.owner_id=? DESC,c.updated_at DESC LIMIT ?`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +318,7 @@ func (a *app) searchDB(q searchQuery, p principal, account string) ([]searchRow,
 }
 
 // localForRex maps Rex ids to linked, undeleted local contacts.
-func (a *app) localForRex(ids []string, account string) (map[string]searchRow, error) {
+func (a *app) localForRex(db querier, ids []string, account string) (map[string]searchRow, error) {
 	out := map[string]searchRow{}
 	if len(ids) == 0 {
 		return out, nil
@@ -329,7 +329,7 @@ func (a *app) localForRex(ids []string, account string) (map[string]searchRow, e
 		marks[i] = "?"
 		args = append(args, id)
 	}
-	rows, err := a.db.Query(searchSelect+` AND c.id IN (SELECT local_id FROM rex_links WHERE entity='contacts' AND account_id=? AND rex_id IN (`+strings.Join(marks, ",")+`))`, args...)
+	rows, err := db.Query(searchSelect+` AND c.id IN (SELECT local_id FROM rex_links WHERE entity='contacts' AND account_id=? AND rex_id IN (`+strings.Join(marks, ",")+`))`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -427,7 +427,7 @@ func (a *app) finishSearch(w http.ResponseWriter, p principal, s *contactSearch,
 	for _, h := range hits {
 		ids = append(ids, h.ID)
 	}
-	linked, err := a.localForRex(ids, s.cfg.AccountID)
+	linked, err := a.localForRex(a.rd(), ids, s.cfg.AccountID)
 	if err != nil {
 		problem(w, 500, "database error")
 		return
@@ -482,7 +482,7 @@ func (a *app) contactImportRex(w http.ResponseWriter, r *http.Request, p princip
 		return
 	}
 	account := s.cfg.AccountID
-	if found, err := a.localForRex([]string{rexID}, account); err != nil {
+	if found, err := a.localForRex(a.db, []string{rexID}, account); err != nil {
 		problem(w, 500, "database error")
 		return
 	} else if row, ok := found[rexID]; ok {
@@ -522,7 +522,7 @@ func (a *app) contactImportRex(w http.ResponseWriter, r *http.Request, p princip
 	if created {
 		_, _ = a.db.Exec(`INSERT INTO rex_sync_events(at,direction,entity,local_id,rex_id,changes,result) VALUES(?,?,?,?,?,?,?)`, now(), "rex_to_app", "contacts", local, rexID, ijson(map[string]any{"imported_by": p.id}), "ok")
 	}
-	found, err := a.localForRex([]string{rexID}, account)
+	found, err := a.localForRex(a.db, []string{rexID}, account)
 	if err != nil {
 		problem(w, 500, "database error")
 		return
