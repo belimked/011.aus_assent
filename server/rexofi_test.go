@@ -148,7 +148,7 @@ func TestRexListingStatus(t *testing.T) {
 func TestRexOFIAgentsStatusWindow(t *testing.T) {
 	a, tokens := setup(t)
 	day := time.Date(2026, 11, 20, 1, 0, 0, 0, time.UTC) // Brisbane: Nov 20 11:00
-	for k, v := range map[string]string{"REX_BASE_URL": "mock", "REX_APP_ID": "test", "REX_EMAIL": "test", "REX_PASSWORD": "test", "REX_ACCOUNT_ID": "2057", "AXLEO_REX_READ": "1", "REX_DEFAULT_OWNER_EMAIL": "admin@axleo.local", "REX_OFI_FUTURE_DAYS": "90"} {
+	for k, v := range map[string]string{"REX_BASE_URL": "mock", "REX_APP_ID": "test", "REX_EMAIL": "test", "REX_PASSWORD": "test", "REX_ACCOUNT_ID": "2057", "AXLEO_REX_READ": "1", "REX_DEFAULT_OWNER_EMAIL": "admin@axleo.local"} {
 		t.Setenv(k, v)
 	}
 	var mary, john string

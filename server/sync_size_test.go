@@ -51,6 +51,29 @@ func TestSyncImportScaleSizes(t *testing.T) {
 		}
 	}
 	_ = ps.Close()
+	// Rex listings: 1500 rows (the sandbox has ~1,435), 300 current with a weekly
+	// open home over the 90-day REX_OFI_FUTURE_DAYS default (13 each).
+	ls, err := tx.Prepare(`INSERT INTO listings(id,team_id,owner_id,property_id,data,created_at,updated_at) VALUES(?,'default',?,?,?,'now','now')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 1500; i++ {
+		id, pid := fmt.Sprintf("rex-listings-2057-%07d", i), fmt.Sprintf("rex-p-%05d", i)
+		agent := map[string]any{"name": "Example Agent", "rexId": "1234567", "userId": owner}
+		ofi, status := []any{}, "sold"
+		if i < 300 {
+			status = "listed"
+			for w := 0; w < 13; w++ {
+				ofi = append(ofi, map[string]any{"d": time.Date(2026, 12, 1+7*w, 0, 0, 0, 0, time.UTC).Format("2006-01-02"), "time": "10:00–10:30", "attendees": []any{}, "rexEventId": fmt.Sprintf("%08d", i*13+w), "rexAttendeeCount": 0, "agent": "Marketing Team", "agentId": "", "rexAgentId": "7654321"})
+			}
+		}
+		data := map[string]any{"id": id, "propertyId": pid, "status": status, "rexState": status, "rexId": fmt.Sprint(5000000 + i), "category": "residential_sale", "price": "", "agent": "Example Agent", "agents": []any{agent}, "agentIds": []any{owner}, "ofi": ofi}
+		b, _ := json.Marshal(data)
+		if _, err = ls.Exec(id, owner, pid, string(b)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_ = ls.Close()
 	if err = tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
@@ -90,4 +113,9 @@ func TestSyncImportScaleSizes(t *testing.T) {
 		t.Fatalf("sync counts: %d %d", len(m["contacts"].([]any)), len(m["properties"].([]any)))
 	}
 	t.Logf("sync first pull 4000 contacts + 1700 properties: plain=%d bytes (%s), gzip=%d bytes (%s), ratio=%.2f%%", len(plain), plainTime, len(compressed), gzipTime, 100*float64(len(compressed))/float64(len(plain)))
+	listings, _ := json.Marshal(m["listings"])
+	if len(m["listings"].([]any)) != 1500 {
+		t.Fatalf("listings: %d", len(m["listings"].([]any)))
+	}
+	t.Logf("of which 1500 listings / 3900 open homes: %d bytes plain", len(listings))
 }

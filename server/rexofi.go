@@ -199,7 +199,8 @@ func pollRexOFI(ctx context.Context, db *sql.DB, c *rexClient, account string, a
 	if at.Sub(previous) < 5*time.Minute && !previous.IsZero() {
 		return nil
 	}
-	back, ahead := 1, 14
+	// Search is unfiltered, so the window changes stored/synced events, not Rex calls.
+	back, ahead := 1, 90
 	if n, e := strconv.Atoi(os.Getenv("REX_OFI_PAST_DAYS")); e == nil && n >= 0 && n <= 365 {
 		back = n
 	}
