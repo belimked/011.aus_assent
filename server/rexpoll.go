@@ -34,6 +34,9 @@ func startRexPoller(ctx context.Context, db *sql.DB) {
 			}
 			if c.Token != "" {
 				err := pollRex(ctx, db, c, cfg.AccountID)
+				if err == nil {
+					err = pollRexMailingLists(ctx, db, c, cfg.AccountID, time.Now()) // throttled: contact_mailing_lists.go
+				}
 				ok, reason := 1, ""
 				if err != nil {
 					ok, reason = 0, err.Error()

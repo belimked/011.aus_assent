@@ -14,7 +14,7 @@ import (
 // rows are then re-inserted by seedData. Order respects foreign keys (children first).
 var resetTables = []string{
 	"sessions", "contact_notes", "property_owners", "todos", "activity", "captures", "ofi_attendees", "ofi_events",
-	"enquiries", "leads", "sales", "contracts", "referrals", "listings", "market_items", "contacts", "tags", "photos",
+	"enquiries", "leads", "sales", "contracts", "referrals", "listings", "market_items", "contact_mailing_lists", "contacts", "tags", "photos",
 	"approvals", "rex_outbox", "rex_links", "audit_log", "sync_changes", "sync_ops",
 }
 

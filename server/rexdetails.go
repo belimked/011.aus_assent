@@ -14,6 +14,11 @@ func enqueueRexDetails(tx *sql.Tx, kind, id string, diff any, stamp string) erro
 	if current == nil || (kind == "contacts" && str(current, "contactId") != "") {
 		return nil
 	}
+	if kind == "contacts" {
+		if err := enqueueMailingLists(tx, id, current, stamp); err != nil {
+			return err
+		}
+	}
 	var raw string
 	_ = tx.QueryRow(`SELECT payload FROM rex_outbox WHERE entity=? AND entity_id=? AND op IN ('POST','PATCH') ORDER BY id DESC LIMIT 1 OFFSET 1`, kind, id).Scan(&raw)
 	var prior map[string]any

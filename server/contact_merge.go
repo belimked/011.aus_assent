@@ -882,6 +882,9 @@ func (a *app) executeMerge(tx *sql.Tx, p principal, aID, bID, hash string) (*mer
 	if err = clearMergedDuplicateFlags(tx, primary, secondary, stamp); err != nil {
 		return nil, err
 	}
+	if err = mergeMailingLists(tx, primary, secondary, plan.Rex, stamp); err != nil {
+		return nil, err
+	}
 	if _, err = tx.Exec(`UPDATE contacts SET deleted_at=?,updated_at=?,version=version+1 WHERE id=?`, stamp, stamp, secondary); err != nil {
 		return nil, err
 	}
