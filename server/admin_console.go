@@ -57,6 +57,8 @@ func (a *app) console(w http.ResponseWriter, r *http.Request, p principal, path 
 		a.consoleSettings(w, r, p)
 	case "teams":
 		a.consoleTeams(w, r, p)
+	case "owner-name-views":
+		a.ownerNameViews(w, r, p)
 	default:
 		return false
 	}

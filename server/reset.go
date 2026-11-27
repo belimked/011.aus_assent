@@ -15,7 +15,7 @@ import (
 var resetTables = []string{
 	"sessions", "contact_notes", "property_owners", "todos", "activity", "captures", "ofi_attendees", "ofi_events",
 	"enquiries", "leads", "sales", "contracts", "referrals", "listings", "market_items", "contact_mailing_lists", "contacts", "tags", "photos",
-	"approvals", "rex_outbox", "rex_links", "audit_log", "sync_changes", "sync_ops",
+	"approvals", "rex_outbox", "rex_links", "audit_log", "sync_changes", "sync_ops", "owner_name_views",
 }
 
 // keptTables are never cleared (properties and zones are partly reset; see below).

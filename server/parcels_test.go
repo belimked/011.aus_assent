@@ -46,8 +46,12 @@ func TestParcelAndPricefinderImport(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := a.getMarketTest(t, id, principal{role: "admin"})
-	if m["owners"] != "Example Person" || !strings.HasPrefix(m["lastSaleDate"].(string), "2009-") {
+	if _, seen := m["owners"]; seen || m["hasOwners"] != true || !strings.HasPrefix(m["lastSaleDate"].(string), "2009-") {
 		t.Fatal(m)
+	}
+	var stored string
+	if _ = a.db.QueryRow(`SELECT owner_names FROM property_ownership WHERE property_id=?`, id).Scan(&stored); stored != "Example Person" {
+		t.Fatal("stored owner", stored)
 	}
 	var john string
 	if err := a.db.QueryRow(`SELECT id FROM users WHERE email='john@axleo.local'`).Scan(&john); err != nil {
@@ -55,13 +59,13 @@ func TestParcelAndPricefinderImport(t *testing.T) {
 	}
 	agent := principal{id: john, role: "agent"}
 	if _, visible := a.getMarketTest(t, id, agent)["owners"]; visible {
-		t.Fatal("owner visible without zone")
+		t.Fatal("owner names on a property read")
 	}
 	if err := createMarketZone(a.db, "john@axleo.local"); err != nil {
 		t.Fatal(err)
 	}
-	if a.getMarketTest(t, id, agent)["owners"] != "Example Person" {
-		t.Fatal("zone did not grant access")
+	if _, visible := a.getMarketTest(t, id, agent)["owners"]; visible {
+		t.Fatal("zone put owner names back on a property read")
 	}
 	if err := createMarketZone(a.db, "john@axleo.local"); err != nil {
 		t.Fatal(err)
