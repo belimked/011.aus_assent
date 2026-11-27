@@ -5,16 +5,17 @@ import {colors} from '../theme';
 import {useT} from '../i18n';
 import {showToast} from '../store';
 import {useHoldRecorder,holdStartText,holdShortText} from './useHoldRecorder';
-import {voiceErrorText} from '../lib/voice';
+import {voiceErrorText,type VoiceLang} from '../lib/voice';
 import {getVoiceLang} from '../lib/voicePref';
 
 /**
  * Inline dictation mic: hold to dictate into the field beside it, release to finish; the words are appended.
  * `onWords` gets the transcript alone instead (a search box replaces its text rather than appending).
+ * `lang` pins the dictation language (e.g. a sheet's own language picker); otherwise the saved voice language or app language.
  */
-export function NoteMic({value,onChangeText,onTranscript,onWords,size=40}:{value:string;onChangeText:(v:string)=>void;onTranscript?:(v:string)=>void;onWords?:(text:string)=>void;size?:number}){
+export function NoteMic({value,onChangeText,onTranscript,onWords,size=40,lang}:{value:string;onChangeText:(v:string)=>void;onTranscript?:(v:string)=>void;onWords?:(text:string)=>void;size?:number;lang?:VoiceLang}){
   const {l2,lang:appLang}=useT();const latest=useRef(value);useEffect(()=>{latest.current=value},[value]);
-  const rec=useHoldRecorder({lang:()=>getVoiceLang(appLang),
+  const rec=useHoldRecorder({lang:()=>lang||getVoiceLang(appLang),
     onStart:r=>{const message=holdStartText(r,l2);if(message)showToast(message)},
     onResult:r=>{if(r.kind==='text'&&onWords)onWords(r.text);else if(r.kind==='text'){const v=latest.current.trim();(onTranscript||onChangeText)(v?`${v} ${r.text}`:r.text)}else showToast(r.kind==='short'?holdShortText(l2):r.kind==='empty'?l2('Could not hear that','没有听清'):voiceErrorText(r.error,l2))}});
   const live=rec.phase==='recording';
