@@ -336,7 +336,7 @@ func TestPollRexAdoptSingleConnection(t *testing.T) {
 	c := newRexClient(srv.URL, "test")
 	c.Token, c.Interval, c.ReadOnly, c.AccountID, c.Log = "mock", 0, true, "2057", rexDBLogger(a.db)
 	lastRelationPoll = time.Now()
-	singleConnGuard(t, a.db, "poll adopt", func() error { return pollRex(context.Background(), a.db, c, "2057") })
+	appConnGuard(t, a, "poll adopt", func() error { return pollRex(context.Background(), a.db, c, "2057") })
 	var n int
 	_ = a.db.QueryRow(`SELECT count(*) FROM contacts`).Scan(&n)
 	if n != 1 || linkOf(&app{db: a.db}, "app-1") != "68313642" {
@@ -366,7 +366,7 @@ func TestDuplicateRexLinksReport(t *testing.T) {
 	var before string
 	_ = a.db.QueryRow(`SELECT group_concat(version) FROM contacts`).Scan(&before)
 	var dups []dupRexLink
-	singleConnGuard(t, a.db, "duplicate rex links", func() (err error) { dups, err = duplicateRexLinks(a.db); return })
+	appConnGuard(t, a, "duplicate rex links", func() (err error) { dups, err = duplicateRexLinks(a.db); return })
 	if len(dups) != 2 || dups[0].Via != "rex_links" || len(dups[0].LocalIDs) != 2 || dups[1].Via != "data.rexId" {
 		t.Fatalf("%+v", dups)
 	}
@@ -396,7 +396,7 @@ func TestWorkerPreCreateSingleConnection(t *testing.T) {
 		return nil, 500
 	})
 	w.client.Log = rexDBLogger(a.db)
-	singleConnGuard(t, a.db, "worker pre-create", func() error {
+	appConnGuard(t, a, "worker pre-create", func() error {
 		for i := 0; i < 2; i++ {
 			if err := w.step(context.Background()); err != nil {
 				return err

@@ -16,11 +16,11 @@ import (
 
 func (a *app) team(w http.ResponseWriter, p principal) {
 	var team string
-	if err := a.db.QueryRow(`SELECT team_id FROM users WHERE id=?`, p.id).Scan(&team); err != nil {
+	if err := a.rd().QueryRow(`SELECT team_id FROM users WHERE id=?`, p.id).Scan(&team); err != nil {
 		problem(w, 500, "database error")
 		return
 	}
-	rows, err := a.db.Query(`SELECT id,name FROM users WHERE team_id=? AND disabled=0 AND deleted_at IS NULL`, team)
+	rows, err := a.rd().Query(`SELECT id,name FROM users WHERE team_id=? AND disabled=0 AND deleted_at IS NULL`, team)
 	if err != nil {
 		problem(w, 500, "database error")
 		return
@@ -105,7 +105,16 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 		}
 	}
 	var high int64
-	if err := a.db.QueryRow(`SELECT COALESCE(max(seq),0) FROM sync_changes`).Scan(&high); err != nil {
+	// One read-only snapshot for the whole pull: the high-water mark and every
+	// record read below come from the same committed state, and a long full pull
+	// runs on the read pool instead of holding the single writer connection.
+	db, done, err := a.readSnapshot(r.Context())
+	if err != nil {
+		problem(w, 500, "database error")
+		return
+	}
+	defer done()
+	if err := db.QueryRow(`SELECT COALESCE(max(seq),0) FROM sync_changes`).Scan(&high); err != nil {
 		problem(w, 500, "database error")
 		return
 	}
@@ -114,7 +123,7 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 		// cannot be served incrementally: the change log no longer has tombstones
 		// for the cleared rows. Answer with a full snapshot, which clients replace.
 		var floor int64
-		_ = a.db.QueryRow(`SELECT CAST(value AS INTEGER) FROM settings WHERE key=?`, syncResetKey).Scan(&floor)
+		_ = db.QueryRow(`SELECT CAST(value AS INTEGER) FROM settings WHERE key=?`, syncResetKey).Scan(&floor)
 		if from <= floor || from > high {
 			since = ""
 		}
@@ -122,7 +131,7 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 	// Resolve coverage once per pull, not once for each of thousands of properties.
 	if p.role != "admin" {
 		p.zones = []map[string]any{}
-		zones, err := a.db.Query(`SELECT data FROM zones WHERE owner_id=? AND deleted_at IS NULL`, p.id)
+		zones, err := db.Query(`SELECT data FROM zones WHERE owner_id=? AND deleted_at IS NULL`, p.id)
 		if err != nil {
 			problem(w, 500, "database error")
 			return
@@ -143,7 +152,7 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 	// Rex links are server-owned metadata: load once for the configured account.
 	rexIDs := map[string]string{}
 	if account := os.Getenv("REX_ACCOUNT_ID"); account != "" {
-		links, err := a.db.Query(`SELECT local_id,rex_id FROM rex_links WHERE entity='properties' AND account_id=?`, account)
+		links, err := db.Query(`SELECT local_id,rex_id FROM rex_links WHERE entity='properties' AND account_id=?`, account)
 		if err != nil {
 			problem(w, 500, "database error")
 			return
@@ -163,6 +172,11 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 			problem(w, 500, "database error")
 			return
 		}
+	}
+	ownerSync, err := ownerRexSyncAll(db) // per-owner relation status (rexowner_sync.go)
+	if err != nil {
+		problem(w, 500, "database error")
+		return
 	}
 	for _, kind := range syncKinds {
 		items := []any{}
@@ -184,7 +198,7 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 				q += propertySyncSQL("t")
 			}
 		}
-		rows, err := a.db.Query(q, params...)
+		rows, err := db.Query(q, params...)
 		if err != nil {
 			problem(w, 500, "database error")
 			return
@@ -198,7 +212,7 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 		}
 		rows.Close()
 		for _, id := range ids {
-			item, err := a.get(kind, id, p, true)
+			item, err := a.getFrom(db, kind, id, p, true)
 			if err != nil {
 				problem(w, 500, "database error")
 				return
@@ -211,10 +225,21 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 					delete(item, "rex")
 				}
 				if kind == "contacts" || kind == "properties" {
-					attachRexSync(a.db, kind, id, item)
+					attachRexSync(db, kind, id, item)
+				}
+				if kind == "contacts" {
+					attachContactNoteSync(db, id, item)
+				}
+				if kind == "contacts" {
+					attachMailingLists(db, id, item)
 				}
 				if kind == "properties" {
-					attachPropertyNoteSync(a.db, id, item)
+					attachPropertyNoteSync(db, id, item)
+					if o := ownerSync[id]; o != nil {
+						item["ownerRexSync"] = o
+					} else {
+						delete(item, "ownerRexSync")
+					}
 					// Always overwrite stale client metadata, including when a link is removed.
 					item["rexId"] = rexIDs[id]
 					// The phone draws its parcels from its own parcel layer and needs
@@ -230,7 +255,7 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 			for _, id := range ids {
 				seen[id] = true
 			}
-			lost, err := a.db.Query(`SELECT DISTINCT id FROM sync_changes WHERE kind=? AND seq>? AND seq<=? AND (old_a=? OR old_b=?)`, kind, from, high, p.id, p.id)
+			lost, err := db.Query(`SELECT DISTINCT id FROM sync_changes WHERE kind=? AND seq>? AND seq<=? AND (old_a=? OR old_b=?)`, kind, from, high, p.id, p.id)
 			if err != nil {
 				problem(w, 500, "database error")
 				return
@@ -244,7 +269,7 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 			}
 			lost.Close()
 			for _, id := range lostIDs {
-				if _, err := a.get(kind, id, p, true); err != nil {
+				if _, err := a.getFrom(db, kind, id, p, true); err != nil {
 					gone = append(gone, id)
 				}
 			}

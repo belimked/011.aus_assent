@@ -11,31 +11,7 @@ import (
 // sandbox allocator as a last resort; linked contacts inherit the property agent.
 func assignPollOwners(db *sql.DB, props, contacts map[string]bool) error {
 	resolve := func(raw string) string {
-		user := imap(rawOwner(raw))
-		candidates := []string{iv(user, "id"), iv(user, "email"), iv(user, "email_address")}
-		for _, pair := range strings.Split(os.Getenv("REX_USER_MAP"), ",") {
-			parts := strings.SplitN(strings.TrimSpace(pair), ":", 2)
-			if len(parts) != 2 {
-				continue
-			}
-			for _, key := range candidates {
-				if key != "" && strings.EqualFold(key, strings.TrimSpace(parts[0])) {
-					candidates = append([]string{strings.TrimSpace(parts[1])}, candidates...)
-					break
-				}
-			}
-		}
-		candidates = append(candidates, os.Getenv("REX_DEFAULT_OWNER_EMAIL"))
-		for _, key := range candidates {
-			if key == "" {
-				continue
-			}
-			var id string
-			if db.QueryRow(`SELECT id FROM users WHERE (lower(email)=lower(?) OR rex_user_id=?) AND disabled=0 AND deleted_at IS NULL LIMIT 1`, key, key).Scan(&id) == nil {
-				return id
-			}
-		}
-		return ""
+		return rexLocalUser(db, imap(rawOwner(raw)), os.Getenv("REX_DEFAULT_OWNER_EMAIL"))
 	}
 	for id := range props {
 		var raw string
@@ -66,6 +42,36 @@ func assignPollOwners(db *sql.DB, props, contacts map[string]bool) error {
 		}
 	}
 	return nil
+}
+
+// rexLocalUser maps a Rex user reference to an active app user: REX_USER_MAP
+// (Rex id or email:local email), then the same email or users.rex_user_id,
+// then fallback (an email; empty for no fallback). Returns "" when unmatched.
+func rexLocalUser(db *sql.DB, user importRow, fallback string) string {
+	candidates := []string{iv(user, "id"), iv(user, "email"), iv(user, "email_address")}
+	for _, pair := range strings.Split(os.Getenv("REX_USER_MAP"), ",") {
+		parts := strings.SplitN(strings.TrimSpace(pair), ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		for _, key := range candidates {
+			if key != "" && strings.EqualFold(key, strings.TrimSpace(parts[0])) {
+				candidates = append([]string{strings.TrimSpace(parts[1])}, candidates...)
+				break
+			}
+		}
+	}
+	candidates = append(candidates, fallback)
+	for _, key := range candidates {
+		if key == "" {
+			continue
+		}
+		var id string
+		if db.QueryRow(`SELECT id FROM users WHERE (lower(email)=lower(?) OR rex_user_id=?) AND disabled=0 AND deleted_at IS NULL LIMIT 1`, key, key).Scan(&id) == nil {
+			return id
+		}
+	}
+	return ""
 }
 func rawOwner(raw string) any {
 	var m map[string]any

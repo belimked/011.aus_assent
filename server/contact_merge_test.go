@@ -392,7 +392,7 @@ func rexMergeSetup(t *testing.T, aRex, bRex string) *app {
 func runMerge(t *testing.T, a *app) *mergePlan {
 	t.Helper()
 	var plan *mergePlan
-	singleConnGuard(t, a.db, "merge execute", func() error {
+	appConnGuard(t, a, "merge execute", func() error {
 		tx, err := a.db.Begin()
 		if err != nil {
 			return err
@@ -435,7 +435,7 @@ func mergeWorker(t *testing.T, a *app, relations []any) (*rexWorker, *mergeRex) 
 func drain(t *testing.T, a *app, w *rexWorker, n int) {
 	t.Helper()
 	for i := 0; i < n; i++ {
-		singleConnGuard(t, a.db, "worker step", func() error { return w.step(context.Background()) })
+		appConnGuard(t, a, "worker step", func() error { return w.step(context.Background()) })
 	}
 }
 
@@ -605,7 +605,7 @@ func TestMergeSingleConnection(t *testing.T) {
 	if _, err := a.db.Exec(`INSERT INTO rex_links(entity,local_id,rex_id,rex_service,account_id,created_at) VALUES('contacts','a','1','Contacts','2057',?)`, now()); err != nil {
 		t.Fatal(err)
 	}
-	singleConnGuard(t, a.db, "merge preview+execute", func() error {
+	appConnGuard(t, a, "merge preview+execute", func() error {
 		w := request(a, "POST", "/api/v1/contacts/merge-preview", tok["mary"], map[string]any{"aId": "a", "bId": "b"})
 		if w.Code != 200 {
 			return fmt.Errorf("preview %d %s", w.Code, w.Body)

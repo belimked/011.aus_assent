@@ -366,6 +366,9 @@ func adoptLocalContact(db *sql.DB, account string, detail importRow, c dupCandid
 	if _, err = tx.Exec(`UPDATE contacts SET first=?,last=?,mobile=?,email=?,data=?,updated_at=?,version=version+1 WHERE id=?`, str(data, "first"), str(data, "last"), str(data, "mobile"), str(data, "email"), ijson(data), stamp, c.id); err != nil {
 		return err
 	}
+	if err = adoptMailingLists(tx, c.id, detail, stamp); err != nil {
+		return err
+	}
 	if !rexWins { // app is newer: push its non-empty fields through the update path
 		if _, err = tx.Exec(`INSERT INTO rex_outbox(entity,entity_id,op,payload,status,created_at) VALUES('contacts',?,'PATCH',?,'pending',?)`, c.id, `{"rexAdopt":true}`, stamp); err != nil {
 			return err
@@ -388,7 +391,7 @@ type dupRexLink struct {
 	Via      string   `json:"via"` // rex_links | data.rexId
 }
 
-func duplicateRexLinks(db *sql.DB) ([]dupRexLink, error) {
+func duplicateRexLinks(db querier) ([]dupRexLink, error) {
 	out := []dupRexLink{}
 	scan := func(via, q string) error {
 		rows, err := db.Query(q)

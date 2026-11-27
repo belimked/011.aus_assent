@@ -448,7 +448,7 @@ func TestContactSearchSingleConnection(t *testing.T) {
 		}
 		return nil, 500
 	})
-	singleConnGuard(t, a.db, "contact search + import", func() error {
+	appConnGuard(t, a, "contact search + import", func() error {
 		r, raw := doSearch(t, a, tok["mary"], "Teddie")
 		if len(r.Items) != 3 {
 			return fmt.Errorf("search: %s", raw)

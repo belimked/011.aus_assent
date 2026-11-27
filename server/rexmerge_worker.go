@@ -407,7 +407,7 @@ func mergeRelated(c, rex map[string]any) (related map[string]any, tagOps []any, 
 	for _, r := range rows("contact_tags") {
 		k := strings.ToLower(strings.TrimSpace(iv(r, "tag")))
 		if seen[k] && r["id"] != nil {
-			tagOps = append(tagOps, map[string]any{"id": r["id"], "_destroy": true})
+			tagOps = append(tagOps, map[string]any{"id": r["id"], "tag": r["tag"], "_destroy": true})
 		}
 		seen[k] = true
 	}

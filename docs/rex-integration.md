@@ -92,7 +92,7 @@
 | 合并 | `Dedupe::findPossibleDuplicates`、`combineRecords`（需求规定不在 Rex 中自动合并，只允许人工确认后调用） |
 | 笔记 | `Notes::create({ data, return_id })`、`search` |
 | 提醒 | `Reminders::create` |
-| 标签 | `AdminTags::search`（读取标签列表）。给记录打标签的方式待确认 |
+| 标签 | `AdminTags::search`（读取标签列表）。打标签：`Contacts::update` 的 `related.contact_tags:[{tag}]`（追加）。标签原样写入，与 App 显示完全一致，**不加** `DK - ` / `OFI - ` / `Enquiry - ` 前缀（客户 UAT 3 确认）。导入/轮询不读取 Rex 的联系人标签，App 的标签不会被 Rex 覆盖 |
 | 用户 | `AccountUsers`（读取 Rex 用户，用于初始导入的映射） |
 | Webhook | `AdminWebhooks::create` / `getEventsAndCategories` / `markAsHealthy` |
 | 关系类型 | 值列表 `contact_reln_listing` / `contact_listing_reln_type_with_custom`；房产的关系类型对应哪个列表，待确认 |
@@ -484,7 +484,29 @@ GET  /api/captures/:id        → 进度，以及每一步的结果
 ### UAT2 owner synchronisation
 Poll imports changed properties and contacts before saving `contact_reln_property`; missing contact references are read directly. Rex property etags change on owner-relation-only edits (verified in `rex_sync_events`: property 23138536 changed etag within two minutes). As a safety net, `REX_RELATION_REFRESH_SECONDS` (default 86400, minimum 60) re-reads up to `REX_RELATION_REFRESH_LIMIT` (default 100, positive integer) properties updated in the last seven days per run. This is a bounded fallback, not a full historical repair. New polled records use `REX_USER_MAP` (`Rex id or email:local email`, comma-separated), automatic identical email or local rex_user_id, then `REX_DEFAULT_OWNER_EMAIL`, then the sandbox ranking. New owner contacts inherit the property agent; existing assignments remain unchanged.
 
-App-created contacts require an enabled local owner and the existing `AXLEO_REX_WRITE=1`/`REX_WRITE_ACCOUNT_ID` account verification. Outbox POST creates Contacts with related name/phone/email, records the account-scoped link, then queued property owner relations write `Properties::update`. Before create, linked local AU-normalised phones are checked. Ambiguous create results fail closed for manual reconciliation; they are **not** retried blindly. Rejected writes retain `last_error`; transient login/rate/update failures use exponential retries. Properties with no Rex link are skipped as "not in Rex" (product decision 2026-11-25: the contact is still created in Rex, but the app never auto-creates the property in Rex; the owner link stays local and the property shows "Not in Rex yet"). Latest outbox state is delivered as `rexSync`; clients can pull to refresh. Voice DK transcription/extraction audit is stored internally, not written to Rex.
+App-created contacts require an enabled local owner and the existing `AXLEO_REX_WRITE=1`/`REX_WRITE_ACCOUNT_ID` account verification. Outbox POST creates Contacts with related name/phone/email, records the account-scoped link, then queued property owner relations write `Properties::update`. Before create, linked local AU-normalised phones are checked. Ambiguous create results fail closed for manual reconciliation; they are **not** retried blindly. Rejected writes retain `last_error`; transient login/rate/update failures use exponential retries. Properties with no Rex link: see **App 新建 Rex 房产** below (2026-11-27 supersedes the 2026-11-25 decision that never created properties). Latest outbox state is delivered as `rexSync`; clients can pull to refresh. Voice DK transcription/extraction audit is stored internally, not written to Rex.
+
+### App 新建 Rex 房产（UAT3 问题3，2026-11-27）
+
+**规则**：在 App 里给一处**不在 Rex 的房产添加业主**时，worker 先在 Rex 找或建这处房产，再照常写 Owner 关系。替代 2026-11-25“不自动建房产”的决定。
+
+- **触发范围**：只有 `rex_contact_relation` 且 `relation.type="Owner of"` 的任务，而且要等联系人已有 Rex 关联（联系人还没建好时任务照旧等待）。浏览、打标签、敲门记录、房产备注、租客等其他关系都不建房产，依旧 skipped "not in Rex"。
+- **开关**：沿用 `AXLEO_REX_WRITE=1` / `REX_WRITE_ACCOUNT_ID` 和账户验证；另加 `REX_PROPERTY_CREATE`（默认开，`=0` 恢复旧行为）。`REX_PROPERTY_CATEGORY` 默认 `residential`，`REX_PROPERTY_STATE` 默认 `QLD`（房产 `data.state` 优先）。
+- **地址**：门牌（`no`，`3/11` 拆成 `adr_unit_number=3`、`adr_street_number=11`；`data.unit` 优先）、街名（含 St/Pl 缩写，Rex 文档说缩写与全称互相匹配）、suburb、postcode（`data.postcode`，没有时用 seed 的 suburb→postcode 表）。缺门牌、街名、suburb 或 postcode 时**不调 Rex**，标 skipped，原因写给中介看，例如 "Address has no street number, so it was not added to Rex. Add the property in Rex by hand"。
+- **流程**（`server/rexproperty_create.go`）：
+  1. `Properties::findPossibleDuplicate`（`property_category_id=null`，同时试住宅和土地格式）。查重失败（超时等）按读请求退避重试，**不**盲建。
+  2. 查到 id：若这个 Rex id 未被本账号别的本地房产关联，写 `rex_links`（按 `account_id`），`rex_property_creates.state=linked`。
+  3. 没查到：先提交 `rex_property_creates.state=sending`，再 `Properties::create`（`data.adr_*`、`property_category.id`、有坐标时带 `adr_latitude/adr_longitude`，`return_id=true`）。成功写 `rex_links` + `state=created`。不发 `system_owner_user`，与 `Contacts::create` 一致，由 Rex 记为集成用户；App 自己的分配（`properties.owner_id`）不变。
+  4. 同一任务接着写 `Properties::update` 的 `contact_reln_property`。
+- **防重复**：worker 一次只处理一个任务，同一房产的两个业主任务先后执行，第二个看到第一个写的 `rex_links`，不会再查重或新建。重试同一任务同理。create 无响应（超时、空 5xx、无 id）或进程在请求中途退出时，`rex_property_creates` 留在 `unknown`/`sending`：之后**这处房产的所有业主任务都 failed**，原因 "Rex property create outcome unknown; check Rex for this address, then run `axleo rex-property-backfill --retry-unknown`"，与联系人创建一样保守。Rex 明确拒绝（错误信封、429、登录失败）时没有建出东西，清掉标记，按普通失败/重试处理。
+- **Rex 房产已被另一条本地房产关联**：`rex_links_remote(entity,account_id,rex_id)` 唯一索引本来就不允许两条本地房产指向同一 Rex id。worker 不合并、不改指向，标 skipped："Rex already has this address, linked to app property <地址>. Add the owner there"。中介到那条已在 Rex 的房产上加业主；两条本地房产是否合并由人决定。
+- **建好后**：`rex_links` 与导入的房产一样，同步下发 `rexId`，Open in Rex 可用。轮询在 Properties::search 里看到这个 id 时按 `rex_links` 认出是同一条本地房产，只更新、不再建 `rex-properties-*`（`TestPropertyCreatePollDoesNotDuplicate`）。
+- **手机状态**：同步给每处房产下发 `ownerRexSync: {<contactId>: {status, reason, at}}`（每对业主/房产最新的关系任务）。联系人页 Linked properties 每项、房产页 Owner 区每位业主都用 `RexSyncLabel` 显示。字段由服务端计算，PATCH 时丢弃。
+- **单连接**：所有查询读完即关；批量补做先把候选读完再开事务；状态一次查询加载到内存。新测试用 `singleConnGuard` 跑每一步 worker。
+
+**历史 skipped 补做**：`axleo rex-property-backfill [--dry-run] [--retry-unknown]`，手动运行，不在启动时执行。只处理每对业主/房产**最新**一条、原因为 "not in Rex" 的 Owner 关系任务，且本地业主关系仍在；把它改回 pending，由 worker 走上面的流程（地址不完整的会再次 skipped，原因改为新的说明）。`--retry-unknown` 另外处理 create 结果不明的任务：运维先在 Rex 里核对该地址，再运行；它清除标记，下次从 `findPossibleDuplicate` 开始，Rex 里若已有就关联，不会再建。`--dry-run` 只列出，不写库。需要 `REX_WRITE_ACCOUNT_ID`。
+
+**沙箱依据**：`Properties::create` 已验证（2026-11-17 F5，`.tmp/rex/write/raw/F5-4.json`：缺 `property_category` 返回 ValidationException；带 `property_category.id=residential` 返回数字 id）。`findPossibleDuplicate` 只按 `.tmp/rexdocs/svc_Properties.json`（返回 id 或 false），**未在沙箱验证**；`axleo rex-probe` 的 F5 写入检查已加 `propertyDuplicate`：建完测试房产后用同一地址查重，结果须等于新建的 id。create 带坐标、街道缩写匹配、postcode 由 Rex 补全均未验证。
 
 ## 房产备注 → Rex Notes
 
@@ -516,11 +538,48 @@ App 房产详情里的备注（`properties.data.notes[]`）在房产已关联 Re
 
 **App 状态**：`/sync` 拉取的房产带 `noteRexSync: {<noteKey>: {status, reason, at}}`（服务端计算，写入时丢弃），房产备注卡片用 `RexSyncLabel` 显示 Pending Rex / In Rex / Rex failed / Rex skipped；无 id 的旧备注不显示状态。
 
-## OFI 只读导入（UAT2）
+## 联系人备注 → Rex Notes
 
-`AXLEO_REX_READ=1` 且 Rex 凭证完整时，房产/联系人 poll 后每账户至少间隔 5 分钟读取 `Listings::search` 和 `ListingEvents::search`（分页、无过滤条件；沙箱尚未确认日期和类型的 search criteria），只保留 `event_type` 精确为 `open_home`（兼容旧值 `ofi`）的事件。`listing.id` 关联 Listings；Listings `property.id` / `property_id` 经 `rex_links(properties,account_id,rex_id)` 找房产，缺失时 `Properties::read` 后走现有房产导入。挂牌 owner/team 跟房产 owner/team；未分配房产由导入默认 admin 持有。所有挂牌继续沿用当前 listings 全团队可见规则。按每场 `event_timezone` 的当地日历日保留昨天到未来 14 天（可设 `REX_OFI_PAST_DAYS` / `REX_OFI_FUTURE_DAYS`，0–365；缺时区回退 Brisbane），显示事件当地时间。本地 `listings.data.ofi[]` 保存 `{d,time,attendees:[],rexEventId,rexAttendeeCount}`；本地签到仍在独立 `ofi_attendees`，UI 数字为 Rex 计数 + 本地签到数（如果两边重复签到可能重复计数）。重新轮询只替换窗口内 Rex 场次、不动本地场次及本地签到；变更才更新 listings 版本，写 rex_links 和 rex_sync_events。未找到场次则显示下一场或空状态。
+App 里给联系人加的备注（`contacts.data.notes[]`，History 里显示的那些）在联系人已关联 Rex 时，每条写成一条挂在 Rex 联系人上的 Note（出现在联系人 Stream）；备注带已关联 Rex 的房产时同时挂房产。做法与房产备注相同：只同步**新增**，修改、删除不同步，也不从 Rex 拉回。
 
-**已实测 / 待确认**：2057 的 `ListingEvents::search` 真实开放日样本中 `event_type="open_home"`、`event_time="09:45:00"`、`event_timezone="Australia/Perth"`、`event_duration_minutes="30"`（字符串），没有 `event_end_time` / `end_time`；结束时间优先用这两个显式字段，缺失时由当地开始时间加时长分钟计算，时长无效才显示同一时刻。`Listings::search` 已在 probe 配置；Listings 的 `property` 引用及挂牌状态字段、登记数字段仍待确认。计数字段可用 `REX_OFI_COUNT_FIELD` 配置（默认 `attendee_count`）；字段缺失返回 0。`OpenHomeCheckIns` 已确认有 read/checkIn，但需要未知 token，未确认可搜索或聚合人数，因此**未调用**；不能把 0 当成已证实 Rex 无访客。须在沙箱对 16 Gager St 建真实场次并核对字段/人数，必要时再调整 event/count 映射。`CalendarEvents::search` 沙箱报内部错误，不作为数据源。
+**入队**：联系人 POST/PATCH（含 `/sync/push`）时，用修改前的 `data.notes`（`mutate` 里从已读出的记录复制，不另外查库）和新 `data.notes` 对比，每条新增备注入队 `rex_outbox(entity='rex_contact_note', entity_id='<contactId>:<noteKey>', op='POST', payload={contactId,noteKey,t,a,d,at,propertyId,actorId})`。`noteKey` 规则同房产备注：App 生成的 `id`（`cn…`，`noteOn` 生成）；没有 id 的备注（旧版 App）用 `"h"+sha1(at 或 d ␟ a ␟ t)`。同一 entity_id 已有 outbox 记录就不再入队，重复 PATCH、同步重放、离线补推、删除后恢复都只有一条任务。`propertyId` 取备注上的 `propId`（DK、OFI、市场复核、预约估价等有房产上下文的地方由 App 写入）。
+
+- **不补写历史**：上线前已存的 `data.notes` 都在“修改前”里，不算新增，不会写入 Rex。没有自动补写；如需补写，应做一个单独的、管理员手动触发的脚本（按联系人列出已关联 Rex 且无 `rex_contact_note` 任务的备注，预览数量后按同样的 key 入队），目前未实现。
+- **不写入 Rex 的备注**：App 活动日志带 `sys` 标记（`todo` 待办创建/完成/改派，`market` Market monitor，`preference` 渠道偏好/退订，`edit` 字段修改，`reassign` 联系人改派，`reminder` 提醒），以及作者为 `AxleoCollect` 的备注（旧版 App 的待办日志），不入队。合并日志由 `rex_merge` 单独写（见下）。其余（手写/语音备注、通话/短信记录、预约估价、OFI 发资料、转介、发房源、询盘“Lead received”等）都写入。**此划分待产品确认**，改动只需调整 `contactNoteToRex`。
+- 旧接口 `POST /contacts/{id}/notes`（手机端没有调用方）也走这条路径：`contact_notes` 行的 id 即备注 `id`，入队同样的 `rex_contact_note`，不再入队旧的 `contacts` 备注任务。worker 里旧的 `contacts`+`contactId`+`t` 分支保留，只处理已在队列里的旧任务和合并日志。
+
+**worker**（`rexworker.go`，`rex_contact_note`）：
+- 联系人未关联时与 `rex_contact_tag` 等一致：联系人已删除 → `skipped`；创建任务 pending → 等待（`waiting for contact link`）；创建失败 → `failed`；没有创建任务、创建被跳过（如疑似重复）或已完成却无关联 → `skipped "contact not in Rex"`。另外：该联系人作为主记录还有未完成的 `rex_merge` 时等待（合并可能让它接手对方的 Rex 记录）。
+- 与 `contacts`、`rex_contact_relation` 一样，不要求 `source=rex_import`：App 新建并已由 worker 建到 Rex 的联系人也写备注。
+- `rex_links(rex_contact_note, '<contactId>:<noteKey>')` 已存在 → 直接 `sent`。
+- 否则 `Notes::create`，挂 `note_contacts`；`propertyId` 对应的房产已关联 Rex 时再挂 `note_properties`，未关联只挂联系人（不为备注在 Rex 建房产）。成功后写 `rex_links(entity='rex_contact_note', …, rex_service='Notes')`，联系人 version+1。
+- 响应丢失时 `failed "Rex write outcome unknown; reconcile before retry"`，不重放；Rex 拒绝记 `Rex rejected: …`。写入开关和账户验证同上。
+
+```json
+// Notes::create（POST /v1/rex/notes/create）
+{"data":{"note":"[2026-01-02] <正文>\n— via AxleoCollect · <经纪人>","note_type":{"id":"note"},
+  "related":{"note_contacts":[{"contact":{"id":91}}],"note_properties":[{"property":{"id":23138536}}]}},"return_id":true}
+```
+
+只挂联系人的写法与 `rex_completion_note`/旧联系人备注相同。同一请求同时挂联系人和房产：`rex-feedback-2026-11.md` A1（2026-11-17，沙箱 2057）记录过此结构可用，本功能上线前**未再次在沙箱验证**，也未验证 Rex Stream 中的显示方式。
+
+**署名与日期**：同房产备注：正文末尾 `\n— via AxleoCollect · <经纪人>`（写入备注的登录用户，找不到时用备注上的 `a`）；`d` 不是发送当天（Brisbane）时正文前加 `[YYYY-MM-DD] `。
+
+**合并**（`contact_merge.go`）：合并直接改写主记录 `data.notes`，不经过 `mutate`，所以搬过来的备注不会被当成新增；合并后的备注保留 `id`/`at`/`propId`/`sys`，key 不变，下一次 PATCH 也不会入队。同一事务里副记录的 `rex_contact_note` 任务和链接改成主记录的 key（`<primary>:<noteKey>`，payload `contactId` 改为主记录、加 `mergedFrom`）：仍在排队的备注写到主记录的 Rex 联系人，已发送的由 `combineRecords` 在 Rex 里搬到主记录；主记录已有同 key 任务的排队备注置 `skipped`。worker 完成时按任务当前 entity_id 写链接，防止与合并并发时写到旧 key。副记录因未关联 Rex 而被 `skipped` 的备注合并后不会补写（待确认）。合并日志仍由 `rex_merge` 完成后的旧联系人备注任务写入一次。
+
+**App 状态**：`/sync` 拉取的联系人带 `noteRexSync: {<noteKey>: {status, reason, at}}`（服务端计算，写入时丢弃）；联系人 History 和房产备注里的业主备注用 `RexSyncLabel` 显示 Pending Rex / In Rex / Rex failed / Rex skipped。无 id 的旧备注和不写入 Rex 的活动日志不显示状态。
+
+## OFI 只读导入（UAT2，UAT3 更新）
+
+`AXLEO_REX_READ=1` 且 Rex 凭证完整时，房产/联系人 poll 后每账户至少间隔 5 分钟读取 `Listings::search` 和 `ListingEvents::search`（分页、无过滤条件；沙箱尚未确认日期和类型的 search criteria），只保留 `event_type` 精确为 `open_home`（兼容旧值 `ofi`）的事件。`listing.id` 关联 Listings；Listings `property.id` / `property_id` 经 `rex_links(properties,account_id,rex_id)` 找房产，缺失时 `Properties::read` 后走现有房产导入。挂牌 owner/team 跟房产 owner/team；未分配房产由导入默认 admin 持有。所有挂牌继续沿用当前 listings 全团队可见规则。按每场 `event_timezone` 的当地日历日保留昨天到未来 90 天（UAT3 前为 14 天；可设 `REX_OFI_PAST_DAYS` / `REX_OFI_FUTURE_DAYS`，0–365；缺时区回退 Brisbane），显示事件当地时间。两个 search 不带日期条件，窗口只影响入库和下发的场次数，不影响 Rex 调用次数（每 5 分钟仍是 Listings + ListingEvents 各 ⌈N/100⌉ 页，加上缺房产时的 `Properties::read`）。同步体积见 `sync_size_test.go`：1500 条挂牌 + 3900 场（300 条在售挂牌每周一场 × 13 周）首次同步明文约 1.2 MB、gzip 后整包增加约 30 KB（合成数据，重复度高，真实数据压缩率会低一些）。本地 `listings.data.ofi[]` 保存 `{d,time,attendees:[],rexEventId,rexAttendeeCount,agent,agentId,rexAgentId[,agentFrom]}`；本地签到仍在独立 `ofi_attendees`，UI 数字为 Rex 计数 + 本地签到数（如果两边重复签到可能重复计数）。重新轮询只替换窗口内 Rex 场次、不动本地场次及本地签到；变更才更新 listings 版本，写 rex_links 和 rex_sync_events。
+
+**挂牌状态（UAT3 问题 4）**：`data.status` 由 `system_listing_state` 映射（缺失时用旧字段 `listing_status`；值可能是字符串或 `{id,text}`）：`current`（含草稿，即未发布的 current 挂牌）→ `listed`；`sold`/`settled`/`unconditional` → `sold`；`leased` → `leased`；`withdrawn`/`expired`/`lost`/`cancelled` → `withdrawn`；`archived`，或 `system_record_state` 为 archived/trashed/deleted → `archived`；其他或缺失 → `unknown`。原值存 `data.rexState`，`data.category` 存 `listing_category.id`。只有 `listed` 在手机上显示 “Listed with <公司名>” 和 P 标；公司名来自 admin 设置 `company_name`（`PATCH /api/v1/admin/settings {companyName}`），为空时用环境变量 `AXLEO_COMPANY_NAME`，随登录和 `/me` 下发为 `user.company`；都为空显示 “Listed with our agency”。地图标记优先级：DNC > 置顶 > 本公司挂牌 P > 竞争对手挂牌 > pending > 普通点。
+
+**中介（UAT3 问题 5）**：`listing_agent_1/2` 存为 `data.agents[{name,rexId,userId}]`，`data.agent` 为第一挂牌中介的 Rex 名字，`data.agentIds` 为能对应上的 App 用户 id（My listings）。每场的 `event_agent` 存为 `ofi[].agent/agentId/rexAgentId`（My open homes）；Rex 场次没选中介时用第一挂牌中介并标 `agentFrom:"listing"`。Rex 用户对应 App 用户的规则与房产负责人相同（`REX_USER_MAP`，再按相同邮箱或 `users.rex_user_id`），但**不**用 `REX_DEFAULT_OWNER_EMAIL` 兜底：对应不上的（如 “Marketing Team”）只显示 Rex 名字，`agentId` 为空。这些字段只由 poll 写；手机 PATCH 回传的 `agent/agents/agentIds/rexState/rexId/category` 对 `rex-listings-*` 记录忽略（`rexOwnedKey`）。手机端不再把 Rex 挂牌的中介替换成负责人或当前用户。可见性不变：listings 全员可见（场次负责人和挂牌中介都能收到），登记人 `ofi_attendees` 仍只给签到的本人（owner_id），不随场次中介放宽。
+
+**房产属性**：Rex 房产导入只映射 `attr_bedrooms/attr_bathrooms/attr_garages` → `beds/baths/cars`；土地面积、地块、购入日期没有从 Rex 映射（字段名未在样例中证实）。手机 PATCH 带的是自己那份完整记录，版本不符时 409 由服务端版本覆盖；版本相符时 Rex 导入房产（`source=rex_import`）上手机发来的 `beds/baths/cars: null` 被忽略。房产 outbox 的 `properties` 任务在 rexworker 中不调用 Rex，这些属性不会写回 Rex。未找到场次则显示空状态。手机 OFI 页列出今天起的全部场次，按 Today / Tomorrow / 日期分组，筛选 All / My open homes / My listings。
+
+**已实测 / 待确认**：2057 的 `ListingEvents::search` 真实开放日样本中 `event_type="open_home"`、`event_time="09:45:00"`、`event_timezone="Australia/Perth"`、`event_duration_minutes="30"`（字符串），没有 `event_end_time` / `end_time`；结束时间优先用这两个显式字段，缺失时由当地开始时间加时长分钟计算，时长无效才显示同一时刻。`Listings::search` 已在 probe 配置；初始导入演练（`tools/rex-import-dryrun.sh`，见 rex-feedback-2026-11 §10）读到 `system_listing_state` 的 current / sold / leased / withdrawn 四个值和 `listing_agent_1/2.id`；草稿挂牌的 `system_listing_state`、`event_agent` 非空时的结构（是否带 `name`）、`listing_agent_*` 是否带 `name`/`email` 仍待在沙箱核对（`event_agent` 字段存在，样例为 null）。登记数字段仍待确认。计数字段可用 `REX_OFI_COUNT_FIELD` 配置（默认 `attendee_count`）；字段缺失返回 0。`OpenHomeCheckIns` 已确认有 read/checkIn，但需要未知 token，未确认可搜索或聚合人数，因此**未调用**；不能把 0 当成已证实 Rex 无访客。须在沙箱对 16 Gager St 建真实场次并核对字段/人数，必要时再调整 event/count 映射。`CalendarEvents::search` 沙箱报内部错误，不作为数据源。
 
 ## 联系人搜索（feat/contact-search）
 
@@ -621,3 +680,24 @@ App 房产详情里的备注（`properties.data.notes[]`）在房产已关联 Re
 - `axleo rex-dup-links` 列出多个本地联系人指向同一个 rex_id 的情况，包括 `rex_links` 和 `data.rexId` 两个来源。
 - `serve` 启动时如果发现重复，会打一条 warning 日志，但不做任何修改。
 - 确认后通过合并联系人处理（docs/contact-merge.md）。合并后只清除这一对的 `possibleDuplicateOf`，指向第三个联系人的标记保留；poller 不会恢复已被合并掉的联系人。
+
+## 联系人 Mailing lists（UAT3 第 9 项）
+
+代码：`server/contact_mailing_lists.go`、迁移 `024`；手机端 `mobile/src/domain/mailingLists.ts`、`components/MailingListField.tsx`、`sheets/dk/MailingPick.tsx`。
+
+- **目录**：轮询成功后调 `AdminMailingLists::search`（每页 100，翻页），存进 `rex_mailing_lists`（按账号）。默认每 `REX_MAILING_LIST_HOURS`（6，最少 1）小时刷新一次，失败后 30 分钟重试，失败时保留旧目录。手机通过 `GET /api/v1/mailing-lists` 读缓存（`{items:[{name,channel}],at}`），不会直接调 Rex。
+- **成员读取**：导入 / 轮询的 `Contacts::search` 带 `extra_options.extra_fields:["contact_mailing_lists"]`（设 `REX_IMPORT_MAILING_LISTS=0` 可关闭），`Contacts::read` 返回的 `related.contact_mailing_lists` 也会读。行字段为 `id, mailing_list_name, subscription_status, subscribe_timestamp, unsubscribe_timestamp, unsubscribe_reason`。只要有 `subscription_status` 非 active 的历史行，就保留为“已退订”，不算在成员内。返回里没有这个 key 时，不改本地数据。
+- **写入**（受 `AXLEO_REX_WRITE` 控制）：每个列表一个 outbox 任务：`rex_contact_mailing_add` / `rex_contact_mailing_remove`，`entity_id=<cid>:<小写名称>`。worker 先 `Contacts::read`，再按结果处理：
+  - 加入：`Contacts::update related.contact_mailing_lists:[{mailing_list_name}]`（B3 已验证，必须用名称，用 id 会报错）。已是成员时不再写。
+  - 移除：`[{id,_destroy:true}]`。列表本来就不存在时也算成功。
+  - Rex 里已退订时，再次加入会失败，提示“unsubscribed in Rex; re-subscribe in Rex”，不会静默重新订阅。
+  - 先读后写，所以出现不确定的错误时直接重试。未链接 Rex 的联系人处理方式和标签一样：skipped，或等联系人建好。
+- **冲突规则**：手机推送 `mailingLists` 和 `mailingListsSeen`（上次拉到的服务器状态），服务器只按这两个的差异入队。所以旧副本不会撤销 Rex 那边的改动，重复推送也不会产生重复任务。某个名称的任务还是 pending / waiting_auth 时，轮询和导入不会改这个名称。任务完成后以 Rex 为准：worker 保存它读到的列表，之后每次读取都整体覆盖。
+- **合并**：本地取并集、不重复，主联系人优先，已退订的历史行也会保留。副联系人里还没完成的任务记为 skipped。新增的列表在主联系人上重新入队，等 `rex_merge` 完成再执行。`combineRecords` 会不会合并列表还没验证，所以这些任务做成了幂等。
+- **手机**：在 Tags 下方显示。点一下就移除，每行有 Rex 同步状态。“+ Add mailing list”打开目录选择，可以搜索，已加入的不显示。加入前会检查同意状态和 DNC：列表渠道已知时，只在该渠道已退订时提示；渠道未知时，只要有任一渠道退订就提示，并列出退订的渠道。DNC 等于所有渠道都已关闭。这只是确认提示，不会硬性阻止。
+- **局限**：只有在 Rex 更新了联系人的 etag / modtime 时，增量轮询才会看到成员变化。如果 Rex 改列表时不改联系人的 etag，要等到下一次完整读取才能看到。
+- **未验证**（可用 `rex-probe -account <沙箱ID> -only ML` 只读确认）：
+  - `AdminMailingLists` 的行字段（名称 key、类型 / 渠道 key）；
+  - search 是否接受这个 extra field；
+  - mailing list 行能不能用 `_destroy`（还是要改成 unsubscribe）；
+  - `combineRecords` 会不会合并列表。

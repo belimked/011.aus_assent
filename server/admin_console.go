@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -34,7 +35,7 @@ func (a *app) console(w http.ResponseWriter, r *http.Request, p principal, path 
 			problem(w, 403, "admin only")
 			return true
 		}
-		rows, e := a.db.Query(`SELECT at,diff FROM audit_log WHERE action='export' ORDER BY id DESC LIMIT 50`)
+		rows, e := a.rd().Query(`SELECT at,diff FROM audit_log WHERE action='export' ORDER BY id DESC LIMIT 50`)
 		if e != nil {
 			problem(w, 500, "database error")
 			return true
@@ -70,7 +71,7 @@ func (a *app) consoleTeams(w http.ResponseWriter, r *http.Request, p principal) 
 			q += ` WHERE id=(SELECT team_id FROM users WHERE id=?)`
 			args = append(args, p.id)
 		}
-		rows, e := a.db.Query(q, args...)
+		rows, e := a.rd().Query(q, args...)
 		if e != nil {
 			problem(w, 500, "database error")
 			return
@@ -138,20 +139,20 @@ func (a *app) consoleTeams(w http.ResponseWriter, r *http.Request, p principal) 
 func (a *app) consoleSettings(w http.ResponseWriter, r *http.Request, p principal) {
 	if r.Method == "GET" {
 		var hours string
-		_ = a.db.QueryRow(`SELECT value FROM settings WHERE key='session_hours'`).Scan(&hours)
+		_ = a.rd().QueryRow(`SELECT value FROM settings WHERE key='session_hours'`).Scan(&hours)
 		var provider string
 		var imported sql.NullString
 		var count sql.NullInt64
-		_ = a.db.QueryRow(`SELECT provider,created_at,success FROM market_imports WHERE status='completed' ORDER BY created_at DESC LIMIT 1`).Scan(&provider, &imported, &count)
+		_ = a.rd().QueryRow(`SELECT provider,created_at,success FROM market_imports WHERE status='completed' ORDER BY created_at DESC LIMIT 1`).Scan(&provider, &imported, &count)
 		if provider == "" {
 			provider = "rpdata"
 		}
 		var pending, failed int
-		_ = a.db.QueryRow(`SELECT count(*) FROM rex_outbox WHERE status IN ('pending','waiting_auth')`).Scan(&pending)
-		_ = a.db.QueryRow(`SELECT count(*) FROM rex_outbox WHERE status='failed'`).Scan(&failed)
+		_ = a.rd().QueryRow(`SELECT count(*) FROM rex_outbox WHERE status IN ('pending','waiting_auth')`).Scan(&pending)
+		_ = a.rd().QueryRow(`SELECT count(*) FROM rex_outbox WHERE status='failed'`).Scan(&failed)
 		var lastError string
-		_ = a.db.QueryRow(`SELECT COALESCE(last_error,'') FROM rex_outbox WHERE last_error IS NOT NULL ORDER BY id DESC LIMIT 1`).Scan(&lastError)
-		respond(w, 200, map[string]any{"sessionHours": hours, "provider": provider, "lastImport": imported.String, "importRows": count.Int64, "rexConfigured": loadRexConfig().canWrite(), "rexPending": pending, "rexFailed": failed, "rexError": lastError})
+		_ = a.rd().QueryRow(`SELECT COALESCE(last_error,'') FROM rex_outbox WHERE last_error IS NOT NULL ORDER BY id DESC LIMIT 1`).Scan(&lastError)
+		respond(w, 200, map[string]any{"sessionHours": hours, "provider": provider, "lastImport": imported.String, "importRows": count.Int64, "rexConfigured": loadRexConfig().canWrite(), "rexPending": pending, "rexFailed": failed, "rexError": lastError, "companyName": companyName(a.db)})
 		return
 	}
 	if r.Method != "PATCH" {
@@ -159,6 +160,10 @@ func (a *app) consoleSettings(w http.ResponseWriter, r *http.Request, p principa
 		return
 	}
 	m, e := body(r)
+	company, setCompany := m["companyName"].(string)
+	if _, ok := m["sessionHours"]; e == nil && setCompany && !ok {
+		m["sessionHours"] = strconv.Itoa(sessionHours(a.db))
+	}
 	hours, e2 := strconv.Atoi(str(m, "sessionHours"))
 	if e != nil || e2 != nil || hours < 1 || hours > 720 {
 		problem(w, 400, "session hours must be 1–720")
@@ -171,6 +176,9 @@ func (a *app) consoleSettings(w http.ResponseWriter, r *http.Request, p principa
 	}
 	defer tx.Rollback()
 	_, e = tx.Exec(`UPDATE settings SET value=? WHERE key='session_hours'`, strconv.Itoa(hours))
+	if e == nil && setCompany {
+		_, e = tx.Exec(`INSERT INTO settings(key,value) VALUES('company_name',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`, strings.TrimSpace(company))
+	}
 	if e == nil {
 		e = a.record(tx, p, "PATCH", "settings", "session_hours", m)
 	}
@@ -181,7 +189,26 @@ func (a *app) consoleSettings(w http.ResponseWriter, r *http.Request, p principa
 		problem(w, 500, "database error")
 		return
 	}
-	respond(w, 200, map[string]any{"sessionHours": hours})
+	respond(w, 200, map[string]any{"sessionHours": hours, "companyName": companyName(a.db)})
+}
+
+func sessionHours(db *sql.DB) int {
+	var hours int
+	if e := db.QueryRow(`SELECT value FROM settings WHERE key='session_hours'`).Scan(&hours); e != nil || hours < 1 {
+		hours = 720
+	}
+	return hours
+}
+
+// companyName is this customer's agency name ("Listed with <company>" on phones):
+// the admin setting company_name, else AXLEO_COMPANY_NAME, else "".
+func companyName(db *sql.DB) string {
+	var name string
+	_ = db.QueryRow(`SELECT value FROM settings WHERE key='company_name'`).Scan(&name)
+	if strings.TrimSpace(name) == "" {
+		name = os.Getenv("AXLEO_COMPANY_NAME")
+	}
+	return strings.TrimSpace(name)
 }
 
 func (a *app) metrics(w http.ResponseWriter, r *http.Request, p principal) {
@@ -192,7 +219,7 @@ func (a *app) metrics(w http.ResponseWriter, r *http.Request, p principal) {
 	}
 	team, agent := r.URL.Query().Get("team"), r.URL.Query().Get("agent")
 	if p.role == "leader" {
-		_ = a.db.QueryRow(`SELECT team_id FROM users WHERE id=?`, p.id).Scan(&team)
+		_ = a.rd().QueryRow(`SELECT team_id FROM users WHERE id=?`, p.id).Scan(&team)
 	}
 	if agent != "" {
 		var n int
@@ -202,7 +229,7 @@ func (a *app) metrics(w http.ResponseWriter, r *http.Request, p principal) {
 			q += ` AND team_id=?`
 			args = append(args, team)
 		}
-		_ = a.db.QueryRow(q, args...).Scan(&n)
+		_ = a.rd().QueryRow(q, args...).Scan(&n)
 		if n == 0 {
 			problem(w, 403, "agent outside team")
 			return
@@ -235,7 +262,7 @@ func (a *app) metrics(w http.ResponseWriter, r *http.Request, p principal) {
 				args = append(args, agent)
 			}
 			var n int
-			_ = a.db.QueryRow(q, args...).Scan(&n)
+			_ = a.rd().QueryRow(q, args...).Scan(&n)
 			return n
 		}
 		end := start.AddDate(0, 0, days)
@@ -251,7 +278,7 @@ func (a *app) metrics(w http.ResponseWriter, r *http.Request, p principal) {
 			trendArgs = append(trendArgs, agent)
 		}
 		trendQuery += ` GROUP BY 1 LIMIT 90`
-		if rows, e := a.db.Query(trendQuery, trendArgs...); e == nil {
+		if rows, e := a.rd().Query(trendQuery, trendArgs...); e == nil {
 			for rows.Next() {
 				var day string
 				var n int
@@ -281,7 +308,7 @@ func (a *app) metrics(w http.ResponseWriter, r *http.Request, p principal) {
 			args = append(args, agent)
 		}
 		var n int
-		_ = a.db.QueryRow(q, args...).Scan(&n)
+		_ = a.rd().QueryRow(q, args...).Scan(&n)
 		trend = append(trend, point{Day: from.Format("2006-01-02"), Visits: n, Actions: map[string]int{}})
 	}
 	q := `SELECT a.id,COALESCE(json_extract(a.data,'$.t'),''),COALESCE(a.created_at,''),COALESCE(u.name,'') FROM activity a LEFT JOIN users u ON u.id=a.owner_id WHERE a.deleted_at IS NULL`
@@ -299,7 +326,7 @@ func (a *app) metrics(w http.ResponseWriter, r *http.Request, p principal) {
 	}
 	q += ` ORDER BY a.created_at DESC LIMIT 20`
 	events := []any{}
-	rows, e := a.db.Query(q, args...)
+	rows, e := a.rd().Query(q, args...)
 	if e == nil {
 		for rows.Next() {
 			var id, detail, at, name string
@@ -321,7 +348,7 @@ func (a *app) metrics(w http.ResponseWriter, r *http.Request, p principal) {
 	}
 	actionQuery += ` GROUP BY 1,2 LIMIT 1800`
 	actionSet := map[string]bool{}
-	if rows, e := a.db.Query(actionQuery, actionArgs...); e == nil {
+	if rows, e := a.rd().Query(actionQuery, actionArgs...); e == nil {
 		for rows.Next() {
 			var date, action string
 			var n int
@@ -397,7 +424,7 @@ func (a *app) exportCSV(w http.ResponseWriter, r *http.Request, p principal) {
 		q += ` AND COALESCE(MAX(COALESCE(json_extract(c.flags,'$.dnc'),0),COALESCE(json_extract(c.data,'$.flags.dnc'),0)),0)=0 AND COALESCE(json_extract(p.flags,'$.dnc'),0)=0 AND COALESCE(json_extract(p.data,'$.doNotKnock'),0)=0`
 	}
 	q += ` ORDER BY p.id LIMIT 20001`
-	rows, e := a.db.Query(q, args...)
+	rows, e := a.rd().Query(q, args...)
 	if e != nil {
 		problem(w, 500, "database error")
 		return

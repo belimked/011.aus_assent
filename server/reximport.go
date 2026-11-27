@@ -128,6 +128,9 @@ func importPages(ctx context.Context, c *rexClient, service string, limit int, c
 		if service == "Properties" {
 			body["extra_options"] = map[string]any{"extra_fields": []string{"contact_reln_property"}}
 		}
+		if service == "Contacts" && os.Getenv("REX_IMPORT_MAILING_LISTS") != "0" { // documented extra field; search support unverified (rex-probe ML2)
+			body["extra_options"] = map[string]any{"extra_fields": []string{"contact_mailing_lists"}}
+		}
 		_, en, err := c.Call(ctx, service, "search", body)
 		if err != nil {
 			return err
@@ -278,6 +281,9 @@ func importSave(db *sql.DB, kind, account string, r importRow, owner string, dry
 			_, err = tx.Exec(`UPDATE contacts SET first=?,last=?,mobile=?,email=?,flags=?,consent=?,data=?,updated_at=?,version=version+1,deleted_at=NULL WHERE id=?`, first, last, data["mobile"], data["email"], ijson(data["flags"]), ijson(data["consent"]), ijson(data), stamp, id)
 		} else {
 			_, err = tx.Exec(`INSERT INTO contacts(id,owner_id,first,last,mobile,email,flags,consent,data,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, id, owner, first, last, data["mobile"], data["email"], ijson(data["flags"]), ijson(data["consent"]), ijson(data), stamp, stamp)
+		}
+		if err == nil {
+			err = importMailingLists(tx, id, r, stamp)
 		}
 	} else {
 		no, street, suburb := iv(r, "adr_street_number"), iv(r, "adr_street_name"), iv(r, "adr_suburb_or_town")

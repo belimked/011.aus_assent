@@ -173,7 +173,7 @@ The local merge commits first. Rex work runs afterwards through the outbox (`rex
    - Phones: grouped by `normAUMobile`; every duplicate row is destroyed. The row of the local merged mobile gets `phone_primary: true`, any other primary row gets `false`. If the local mobile is missing it is added as a primary mobile. Numbers not in the local result are kept (no user data in Rex is deleted, only duplicates).
    - Emails: the same, compared in lower case, with `email_primary`.
    - `contact_by_*` from the local consent.
-3. Tags: case-insensitive duplicates are removed in a **separate** `Contacts::update` (`contact_tags: [{id, _destroy: true}]`). Tag removal is not confirmed in the sandbox: if Rex rejects it, the job still finishes as `sent` with "duplicate tags left in Rex" and a `skipped` row in `rex_sync_events`; the name/phone fix stays.
+3. Tags: case-insensitive duplicates are removed in a **separate** `Contacts::update` (`contact_tags: [{id, tag, _destroy: true}]`; the 2026-11-17 sandbox run B5 showed Rex rejects a tag removal without the `tag` value). This exact request is not yet re-run in the sandbox: if Rex rejects it, the job still finishes as `sent` with "duplicate tags left in Rex" and a `skipped` row in `rex_sync_events`; the name/phone fix stays.
 
 Each run reads A first, so a retry recomputes from Rex and never appends twice.
 

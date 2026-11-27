@@ -305,14 +305,15 @@ func zoneCovers(z map[string]any, p map[string]any) bool {
 	}
 	return false
 }
-func (a *app) covered(id, user string) bool {
+func (a *app) covered(id, user string) bool { return coveredFrom(a.db, id, user) }
+func coveredFrom(db querier, id, user string) bool {
 	var raw string
-	if a.db.QueryRow(`SELECT data FROM properties WHERE id=?`, id).Scan(&raw) != nil {
+	if db.QueryRow(`SELECT data FROM properties WHERE id=?`, id).Scan(&raw) != nil {
 		return false
 	}
 	var p map[string]any
 	_ = json.Unmarshal([]byte(raw), &p)
-	rows, err := a.db.Query(`SELECT data FROM zones WHERE owner_id=? AND deleted_at IS NULL`, user)
+	rows, err := db.Query(`SELECT data FROM zones WHERE owner_id=? AND deleted_at IS NULL`, user)
 	if err != nil {
 		return false
 	}
@@ -330,6 +331,9 @@ func (a *app) covered(id, user string) bool {
 	return false
 }
 func (a *app) marketCovered(m map[string]any, p principal) bool {
+	return a.marketCoveredFrom(a.db, m, p)
+}
+func (a *app) marketCoveredFrom(db querier, m map[string]any, p principal) bool {
 	if p.zones != nil {
 		for _, z := range p.zones {
 			if zoneCovers(z, m) {
@@ -338,11 +342,12 @@ func (a *app) marketCovered(m map[string]any, p principal) bool {
 		}
 		return false
 	}
-	return a.covered(str(m, "id"), p.id)
+	return coveredFrom(db, str(m, "id"), p.id)
 }
-func (a *app) marketProperty(m map[string]any, p principal) {
+func (a *app) marketProperty(m map[string]any, p principal) { a.marketPropertyFrom(a.db, m, p) }
+func (a *app) marketPropertyFrom(db querier, m map[string]any, p principal) {
 	id := str(m, "id")
-	visible := p.role == "admin" || a.marketCovered(m, p)
+	visible := p.role == "admin" || a.marketCoveredFrom(db, m, p)
 	if attrs, ok := m["rpdataAttributes"].(map[string]any); ok && !visible {
 		delete(attrs, "owners")
 		delete(attrs, "vendors")
@@ -351,7 +356,7 @@ func (a *app) marketProperty(m map[string]any, p principal) {
 	var absentee bool
 	var price sql.NullInt64
 	var date sql.NullString
-	if a.db.QueryRow(`SELECT owner_names,last_sale_price,last_sale_date,source,updated_at,absentee_owner FROM property_ownership WHERE property_id=?`, id).Scan(&names, &price, &date, &source, &stamp, &absentee) != nil {
+	if db.QueryRow(`SELECT owner_names,last_sale_price,last_sale_date,source,updated_at,absentee_owner FROM property_ownership WHERE property_id=?`, id).Scan(&names, &price, &date, &source, &stamp, &absentee) != nil {
 		return
 	}
 	market := map[string]any{"lastSalePrice": nil, "lastSaleDate": date.String, "source": source, "updatedAt": stamp}
@@ -767,7 +772,7 @@ func (a *app) marketAdmin(w http.ResponseWriter, r *http.Request, p principal) {
 		return
 	}
 	if path == "imports" && r.Method == "GET" {
-		rows, err := a.db.Query(`SELECT id,source,provider,filename,sha256,rows,success,skipped,errors,imported_by,created_at,status,agent_counts,unmatched_details,ignored,ownership_updated,sales_recorded,sales_notified FROM market_imports ORDER BY created_at DESC LIMIT 100`)
+		rows, err := a.rd().Query(`SELECT id,source,provider,filename,sha256,rows,success,skipped,errors,imported_by,created_at,status,agent_counts,unmatched_details,ignored,ownership_updated,sales_recorded,sales_notified FROM market_imports ORDER BY created_at DESC LIMIT 100`)
 		if err != nil {
 			problem(w, 500, err.Error())
 			return
@@ -792,7 +797,7 @@ func (a *app) marketAdmin(w http.ResponseWriter, r *http.Request, p principal) {
 		id := strings.TrimPrefix(path, "imports/")
 		var raw, unmatchedRaw, agentRaw, status string
 		var total, success, skipped, errorsCount, ignored, ownershipUpdated, salesRecorded, salesNotified int
-		if a.db.QueryRow(`SELECT error_details,unmatched_details,agent_counts,rows,success,skipped,errors,status,ignored,ownership_updated,sales_recorded,sales_notified FROM market_imports WHERE id=?`, id).Scan(&raw, &unmatchedRaw, &agentRaw, &total, &success, &skipped, &errorsCount, &status, &ignored, &ownershipUpdated, &salesRecorded, &salesNotified) != nil {
+		if a.rd().QueryRow(`SELECT error_details,unmatched_details,agent_counts,rows,success,skipped,errors,status,ignored,ownership_updated,sales_recorded,sales_notified FROM market_imports WHERE id=?`, id).Scan(&raw, &unmatchedRaw, &agentRaw, &total, &success, &skipped, &errorsCount, &status, &ignored, &ownershipUpdated, &salesRecorded, &salesNotified) != nil {
 			problem(w, 404, "not found")
 			return
 		}

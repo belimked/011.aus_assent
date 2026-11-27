@@ -155,7 +155,7 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 		}
 		q += ` ORDER BY id DESC LIMIT ?`
 		args = append(args, limit)
-		rows, err := a.db.Query(q, args...)
+		rows, err := a.rd().Query(q, args...)
 		if err != nil {
 			problem(w, 500, "database error")
 			return
@@ -187,7 +187,7 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 				problem(w, 403, "admin only")
 				return
 			}
-			rows, e := a.db.Query(`SELECT id,name,role,team_id FROM users WHERE team_id=(SELECT team_id FROM users WHERE id=?) AND disabled=0 AND deleted_at IS NULL`, p.id)
+			rows, e := a.rd().Query(`SELECT id,name,role,team_id FROM users WHERE team_id=(SELECT team_id FROM users WHERE id=?) AND disabled=0 AND deleted_at IS NULL`, p.id)
 			if e != nil {
 				problem(w, 500, "database error")
 				return
@@ -205,7 +205,7 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request, p principal) {
 		}
 		switch r.Method {
 		case "GET":
-			rows, err := a.db.Query(`SELECT u.id,u.email,u.name,u.role,u.team_id,u.disabled,u.version, (SELECT max(created_at) FROM sessions WHERE user_id=u.id), (SELECT device FROM sessions WHERE user_id=u.id ORDER BY created_at DESC LIMIT 1) FROM users u WHERE u.deleted_at IS NULL ORDER BY u.email`)
+			rows, err := a.rd().Query(`SELECT u.id,u.email,u.name,u.role,u.team_id,u.disabled,u.version, (SELECT max(created_at) FROM sessions WHERE user_id=u.id), (SELECT device FROM sessions WHERE user_id=u.id ORDER BY created_at DESC LIMIT 1) FROM users u WHERE u.deleted_at IS NULL ORDER BY u.email`)
 			if err != nil {
 				problem(w, 500, "database error")
 				return
@@ -559,7 +559,7 @@ func main() {
 		return
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed [--with-demo]|reset-data [--yes] [--rex-import] [--with-demo]|passwd <email>|backup <dir>|verify <file>|restore <file>|market-import|market-purge-synthetic [--dry-run]|rex-probe|rex-import|rex-dup-links")
+		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed [--with-demo]|reset-data [--yes] [--rex-import] [--with-demo]|passwd <email>|backup <dir>|verify <file>|restore <file>|market-import|market-purge-synthetic [--dry-run]|rex-probe|rex-import|rex-dup-links|rex-property-backfill [--dry-run] [--retry-unknown]")
 		os.Exit(2)
 	}
 	path := env("AXLEO_DB", "./axleo.db")
@@ -648,6 +648,8 @@ func main() {
 		for _, d := range dups {
 			fmt.Printf("rex_id=%s via=%s local=%s\n", d.RexID, d.Via, strings.Join(d.LocalIDs, ","))
 		}
+	case "rex-property-backfill": // requeue historical "not in Rex" Owner relations (rexproperty_create.go)
+		fatal(rexPropertyBackfillCLI(db, os.Args[2:]))
 	case "market-pull":
 		_, err := (pricefinderAPISource{}).Fetch(context.Background(), time.Time{})
 		if err != nil {
@@ -731,14 +733,11 @@ func main() {
 		fatal(err)
 		fmt.Printf("imports=%d events=%d alerts=%d ownership=%d properties=%d dry=%v\n", c.Imports, c.Events, c.Alerts, c.Ownership, c.Properties, len(os.Args) == 3)
 	case "serve":
-		a := &app{db: db, failures: map[string][]time.Time{}}
-		loadRexConfig().logStartup()
-		if dups, err := duplicateRexLinks(db); err == nil && len(dups) > 0 {
-			log.Printf("Rex: %d Rex contact(s) referenced by more than one local contact; run `axleo rex-dup-links` (read-only)", len(dups))
-		}
-		if _, err := db.Exec(`DELETE FROM rex_request_log WHERE at < ?`, time.Now().UTC().AddDate(0, 0, -180).Format(layout)); err != nil {
-			fmt.Fprintln(os.Stderr, "Rex log cleanup:", err)
-		}
+		rdb, err := openReaders(path, readerCount())
+		fatal(err)
+		defer rdb.Close()
+		a := &app{db: db, rdb: rdb, failures: map[string][]time.Time{}}
+		a.serveStartup()
 		startRexPoller(context.Background(), db)
 		if worker := newRexWorker(db); worker != nil {
 			go worker.run(context.Background())
@@ -747,6 +746,19 @@ func main() {
 		fatal(http.ListenAndServe(env("AXLEO_ADDR", "127.0.0.1:8082"), a.routes()))
 	default:
 		fatal(fmt.Errorf("unknown command"))
+	}
+}
+
+// serveStartup is everything `axleo serve` does after migrate and before it
+// starts background workers and listens. Each step must stay fast on production
+// data (perf_test.go TestPerfStartup): requests are not served until it returns.
+func (a *app) serveStartup() {
+	loadRexConfig().logStartup()
+	if dups, err := duplicateRexLinks(a.rd()); err == nil && len(dups) > 0 {
+		log.Printf("Rex: %d Rex contact(s) referenced by more than one local contact; run `axleo rex-dup-links` (read-only)", len(dups))
+	}
+	if _, err := a.db.Exec(`DELETE FROM rex_request_log WHERE at < ?`, time.Now().UTC().AddDate(0, 0, -180).Format(layout)); err != nil {
+		fmt.Fprintln(os.Stderr, "Rex log cleanup:", err)
 	}
 }
 func fatal(err error) {

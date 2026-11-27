@@ -4,4 +4,5 @@ import type {SheetProps} from './types';
 import {Cmd,Confirm,Change,Note,TagPick,QuickAdd} from './dk/Core';
 import {Photo,Call,TextSheet,Email,Followup,Remind,BookAppr,Rel,EField,Reassign} from './dk/Actions';
 import {Merge} from './dk/Merge';
-export const dkSheets: Record<string, React.ComponentType<SheetProps>> = {cmd:Cmd,confirm:Confirm,change:Change,note:Note,tagpick:TagPick,quickadd:QuickAdd,photo:Photo,call:Call,text:TextSheet,email:Email,followup:Followup,remind:Remind,bookappr:BookAppr,rel:Rel,efield:EField,merge:Merge,reassign:Reassign};
+import {MailingPick} from './dk/MailingPick';
+export const dkSheets: Record<string, React.ComponentType<SheetProps>> = {cmd:Cmd,confirm:Confirm,change:Change,note:Note,tagpick:TagPick,quickadd:QuickAdd,photo:Photo,call:Call,text:TextSheet,email:Email,followup:Followup,remind:Remind,bookappr:BookAppr,rel:Rel,efield:EField,merge:Merge,reassign:Reassign,mailingpick:MailingPick};

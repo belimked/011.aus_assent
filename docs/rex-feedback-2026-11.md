@@ -13,7 +13,7 @@
 | 02-2 | 路径用小写连字符：`/v1/rex/leads/create` | 修正 `rex-integration.md` §2.1（原写 `<Service>/<method>`） |
 | 02-1 | 初次导入用 search + offset/limit 分页；日常变化用 e-tag 同步，可加 webhook；不建议 `Export::queueExport` | 与 D3 一致：初次导入分页 + 夜间 e-tag 对账 |
 | 03-6 / Q9 | 可用 webhook（中介给集成用户开 Manage Webhooks / Create Zaps 权限），仍建议每晚 e-tag 对账 | 第一阶段可上 webhook 实现“1 分钟内更新”，夜间对账兜底 |
-| 02-6 | `contact_tags` 已废弃，用 `related.contact_tags`；标签没有分组 | App 的标签分组映射成前缀：`DK - `、`OFI - `、`Enquiry - ` |
+| 02-6 | `contact_tags` 已废弃，用 `related.contact_tags`；标签没有分组 | ~~App 的标签分组映射成前缀~~ UAT 3 客户决定：标签原样写入 Rex，不加 `DK - `、`OFI - `、`Enquiry - ` 前缀 |
 | 03-11 / Q7 | 不投信用联系人的 `contact_by_letter = 0`；**不要在同一次 update 里带 `is_dnd`**（会重置所有联系渠道） | NO JUNK MAIL → `contact_by_letter=0`；DND 单独一次 update |
 | 02-x | `Dedupe::combineRecords(winning_id, losing_ids)` | 正好对应 B3 的合并审批：主记录 = winning，副记录 = losing |
 | 02-x | `Reminders::toggleCompletionState` + `create_activity_entry` 写的是活动日志，不是联系人备注 | 待办勾选完成走这个；需要备注时另调 `Notes::create` |
@@ -41,7 +41,7 @@
 
 1. 在 Rex 里给集成用户开 **Manage Webhooks / Create Zaps** 权限。
 2. 按清单在 Rex 建自定义字段定义（字段清单待沙箱里核对后给出，例如：采集渠道、App 记录 id、不敲门）。
-3. 确认标签前缀命名：`DK - `、`OFI - `、`Enquiry - `。
+3. ~~确认标签前缀命名~~ 已决定不加前缀（UAT 3），标签与 App 一致。
 4. 如果要 Market 页和成交/业主数据：由中介提供自己的数据商授权（见决策 1）。
 
 ## 4. 需要业务方决定

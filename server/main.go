@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
@@ -67,22 +68,103 @@ func ulid() string {
 	}
 	return string(out)
 }
+
+// sqlDriver is the database/sql driver name used by open and openReaders. The
+// performance tests swap in a wrapper that records every statement for the
+// query-plan check (perf_test.go); production always uses modernc's "sqlite".
+var sqlDriver = "sqlite"
+
+// Connection model (docs/db-performance.md): one writer connection, opened by
+// open (SQLite allows a single writer; MaxOpenConns(1) also serialises every
+// transaction in the process), plus a small read-only pool from openReaders.
+// In WAL mode readers never block the writer and the writer never blocks
+// readers; a reader sees everything committed before its read transaction began.
 func open(path string) (*sql.DB, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return nil, err
 	}
-	db, err := sql.Open("sqlite", path)
+	db, err := sql.Open(sqlDriver, path)
 	if err != nil {
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
-	for _, p := range []string{"PRAGMA journal_mode=WAL", "PRAGMA busy_timeout=5000", "PRAGMA foreign_keys=ON"} {
+	for _, p := range []string{"PRAGMA journal_mode=WAL", fmt.Sprintf("PRAGMA busy_timeout=%d", busyTimeoutMS), "PRAGMA foreign_keys=ON"} {
 		if _, err = db.Exec(p); err != nil {
 			db.Close()
 			return nil, err
 		}
 	}
 	return db, nil
+}
+
+const busyTimeoutMS = 5000
+
+// readerCount is the size of the read pool: AXLEO_DB_READERS, default 4.
+func readerCount() int {
+	n := 4
+	if v := os.Getenv("AXLEO_DB_READERS"); v != "" {
+		if _, err := fmt.Sscanf(v, "%d", &n); err != nil {
+			n = 4
+		}
+	}
+	return min(max(n, 1), 32)
+}
+
+// openReaders opens the read-only pool on the same file. Must be called after
+// open (which puts the file in WAL mode). Every pooled connection gets its
+// pragmas from the DSN, so a reconnect cannot lose query_only or busy_timeout.
+// query_only makes an accidental write through the pool fail instead of
+// silently competing with the writer.
+func openReaders(path string, n int) (*sql.DB, error) {
+	if strings.ContainsRune(path, '?') {
+		return nil, fmt.Errorf("database path must not contain '?': %s", path)
+	}
+	dsn := fmt.Sprintf("%s?_pragma=busy_timeout(%d)&_pragma=query_only(1)&_pragma=foreign_keys(1)", path, busyTimeoutMS)
+	db, err := sql.Open(sqlDriver, dsn)
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(n)
+	db.SetMaxIdleConns(n)
+	var mode string
+	if err = db.QueryRow(`PRAGMA journal_mode`).Scan(&mode); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if !strings.EqualFold(mode, "wal") {
+		// Without WAL a reader would block the writer (and vice versa).
+		db.Close()
+		return nil, fmt.Errorf("read pool requires WAL, database is in %s mode", mode)
+	}
+	return db, nil
+}
+
+// rd is the handle for pure reads that may run on the read pool: one statement
+// at a time, each seeing the latest committed data. Never use it inside a write
+// transaction (it cannot see the transaction's uncommitted rows: use the tx) or
+// for a read whose result decides a write that must be atomic with it. Apps
+// built without a pool (older tests, CLI commands) read through the writer.
+func (a *app) rd() querier {
+	if a.rdb != nil {
+		return a.rdb
+	}
+	return a.db
+}
+
+// readSnapshot starts a read-only transaction on the pool: every statement run
+// through the returned querier sees the same committed snapshot (SQLite takes
+// it at the first read). Without a pool it falls back to the writer without a
+// transaction, so code paths that nest queries cannot deadlock the single
+// connection. done must always be called.
+func (a *app) readSnapshot(ctx context.Context) (querier, func(), error) {
+	if a.rdb == nil {
+		return a.db, func() {}, nil
+	}
+	tx, err := a.rdb.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, nil, err
+	}
+	return tx, func() { _ = tx.Rollback() }, nil
 }
 func migrate(db *sql.DB, path string) error {
 	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)`); err != nil {
@@ -174,7 +256,8 @@ func migrate(db *sql.DB, path string) error {
 }
 
 type app struct {
-	db       *sql.DB
+	db       *sql.DB // the single writer connection; also used for reads that must see own writes
+	rdb      *sql.DB // read-only pool (openReaders); nil means read through db
 	mu       sync.Mutex
 	failures map[string][]time.Time
 	calls    map[string][]time.Time
@@ -224,6 +307,10 @@ func (a *app) auth(r *http.Request) (principal, bool) {
 	hash := sha256.Sum256(raw)
 	var expires string
 	var disabled int
+	// Every request authenticates, writes included. The lookup uses the writer:
+	// it is a single-row primary-key read, and the writer is otherwise only held
+	// by short write statements. On the read pool it queued behind long reads
+	// (full syncs, searches) and so delayed writes; see docs/db-performance.md.
 	err = a.db.QueryRow(`SELECT u.id,u.role,s.device,u.name,u.email,s.expires_at,u.disabled FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=?`, hex.EncodeToString(hash[:])).Scan(&p.id, &p.role, &p.device, &p.name, &p.email, &expires, &disabled)
 	if err != nil || disabled != 0 {
 		return p, false
@@ -239,7 +326,7 @@ func (a *app) routes() http.Handler {
 	m := http.NewServeMux()
 	m.HandleFunc("GET /api/v1/health", func(w http.ResponseWriter, r *http.Request) {
 		var n int
-		_ = a.db.QueryRow(`SELECT count(*) FROM schema_migrations`).Scan(&n)
+		_ = a.rd().QueryRow(`SELECT count(*) FROM schema_migrations`).Scan(&n)
 		respond(w, 200, map[string]any{"ok": true, "version": version, "schema": n})
 	})
 	m.HandleFunc("POST /api/v1/auth/login", a.login)
@@ -301,7 +388,7 @@ func (a *app) routes() http.Handler {
 		case r.URL.Path == "/api/v1/devices":
 			a.devices(w, r, p)
 		case r.Method == "GET" && r.URL.Path == "/api/v1/me":
-			respond(w, 200, map[string]any{"id": p.id, "name": p.name, "email": p.email, "role": p.role})
+			respond(w, 200, map[string]any{"id": p.id, "name": p.name, "email": p.email, "role": p.role, "company": companyName(a.db)})
 		case r.Method == "GET" && r.URL.Path == "/api/v1/team":
 			a.team(w, p)
 		case r.Method == "POST" && r.URL.Path == "/api/v1/properties/within":
@@ -310,6 +397,8 @@ func (a *app) routes() http.Handler {
 			a.contactSearchHandler(w, r, p)
 		case r.Method == "POST" && r.URL.Path == "/api/v1/contacts/import-rex":
 			a.contactImportRex(w, r, p)
+		case r.Method == "GET" && r.URL.Path == "/api/v1/mailing-lists":
+			a.mailingListsHandler(w, p)
 		case r.Method == "GET" && r.URL.Path == "/api/v1/sync":
 			a.syncPull(w, r, p)
 		case r.Method == "POST" && r.URL.Path == "/api/v1/sync/push":
@@ -412,7 +501,7 @@ func (a *app) login(w http.ResponseWriter, r *http.Request) {
 		problem(w, 500, "database error")
 		return
 	}
-	respond(w, 200, map[string]any{"token": token, "user": map[string]any{"id": id, "name": name, "email": email, "role": role}})
+	respond(w, 200, map[string]any{"token": token, "user": map[string]any{"id": id, "name": name, "email": email, "role": role, "company": companyName(a.db)}})
 }
 
 // scope is the only authority for resource visibility. Every read and write uses it.
@@ -453,7 +542,13 @@ func (a *app) b3Owner(kind, id string) string {
 	return owner
 }
 
+// get reads one record through the writer (callers that just wrote, or are
+// about to write based on it). Read-only handlers use getFrom with a.rd() or a
+// read snapshot.
 func (a *app) get(kind, id string, p principal, deleted bool) (map[string]any, error) {
+	return a.getFrom(a.db, kind, id, p, deleted)
+}
+func (a *app) getFrom(db querier, kind, id string, p principal, deleted bool) (map[string]any, error) {
 	s, args := scope(kind, p)
 	q := `SELECT data,version,updated_at,deleted_at`
 	if kind == "contacts" {
@@ -484,7 +579,7 @@ func (a *app) get(kind, id string, p principal, deleted bool) (map[string]any, e
 	if b3Kind(kind) || kind == "approvals" {
 		scan = append(scan, &owner)
 	}
-	if err := a.db.QueryRow(q, args...).Scan(scan...); err != nil {
+	if err := db.QueryRow(q, args...).Scan(scan...); err != nil {
 		return nil, err
 	}
 	var m map[string]any
@@ -507,9 +602,9 @@ func (a *app) get(kind, id string, p principal, deleted bool) (map[string]any, e
 		m["deleted_at"] = del.String
 	}
 	if kind == "properties" {
-		a.owners(m, p)
-		a.marketProperty(m, p)
-		if p.role != "admin" && !a.marketCovered(m, p) {
+		ownersFrom(db, m, p)
+		a.marketPropertyFrom(db, m, p)
+		if p.role != "admin" && !a.marketCoveredFrom(db, m, p) {
 			delete(m, "pfOwner")
 		}
 	}
@@ -518,8 +613,8 @@ func (a *app) get(kind, id string, p principal, deleted bool) (map[string]any, e
 	}
 	return m, nil
 }
-func (a *app) owners(m map[string]any, p principal) {
-	rows, err := a.db.Query(`SELECT contact_id FROM property_owners WHERE property_id=?`, str(m, "id"))
+func ownersFrom(db querier, m map[string]any, p principal) {
+	rows, err := db.Query(`SELECT contact_id FROM property_owners WHERE property_id=?`, str(m, "id"))
 	if err != nil {
 		m["ownerIds"] = []string{}
 		return
@@ -537,7 +632,7 @@ func (a *app) owners(m map[string]any, p principal) {
 		s, args := scope("contacts", p)
 		args = append([]any{id}, args...)
 		var n int
-		_ = a.db.QueryRow(`SELECT count(*) FROM contacts WHERE id=? AND deleted_at IS NULL`+s, args...).Scan(&n)
+		_ = db.QueryRow(`SELECT count(*) FROM contacts WHERE id=? AND deleted_at IS NULL`+s, args...).Scan(&n)
 		if n > 0 {
 			out = append(out, id)
 		}
@@ -565,8 +660,11 @@ func (a *app) resource(w http.ResponseWriter, r *http.Request, p principal) {
 		return
 	}
 	if r.Method == "GET" {
+		// Pure reads: the read pool (committed data, including this user's
+		// earlier writes, which were committed before their responses).
+		db := a.rd()
 		if id != "" {
-			v, err := a.get(kind, id, p, false)
+			v, err := a.getFrom(db, kind, id, p, false)
 			if err != nil {
 				problem(w, 404, "not found")
 				return
@@ -584,7 +682,7 @@ func (a *app) resource(w http.ResponseWriter, r *http.Request, p principal) {
 			q += ` AND deleted_at IS NULL`
 		}
 		q += ` ORDER BY updated_at,id`
-		rows, err := a.db.Query(q, args...)
+		rows, err := db.Query(q, args...)
 		if err != nil {
 			problem(w, 500, "database error")
 			return
@@ -599,7 +697,7 @@ func (a *app) resource(w http.ResponseWriter, r *http.Request, p principal) {
 		rows.Close()
 		items := []any{}
 		for _, v := range ids {
-			item, err := a.get(kind, v, p, since != "")
+			item, err := a.getFrom(db, kind, v, p, since != "")
 			if err == nil {
 				items = append(items, item)
 			}
@@ -661,6 +759,9 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 		if kind == "properties" {
 			previousOwners = map[string]any{"ownerIds": append([]string(nil), stringsFrom(old["ownerIds"])...), "notes": copyPropertyNotes(old["notes"])}
 		}
+		if kind == "contacts" {
+			previousOwners = map[string]any{"notes": copyPropertyNotes(old["notes"])}
+		}
 		if kind == "listings" && p.role != "admin" && a.b3Owner(kind, id) != p.id {
 			problem(w, 404, "not found")
 			return
@@ -680,7 +781,7 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 			m = old
 		} else {
 			for k, v := range m {
-				if k != "id" && k != "version" && k != "updated_at" && k != "deleted_at" {
+				if k != "id" && k != "version" && k != "updated_at" && k != "deleted_at" && !rexOwnedKey(kind, old, k, v) {
 					old[k] = v
 				}
 			}
@@ -719,6 +820,7 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 	}
 	if kind == "contacts" && method != "DELETE" {
 		m["mobileNorm"] = normAUMobile(str(m, "mobile"))
+		delete(m, "noteRexSync") // server-computed on pull
 	}
 	if kind == "todos" {
 		if method == "POST" {
@@ -815,7 +917,8 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 	}
 	if kind == "properties" {
 		delete(m, "market")
-		delete(m, "noteRexSync") // server-computed on pull
+		delete(m, "noteRexSync")  // server-computed on pull
+		delete(m, "ownerRexSync") // server-computed on pull
 		if p.role != "admin" {
 			if method == "PATCH" {
 				var raw string
@@ -1004,11 +1107,11 @@ func (a *app) record(tx *sql.Tx, p principal, action, kind, id string, diff any,
 	if _, err := tx.Exec(`INSERT INTO audit_log(user_id,device,action,entity,entity_id,diff,at) VALUES(?,?,?,?,?,?,?)`, p.id, p.device, action, kind, id, string(b), stamp); err != nil {
 		return err
 	}
+	var old map[string]any
+	if len(previous) > 0 {
+		old = previous[0]
+	}
 	if kind == "properties" && action != "DELETE" {
-		var old map[string]any
-		if len(previous) > 0 {
-			old = previous[0]
-		}
 		if err := enqueuePropertyOwners(tx, id, diff, old, stamp); err != nil {
 			return err
 		}
@@ -1020,7 +1123,10 @@ func (a *app) record(tx *sql.Tx, p principal, action, kind, id string, diff any,
 			return err
 		}
 		if (kind == "contacts" || kind == "todos") && action != "DELETE" {
-			return enqueueRexDetails(tx, kind, id, diff, stamp)
+			if err = enqueueRexDetails(tx, kind, id, diff, stamp); err != nil || kind != "contacts" {
+				return err
+			}
+			return enqueueContactNotes(tx, id, diff, old, p.id, stamp)
 		}
 		return nil
 	}
@@ -1045,7 +1151,8 @@ func (a *app) note(w http.ResponseWriter, r *http.Request, p principal, id strin
 	defer tx.Rollback()
 	m["id"] = nid
 	m["contactId"] = id
-	if _, err = tx.Exec(`INSERT INTO contact_notes(id,contact_id,user_id,d,a,t,created_at) VALUES(?,?,?,?,?,?,?)`, nid, id, p.id, str(m, "d"), str(m, "a"), str(m, "t"), now()); err == nil {
+	stamp := now()
+	if _, err = tx.Exec(`INSERT INTO contact_notes(id,contact_id,user_id,d,a,t,created_at) VALUES(?,?,?,?,?,?,?)`, nid, id, p.id, str(m, "d"), str(m, "a"), str(m, "t"), stamp); err == nil {
 		var raw string
 		err = tx.QueryRow(`SELECT data FROM contacts WHERE id=?`, id).Scan(&raw)
 		if err == nil {
@@ -1053,16 +1160,21 @@ func (a *app) note(w http.ResponseWriter, r *http.Request, p principal, id strin
 			err = json.Unmarshal([]byte(raw), &contact)
 			if err == nil {
 				notes, _ := contact["notes"].([]any)
-				contact["notes"] = append(notes, map[string]any{"d": str(m, "d"), "a": str(m, "a"), "t": str(m, "t")})
+				prior := map[string]any{"notes": copyPropertyNotes(notes)}
+				// The contact_notes id is the note id: one Rex note through the data.notes path.
+				contact["notes"] = append(notes, map[string]any{"id": nid, "d": str(m, "d"), "a": str(m, "a"), "t": str(m, "t"), "at": stamp})
 				var b []byte
 				b, err = json.Marshal(contact)
 				if err == nil {
-					_, err = tx.Exec(`UPDATE contacts SET data=?,version=version+1,updated_at=?,roles=?,tags=?,flags=?,consent=? WHERE id=?`, append([]any{string(b), now()}, append(contactColumns(contact), id)...)...)
+					_, err = tx.Exec(`UPDATE contacts SET data=?,version=version+1,updated_at=?,roles=?,tags=?,flags=?,consent=? WHERE id=?`, append([]any{string(b), stamp}, append(contactColumns(contact), id)...)...)
+				}
+				if err == nil {
+					_, err = tx.Exec(`INSERT INTO audit_log(user_id,device,action,entity,entity_id,diff,at) VALUES(?,?,?,?,?,?,?)`, p.id, p.device, "POST", "contacts", id, ijson(m), stamp)
+				}
+				if err == nil {
+					err = enqueueContactNotes(tx, id, contact, prior, p.id, stamp)
 				}
 			}
-		}
-		if err == nil {
-			err = a.record(tx, p, "POST", "contacts", id, m)
 		}
 	}
 	if err == nil {
@@ -1075,6 +1187,18 @@ func (a *app) note(w http.ResponseWriter, r *http.Request, p principal, id strin
 	respond(w, 201, m)
 }
 
+// rexOwnedKey keeps Rex-owned fields of Rex records when a phone PATCH echoes
+// its copy: Rex listing agents (written only by pollRexOFI), and Rex property
+// attributes that a phone sends as null. Neither is ever written back to Rex.
+func rexOwnedKey(kind string, old map[string]any, k string, v any) bool {
+	switch kind {
+	case "listings":
+		return strings.HasPrefix(str(old, "id"), "rex-listings-") && (k == "agent" || k == "agents" || k == "agentIds" || k == "rexState" || k == "rexId" || k == "category")
+	case "properties":
+		return v == nil && old[k] != nil && str(old, "source") == "rex_import" && (k == "beds" || k == "baths" || k == "cars")
+	}
+	return false
+}
 func stripOFI(m map[string]any) {
 	if events, ok := m["ofi"].([]any); ok {
 		for _, v := range events {

@@ -77,6 +77,8 @@ type mergeNoteOut struct {
 	At   string `json:"at,omitempty"`
 	From string `json:"from"`
 	Log  bool   `json:"log,omitempty"`
+
+	keep map[string]any // id/at/propId/sys of the data.notes entry, kept on the merged contact
 }
 type mergeReplaced struct {
 	Relation string `json:"relation"`
@@ -511,7 +513,11 @@ func computeMerge(a, b *mergeContact, addresses map[string]string, actor string,
 	plan.Notes = mergeNotes(p, s)
 	notes := []any{}
 	for _, n := range plan.Notes {
-		notes = append(notes, map[string]any{"d": n.D, "a": n.A, "t": n.T})
+		note := map[string]any{"d": n.D, "a": n.A, "t": n.T}
+		for k, v := range n.keep { // the note keeps its Rex note key and status
+			note[k] = v
+		}
+		notes = append(notes, note)
 	}
 	data["notes"] = notes
 	plan.Properties = mergeProperties(p, s, addresses)
@@ -623,13 +629,16 @@ func mergeNotes(p, s *mergeContact) []mergeNoteOut {
 	}
 	entries := []*entry{}
 	index := map[string]*entry{}
-	add := func(d, a, t, at, from string) {
+	add := func(d, a, t, at, from string, raw map[string]any) {
 		key := strings.TrimSpace(d) + "\x00" + strings.TrimSpace(a) + "\x00" + strings.TrimSpace(t)
 		when := mergeTime(at)
 		if when.IsZero() {
 			when = mergeTime(d)
 		}
 		if e, ok := index[key]; ok {
+			if e.n.keep == nil {
+				e.n.keep = noteKeep(raw)
+			}
 			if e.n.From != from {
 				e.n.From = "both"
 			}
@@ -639,7 +648,7 @@ func mergeNotes(p, s *mergeContact) []mergeNoteOut {
 			}
 			return
 		}
-		e := &entry{n: mergeNoteOut{D: d, A: a, T: t, At: at, From: from}, at: when, seq: len(entries)}
+		e := &entry{n: mergeNoteOut{D: d, A: a, T: t, At: at, From: from, keep: noteKeep(raw)}, at: when, seq: len(entries)}
 		entries = append(entries, e)
 		index[key] = e
 	}
@@ -650,13 +659,13 @@ func mergeNotes(p, s *mergeContact) []mergeNoteOut {
 			if n == nil || strings.TrimSpace(str(n, "t")) == "" {
 				continue
 			}
-			add(str(n, "d"), str(n, "a"), str(n, "t"), str(n, "at"), c.ID)
+			add(str(n, "d"), str(n, "a"), str(n, "t"), str(n, "at"), c.ID, n)
 		}
 		for _, n := range c.Notes {
 			if strings.TrimSpace(n.T) == "" {
 				continue
 			}
-			add(n.D, n.A, n.T, n.Created, c.ID)
+			add(n.D, n.A, n.T, n.Created, c.ID, nil)
 		}
 	}
 	sort.SliceStable(entries, func(i, j int) bool {
@@ -673,6 +682,19 @@ func mergeNotes(p, s *mergeContact) []mergeNoteOut {
 }
 func sameDay(a, b time.Time) bool {
 	return a.UTC().Format("2006-01-02") == b.UTC().Format("2006-01-02")
+}
+
+func noteKeep(n map[string]any) map[string]any {
+	var out map[string]any
+	for _, k := range []string{"id", "at", "propId", "sys"} {
+		if v := str(n, k); v != "" {
+			if out == nil {
+				out = map[string]any{}
+			}
+			out[k] = v
+		}
+	}
+	return out
 }
 
 // mergeProperties resolves property relations by time. Sources: property_owners
@@ -848,6 +870,9 @@ func (a *app) executeMerge(tx *sql.Tx, p principal, aID, bID, hash string) (*mer
 			return nil, err
 		}
 	}
+	if err = moveContactNoteJobs(tx, primary, secondary); err != nil {
+		return nil, err
+	}
 	noteID := random()[:26]
 	if _, err = tx.Exec(`INSERT INTO contact_notes(id,contact_id,user_id,d,a,t,created_at) VALUES(?,?,?,?,?,?,?)`, noteID, primary, nullable(p.id), plan.logD, plan.logA, plan.LogNote, stamp); err != nil {
 		return nil, err
@@ -880,6 +905,9 @@ func (a *app) executeMerge(tx *sql.Tx, p principal, aID, bID, hash string) (*mer
 		return nil, err
 	}
 	if err = clearMergedDuplicateFlags(tx, primary, secondary, stamp); err != nil {
+		return nil, err
+	}
+	if err = mergeMailingLists(tx, primary, secondary, plan.Rex, stamp); err != nil {
 		return nil, err
 	}
 	if _, err = tx.Exec(`UPDATE contacts SET deleted_at=?,updated_at=?,version=version+1 WHERE id=?`, stamp, stamp, secondary); err != nil {
@@ -925,12 +953,25 @@ func (a *app) mergeRoute(w http.ResponseWriter, r *http.Request, p principal, aI
 		return
 	}
 	// Both must be visible to the caller: agents merge their own, admins any.
-	if !a.validRequest(map[string]any{"kind": "merge", "primaryId": aID, "secondaryId": bID}, p) {
+	// The preview is a pure read on one read-pool snapshot (its hash must describe
+	// one consistent state); the merge re-checks and re-plans inside its write
+	// transaction (executeMerge), so it reads the writer.
+	var db querier = a.db
+	if preview {
+		snap, done, err := a.readSnapshot(r.Context())
+		if err != nil {
+			problem(w, 500, "database error")
+			return
+		}
+		defer done()
+		db = snap
+	}
+	if !a.validRequestFrom(db, map[string]any{"kind": "merge", "primaryId": aID, "secondaryId": bID}, p) {
 		problem(w, 404, "not found")
 		return
 	}
 	if preview {
-		plan, err := loadMergePlan(a.db, aID, bID, p.name, time.Now().UTC())
+		plan, err := loadMergePlan(db, aID, bID, p.name, time.Now().UTC())
 		if err != nil {
 			problem(w, 404, "not found")
 			return

@@ -85,6 +85,7 @@ export async function speak(text:string,lang:VoiceLang):Promise<void>{
 type L2=(en:string,zh:string)=>string;
 /** Friendly bilingual text for voice/translation failures; never shows raw error names. */
 export function voiceErrorText(error:unknown,l2:L2){
+  if(typeof error==='string')return error; // already a user-facing message (e.g. microphone access)
   const kind=error instanceof VoiceError?error.kind:'network';
   if(kind==='offline')return l2('Voice needs your AxleoCollect account. Sign out and sign in with email and password (the demo sign-in works offline only).','语音功能需要 AxleoCollect 账号。请退出后用邮箱和密码登录（演示登录只能离线使用）。');
   if(kind==='rateLimit')return l2('Too many requests. Please try again shortly.','请求过多，请稍后再试。');

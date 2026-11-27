@@ -195,7 +195,7 @@ export function TranslateSheet(){
           ?<Text style={{color:muted}}>{t('tr_type_hint')}</Text>
           :<NativeRecorder lang={voiceLang(lang)} onText={text=>void send(who,text)} onError={errorToast}
             onPhase={top?onVisitorPhase:onAgentPhase} label={s.hold} activeLabel={s.release}
-            disabled={busy&&!(mine&&status.stage==='listening')} holdToTalk wide color={color}/>}
+            disabled={busy&&!(mine&&status.stage==='listening')} wide color={color}/>}
       </View>
     </View>;
   };

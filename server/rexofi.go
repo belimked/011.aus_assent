@@ -43,6 +43,75 @@ func rexOFIRef(v any) string {
 	}
 	return istring(v)
 }
+
+// rexListingStatus maps a Listings row to the app status. Rex system_listing_state
+// (sandbox dry run: current / sold / leased / withdrawn) is preferred; listing_status
+// is the legacy field this importer used before. Only "listed" means a current
+// listing of this agency (drafts are current listings that are not yet published);
+// anything unknown stays off the map rather than becoming a P marker.
+func rexListingStatus(r importRow) (status, state string) {
+	state = iv(r, "system_listing_state")
+	if m := imap(r["system_listing_state"]); m != nil {
+		state = iv(m, "id")
+	}
+	if state == "" {
+		state = iv(r, "listing_status")
+	}
+	state = strings.ToLower(strings.TrimSpace(state))
+	switch strings.ToLower(iv(r, "system_record_state")) {
+	case "archived", "trashed", "deleted":
+		return "archived", state
+	}
+	switch state {
+	case "current", "listed", "draft", "active", "published", "unpublished", "under_contract", "conditional":
+		return "listed", state
+	case "sold", "settled", "unconditional":
+		return "sold", state
+	case "leased":
+		return "leased", state
+	case "withdrawn", "expired", "lost", "cancelled", "off_market":
+		return "withdrawn", state
+	case "archived":
+		return "archived", state
+	}
+	return "unknown", state
+}
+
+// rexAgent turns a Rex user reference (listing_agent_1/2, event_agent) into
+// {name,rexId,userId}. userId is the matching app user (rexLocalUser, no default
+// owner fallback); a shared Rex login such as "Marketing Team" keeps its Rex name
+// and an empty userId. Results are cached per poll.
+func rexAgent(db *sql.DB, cache map[string]map[string]any, v any) map[string]any {
+	u := imap(v)
+	if u == nil {
+		if s := istring(v); s != "" {
+			u = importRow{"id": s}
+		} else {
+			return nil
+		}
+	}
+	name := strings.TrimSpace(iv(u, "name"))
+	if name == "" {
+		name = strings.TrimSpace(iv(u, "first_name") + " " + iv(u, "last_name"))
+	}
+	key := iv(u, "id") + "|" + iv(u, "email") + "|" + iv(u, "email_address") + "|" + name
+	if key == "|||" {
+		return nil
+	}
+	if hit, ok := cache[key]; ok {
+		return hit
+	}
+	user := rexLocalUser(db, u, "")
+	if name == "" && user != "" {
+		_ = db.QueryRow(`SELECT name FROM users WHERE id=?`, user).Scan(&name)
+	}
+	if name == "" {
+		name = iv(u, "email")
+	}
+	out := map[string]any{"name": name, "rexId": iv(u, "id"), "userId": user}
+	cache[key] = out
+	return out
+}
 func rexDate(v string) (time.Time, error) {
 	if len(v) == 10 {
 		return time.ParseInLocation("2006-01-02", v, brisbane)
@@ -131,7 +200,8 @@ func pollRexOFI(ctx context.Context, db *sql.DB, c *rexClient, account string, a
 	if at.Sub(previous) < 5*time.Minute && !previous.IsZero() {
 		return nil
 	}
-	back, ahead := 1, 14
+	// Search is unfiltered, so the window changes stored/synced events, not Rex calls.
+	back, ahead := 1, 90
 	if n, e := strconv.Atoi(os.Getenv("REX_OFI_PAST_DAYS")); e == nil && n >= 0 && n <= 365 {
 		back = n
 	}
@@ -150,9 +220,13 @@ func pollRexOFI(ctx context.Context, db *sql.DB, c *rexClient, account string, a
 		return err
 	}
 	grouped := map[string][]map[string]any{}
+	agents := map[string]map[string]any{}
 	for _, e := range events {
 		if ev, ok := rexEvent(e, at, back, ahead); ok {
 			if rid := rexOFIRef(e["listing"]); rid != "" {
+				if a := rexAgent(db, agents, e["event_agent"]); a != nil {
+					ev["agent"], ev["agentId"], ev["rexAgentId"] = a["name"], a["userId"], a["rexId"]
+				}
 				grouped[rid] = append(grouped[rid], ev)
 			}
 		}
@@ -220,7 +294,26 @@ func pollRexOFI(ctx context.Context, db *sql.DB, c *rexClient, account string, a
 				}
 			}
 		}
+		listingAgents, agentIDs, lead := []any{}, []any{}, map[string]any(nil)
+		for _, field := range []string{"listing_agent_1", "listing_agent_2"} {
+			if a := rexAgent(db, agents, r[field]); a != nil {
+				if lead == nil {
+					lead = a
+				}
+				listingAgents = append(listingAgents, a)
+				if a["userId"] != "" {
+					agentIDs = append(agentIDs, a["userId"])
+				}
+			}
+		}
 		for _, e := range grouped[rid] {
+			if _, ok := e["agent"]; !ok {
+				// No agent picked on the Rex event: the listing agent runs it.
+				e["agent"], e["agentId"], e["rexAgentId"] = "", "", ""
+				if lead != nil {
+					e["agent"], e["agentId"], e["rexAgentId"], e["agentFrom"] = lead["name"], lead["userId"], lead["rexId"], "listing"
+				}
+			}
 			ofi = append(ofi, e)
 		}
 		sort.Slice(ofi, func(i, j int) bool {
@@ -228,15 +321,15 @@ func pollRexOFI(ctx context.Context, db *sql.DB, c *rexClient, account string, a
 			return iv(a, "d")+iv(a, "time") < iv(b, "d")+iv(b, "time")
 		})
 		data["id"], data["propertyId"], data["ofi"] = id, propertyID, ofi
-		data["status"] = "listed"
-		if s := iv(r, "listing_status"); s != "" {
-			data["status"] = s
-		}
+		data["status"], data["rexState"] = rexListingStatus(r)
+		data["rexId"], data["category"] = rid, iv(imap(r["listing_category"]), "id")
 		if _, ok := data["price"]; !ok {
 			data["price"] = ""
 		}
-		if _, ok := data["agent"]; !ok {
-			data["agent"] = ""
+		// Rex owns the listing agents; the phone shows these names as they are in Rex.
+		data["agent"], data["agents"], data["agentIds"] = "", listingAgents, agentIDs
+		if lead != nil {
+			data["agent"] = lead["name"]
 		}
 		raw := ijson(data)
 		var oldOwner, oldProperty, oldTeam string

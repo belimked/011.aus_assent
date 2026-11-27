@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -76,5 +77,55 @@ func TestRexDetailsEnqueueAndSkip(t *testing.T) {
 	_ = a.db.QueryRow(`SELECT count(*) FROM rex_outbox WHERE status='skipped'`).Scan(&skipped)
 	if skipped != n {
 		t.Fatal(skipped)
+	}
+}
+
+// UAT 3: tags go to Rex exactly as shown in the app; a legacy job's "group" no longer adds a "DK - " style prefix.
+func TestRexDetailsTagWrittenVerbatim(t *testing.T) {
+	a := workerDB(t)
+	linkedContact(t, a)
+	workerQueue(t, a, "rex_contact_tag", "c:Hot", `{"contactId":"c","tag":"Hot","group":"Enquiry"}`)
+	workerQueue(t, a, "rex_contact_tag", "c:Not at home", `{"contactId":"c","tag":"Not at home","group":"DK"}`)
+	workerQueue(t, a, "rex_contact_tag", "c:Pool", `{"contactId":"c","tag":"Pool"}`)
+	var sent []string
+	w, _ := sandboxWorker(t, a, func(path string, b map[string]any) (any, int) {
+		switch path {
+		case "/v1/rex/contacts/update":
+			d := b["data"].(map[string]any)
+			for _, r := range d["related"].(map[string]any)["contact_tags"].([]any) {
+				sent = append(sent, r.(map[string]any)["tag"].(string))
+			}
+			return map[string]any{"id": 91}, 200
+		case "/v1/rex/contacts/read":
+			return map[string]any{"id": 91, "etag": "new"}, 200
+		}
+		t.Errorf("unexpected %s", path)
+		return nil, 500
+	})
+	for i := 1; i <= 3; i++ {
+		if err := w.step(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		if workerStatus(t, a, i) != "sent" {
+			t.Fatal(i, workerStatus(t, a, i))
+		}
+	}
+	if strings.Join(sent, "|") != "Hot|Not at home|Pool" {
+		t.Fatal(sent)
+	}
+	tx, err := a.db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = enqueueRexDetails(tx, "contacts", "c", map[string]any{"source": "dk", "tags": []any{"Friendly"}}, now()); err != nil {
+		t.Fatal(err)
+	}
+	if err = tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	var payload string
+	_ = a.db.QueryRow(`SELECT payload FROM rex_outbox WHERE entity='rex_contact_tag' AND entity_id='c:Friendly'`).Scan(&payload)
+	if payload != `{"contactId":"c","tag":"Friendly"}` {
+		t.Fatal(payload)
 	}
 }

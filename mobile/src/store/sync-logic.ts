@@ -29,7 +29,8 @@ export function mapRecord(record:RecordData,kind:Kind,names:Record<string,string
  const r={...record};delete r.updated_at;delete r.deleted_at;
  if(kind==='contacts')r.owner=names[r.ownerId]||r.owner||me;
  if(kind==='todos'){r.who=names[r.assigneeId]||r.who||me;r.by=names[r.createdBy]||r.by||me;}
- if(kind==='listings')r.agent=names[r.ownerId]||r.agent||me;
+ // Rex listings carry Rex agent names (Marketing Team included); only local listings fall back to the owner or me.
+ if(kind==='listings'&&!String(r.id).startsWith('rex-listings-'))r.agent=names[r.ownerId]||r.agent||me;
  // Legacy server rows carry lat/lng only; every map reads ll.
  if(kind==='properties')return withPropertyLL(r);
  return r;
