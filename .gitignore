@@ -8,3 +8,4 @@ export_to_excel_*.xls
 *.xls
 export_to_excel_*.xls
 *.pic.jpg
+aws-lightsail.pem

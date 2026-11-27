@@ -1,27 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
-: "${SSHPASS:?Set SSHPASS for SSH and sudo}"
+# Runs against the Lightsail host (65 retired for axleo on 2026-11-24). Override with AXLEO_TARGET / AXLEO_SSH_KEY.
 if (( $# > 1 )) || { (( $# == 1 )) && [[ $1 != --rex-import ]]; }; then
-  echo 'usage: SSHPASS=... bash server/deploy/reset-test.sh [--rex-import]' >&2
+  echo 'usage: bash server/deploy/reset-test.sh [--rex-import]' >&2
   exit 2
 fi
 mode=${1:-demo}
-target=dev@10.3.19.65
+target=${AXLEO_TARGET:-admin@16.178.91.22}
+key=${AXLEO_SSH_KEY:-$(cd "$(dirname "$0")/../.." && pwd)/aws-lightsail.pem}
+ssh_opts=(-i "$key" -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new)
 on_local_exit() {
   rc=$?
   if (( rc != 0 )); then
     # Covers SSH/sudo failures before the remote EXIT trap could be installed.
-    if ! printf '%s\n' "$SSHPASS" | sshpass -e ssh "$target" 'sudo -S systemctl start axleo'; then
-      echo 'Could not confirm axleo.service restarted; check it on 65 immediately.' >&2
+    if ! ssh "${ssh_opts[@]}" "$target" 'sudo systemctl start axleo'; then
+      echo 'Could not confirm axleo.service restarted; check it on the server immediately.' >&2
     fi
-    echo 'Rollback: stop axleo on 65, then run axleo restore <Verified backup path printed above> as the axleo user with /etc/axleo/env loaded.' >&2
+    echo 'Rollback: stop axleo on the server, then run axleo restore <Verified backup path printed above> as the axleo user with /etc/axleo/env loaded.' >&2
   fi
 }
 trap on_local_exit EXIT
-# sudo -S consumes the first stdin line; the remainder is a literal remote script.
-# Neither the sudo password nor /etc/axleo/env is echoed to stdout.
+# The remote script is sent literally on stdin; /etc/axleo/env is never echoed to stdout.
 {
-  printf '%s\n' "$SSHPASS"
   while IFS= read -r line; do printf '%s\n' "$line"; done <<'EOF'
 set -euo pipefail
 mode=$1
@@ -72,4 +72,4 @@ if [[ $output =~ Verified[[:space:]]backup:[[:space:]]([^[:space:]]+) ]]; then s
 if (( reset_rc != 0 )); then exit "$reset_rc"; fi
 echo 'Reset and optional Rex import complete; restarting service and checking health.'
 EOF
-} | sshpass -e ssh -o StrictHostKeyChecking=accept-new "$target" "sudo -S bash -s -- '$mode'"
+} | ssh "${ssh_opts[@]}" "$target" "sudo bash -s -- '$mode'"

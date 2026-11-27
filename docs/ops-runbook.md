@@ -1,8 +1,16 @@
-# AxleoCollect 运维速查（65）
+# AxleoCollect 运维速查（AWS Lightsail 悉尼）
+
+## 部署位置（2026-11-24 起）
+
+- 主机：AWS Lightsail `ap-southeast-2a`，静态 IP `16.178.91.22`，Debian 12，2 vCPU / 2 GB + 2 GB swap，时区 Australia/Brisbane。SSH：`ssh -i aws-lightsail.pem admin@16.178.91.22`（密钥在仓库根，已 gitignore；`sudo` 免密）。防火墙开放 22/80/443（入口走隧道，80/443 可关）。
+- 外网：Cloudflare Tunnel `axleo-lightsail`（id `aa92aa69-…`，远程管理，ingress `axleo-api.saulxj.ggff.net → http://127.0.0.1:8082`），systemd `cloudflared-axleo`，token 在机器 `/etc/cloudflared-axleo/tunnel.env`、本机 `/root/.config/axleo-tunnel.env`。DNS CNAME `axleo-api` → `<tunnel id>.cfargotunnel.com`（橙云）。
+- 目录、用户、单元与旧 65 相同：`/opt/axleo/{releases,current}`、`/etc/axleo/{env,AuthKey_*.p8}`、`/data/axleo/{db,backup}`、`axleo.service`、`axleo-backup.timer`（03:30 布里斯班时间）。
+- 65（`dev@10.3.19.65`）上 axleo 已停用并 disable，数据保留到 2026-12-08 供回滚；xiaohe-65 隧道里旧的 `axleo-api` ingress 规则同样暂留。回滚：把 DNS CNAME 改回 `4cc461b0-….cfargotunnel.com`，在 65 `systemctl enable --now axleo`；切回前须先把 Lightsail 的最新快照拷回 65 恢复，否则丢失迁移后写入。
+- 以下各节中“在 65 上执行”均指这台 Lightsail 主机。
 
 ## 发布与回滚
 
-在本地 `server/` 执行 `go test ./... && go vet ./...`；审核变更后用 `SSHPASS=… deploy/release.sh` 发布。脚本切换 `/opt/axleo/current`、重启 `axleo.service`，健康检查失败自动回滚。手动回滚：在 65 以 root 执行 `ln -sfn "$(cat /data/axleo/previous-release)" /opt/axleo/current && systemctl restart axleo`；检查 `curl -fsS http://127.0.0.1:8082/api/v1/health` 和 `journalctl -u axleo -n 100`。**回滚二进制不能自动回退数据库 schema**；如需回退数据，按下面的恢复流程操作。发布前保留快照。
+在本地 `server/` 执行 `go test ./... && go vet ./...`；审核变更后用 `deploy/release.sh` 发布（默认目标 `admin@16.178.91.22`、密钥 `../aws-lightsail.pem`，可用 `AXLEO_TARGET` / `AXLEO_SSH_KEY` 覆盖）。脚本切换 `/opt/axleo/current`、重启 `axleo.service`，健康检查失败自动回滚。手动回滚：在 65 以 root 执行 `ln -sfn "$(cat /data/axleo/previous-release)" /opt/axleo/current && systemctl restart axleo`；检查 `curl -fsS http://127.0.0.1:8082/api/v1/health` 和 `journalctl -u axleo -n 100`。**回滚二进制不能自动回退数据库 schema**；如需回退数据，按下面的恢复流程操作。发布前保留快照。
 
 ## 备份与恢复
 
@@ -12,11 +20,11 @@
 
 重置测试数据（**默认清空演示业务记录，只恢复真实 QLD 地块**）：root 执行 `systemctl stop axleo`；以 `axleo` 用户运行 `sudo -u axleo bash -c 'set -a; . /etc/axleo/env; set +a; cd /data/axleo; exec /opt/axleo/current/axleo reset-data'` 查看各表行数（只读，不做任何修改）；确认后同样方式运行 `reset-data --yes`：先在 `AXLEO_BACKUP_DIR` 生成并校验快照（失败则中止），再在单个事务内清空业务表（包括 Rex 导入联系人、关系、`rex_links` 和 `rex_outbox`）、删除不在 demo.json 中的 Rex 导入房产（即使含 lotplan）、删除手机端新建的房产、删除 12 处演示房产（有 Pricefinder 关联的须保留 FK，但会软删除并清理演示字段，不再展示），把 demo.json 中的 4,449 处 QLD 地块恢复为地块原值（仅地籍地址、lotplan、坐标、面积、几何和单位数；不写入业主或演示 beds/baths/land 等字段），不重新写入演示联系人、挂牌、OFI、转介和待办；保留账号、团队、设置、管理员绘制的区域、Pricefinder 导入和 `rex_request_log` 调用审计。预览会列出 Rex 导入房产/联系人、链接、outbox、关系和保留的日志数量。所有会话被注销，手机须退出后重新登录。最后 `systemctl start axleo`。回滚：用输出的快照执行 `restore`。重置不会调用 Rex；需要重置后重导入时使用 `reset-data --yes --rex-import`（账户取 `REX_ACCOUNT_ID`，默认按 sandbox-test 固定方案分配（见 `docs/rex-integration.md`））。它先完成重置，随后检查 `AXLEO_REX_READ=1`、账户和凭证并执行只读导入；检查或导入失败会输出 `未导入：原因`、以非零状态退出，**已提交的重置不会回滚**。此模式仅用于沙箱 2057。仅在隔离的开发/e2e 数据库需要演示记录时显式使用 `axleo seed --with-demo` 或 `axleo reset-data --yes --with-demo`（可与 `--rex-import` 组合）；`seed`、启动时自动种子均默认只建账号/团队/设置及地块，不写入演示业务数据。
 
-本地运维机可用单条命令远程执行（先部署包含此脚本和新服务版本的 release；需要 `sshpass`，**不会自动部署二进制**）：
+本地运维机可用单条命令远程执行（先部署包含此脚本和新服务版本的 release；用密钥登录，**不会自动部署二进制**）：
 
 ```sh
-SSHPASS=1 bash server/deploy/reset-test.sh                 # 无演示数据，恢复地块
-SSHPASS=1 bash server/deploy/reset-test.sh --rex-import    # 无演示数据 + 重新导入 2057
+bash server/deploy/reset-test.sh                 # 无演示数据，恢复地块
+bash server/deploy/reset-test.sh --rex-import    # 无演示数据 + 重新导入 2057
 ```
 
 脚本对 `--rex-import` 先验证远端 `REX_ACCOUNT_ID=2057`，然后停服务、以 axleo 用户重置、重新启动并检查 `/api/v1/health`。重置命令打印 `Verified backup: /data/axleo/backup/axleo-*.db`、before/after 各表行数和（若请求导入）`properties: added=… updated=… skipped=…`、`contacts: ...`。任何步骤失败均尝试启动服务，打印快照恢复命令；如果连备份都没取得，会提示先查备份目录。失败时不要盲目重复导入或恢复，先检查 `journalctl -u axleo` 和本次输出。
