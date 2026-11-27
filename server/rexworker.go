@@ -144,6 +144,9 @@ func (w *rexWorker) step(ctx context.Context) error {
 	if j.entity == "rex_merge" || j.entity == "rex_merge_relation" {
 		return w.stepMerge(ctx, j, finish)
 	}
+	if j.entity == mailingAdd || j.entity == mailingRemove { // contact_mailing_lists.go
+		return w.stepMailing(ctx, j, finish)
+	}
 	// Outbox is not a create queue. No job may write an unlinked demo/app record.
 	linkID := j.localID
 	if strings.HasPrefix(j.entity, "rex_contact_") {

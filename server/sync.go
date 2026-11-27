@@ -225,6 +225,9 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 				if kind == "contacts" {
 					attachContactNoteSync(db, id, item)
 				}
+				if kind == "contacts" {
+					attachMailingLists(a.db, id, item)
+				}
 				if kind == "properties" {
 					attachPropertyNoteSync(db, id, item)
 					// Always overwrite stale client metadata, including when a link is removed.

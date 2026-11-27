@@ -397,6 +397,8 @@ func (a *app) routes() http.Handler {
 			a.contactSearchHandler(w, r, p)
 		case r.Method == "POST" && r.URL.Path == "/api/v1/contacts/import-rex":
 			a.contactImportRex(w, r, p)
+		case r.Method == "GET" && r.URL.Path == "/api/v1/mailing-lists":
+			a.mailingListsHandler(w, p)
 		case r.Method == "GET" && r.URL.Path == "/api/v1/sync":
 			a.syncPull(w, r, p)
 		case r.Method == "POST" && r.URL.Path == "/api/v1/sync/push":

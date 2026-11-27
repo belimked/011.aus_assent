@@ -658,3 +658,24 @@ App 里给联系人加的备注（`contacts.data.notes[]`，History 里显示的
 - `axleo rex-dup-links` 列出多个本地联系人指向同一个 rex_id 的情况，包括 `rex_links` 和 `data.rexId` 两个来源。
 - `serve` 启动时如果发现重复，会打一条 warning 日志，但不做任何修改。
 - 确认后通过合并联系人处理（docs/contact-merge.md）。合并后只清除这一对的 `possibleDuplicateOf`，指向第三个联系人的标记保留；poller 不会恢复已被合并掉的联系人。
+
+## 联系人 Mailing lists（UAT3 第 9 项）
+
+代码：`server/contact_mailing_lists.go`、迁移 `024`；手机端 `mobile/src/domain/mailingLists.ts`、`components/MailingListField.tsx`、`sheets/dk/MailingPick.tsx`。
+
+- **目录**：轮询成功后调 `AdminMailingLists::search`（每页 100，翻页），存进 `rex_mailing_lists`（按账号）。默认每 `REX_MAILING_LIST_HOURS`（6，最少 1）小时刷新一次，失败后 30 分钟重试，失败时保留旧目录。手机通过 `GET /api/v1/mailing-lists` 读缓存（`{items:[{name,channel}],at}`），不会直接调 Rex。
+- **成员读取**：导入 / 轮询的 `Contacts::search` 带 `extra_options.extra_fields:["contact_mailing_lists"]`（设 `REX_IMPORT_MAILING_LISTS=0` 可关闭），`Contacts::read` 返回的 `related.contact_mailing_lists` 也会读。行字段为 `id, mailing_list_name, subscription_status, subscribe_timestamp, unsubscribe_timestamp, unsubscribe_reason`。只要有 `subscription_status` 非 active 的历史行，就保留为“已退订”，不算在成员内。返回里没有这个 key 时，不改本地数据。
+- **写入**（受 `AXLEO_REX_WRITE` 控制）：每个列表一个 outbox 任务：`rex_contact_mailing_add` / `rex_contact_mailing_remove`，`entity_id=<cid>:<小写名称>`。worker 先 `Contacts::read`，再按结果处理：
+  - 加入：`Contacts::update related.contact_mailing_lists:[{mailing_list_name}]`（B3 已验证，必须用名称，用 id 会报错）。已是成员时不再写。
+  - 移除：`[{id,_destroy:true}]`。列表本来就不存在时也算成功。
+  - Rex 里已退订时，再次加入会失败，提示“unsubscribed in Rex; re-subscribe in Rex”，不会静默重新订阅。
+  - 先读后写，所以出现不确定的错误时直接重试。未链接 Rex 的联系人处理方式和标签一样：skipped，或等联系人建好。
+- **冲突规则**：手机推送 `mailingLists` 和 `mailingListsSeen`（上次拉到的服务器状态），服务器只按这两个的差异入队。所以旧副本不会撤销 Rex 那边的改动，重复推送也不会产生重复任务。某个名称的任务还是 pending / waiting_auth 时，轮询和导入不会改这个名称。任务完成后以 Rex 为准：worker 保存它读到的列表，之后每次读取都整体覆盖。
+- **合并**：本地取并集、不重复，主联系人优先，已退订的历史行也会保留。副联系人里还没完成的任务记为 skipped。新增的列表在主联系人上重新入队，等 `rex_merge` 完成再执行。`combineRecords` 会不会合并列表还没验证，所以这些任务做成了幂等。
+- **手机**：在 Tags 下方显示。点一下就移除，每行有 Rex 同步状态。“+ Add mailing list”打开目录选择，可以搜索，已加入的不显示。加入前会检查同意状态和 DNC：列表渠道已知时，只在该渠道已退订时提示；渠道未知时，只要有任一渠道退订就提示，并列出退订的渠道。DNC 等于所有渠道都已关闭。这只是确认提示，不会硬性阻止。
+- **局限**：只有在 Rex 更新了联系人的 etag / modtime 时，增量轮询才会看到成员变化。如果 Rex 改列表时不改联系人的 etag，要等到下一次完整读取才能看到。
+- **未验证**（可用 `rex-probe -account <沙箱ID> -only ML` 只读确认）：
+  - `AdminMailingLists` 的行字段（名称 key、类型 / 渠道 key）；
+  - search 是否接受这个 extra field；
+  - mailing list 行能不能用 `_destroy`（还是要改成 unsubscribe）；
+  - `combineRecords` 会不会合并列表。

@@ -439,6 +439,9 @@ func (p *probeRun) runCheck(ctx context.Context, id string) {
 			err = errors.Join(err, e)
 		}
 		outcome(err, "房产 search/read 的业主、租客关系字段见 key_tree")
+	case "ML": // read-only: contact_mailing_lists.go
+		verdict, msg := p.probeMailing(call)
+		p.row(id, verdict, msg, files...)
 	case "S1":
 		failures := 0
 		for _, key := range probeS1 {
@@ -588,12 +591,12 @@ func rexProbe(args []string) error {
 			selected[strings.TrimSpace(id)] = true
 		}
 		for id := range selected {
-			if !strings.Contains("|P0|F1|F2|F3|F4|F5|F7|S1|", "|"+id+"|") {
+			if !strings.Contains("|P0|F1|F2|F3|F4|F5|F7|ML|S1|", "|"+id+"|") {
 				return fmt.Errorf("unknown check %s", id)
 			}
 		}
 	}
-	for _, id := range []string{"P0", "F1", "F2", "F3", "F4", "F5", "F7", "S1"} {
+	for _, id := range []string{"P0", "F1", "F2", "F3", "F4", "F5", "F7", "ML", "S1"} {
 		if len(selected) > 0 && !selected[id] {
 			continue
 		}
