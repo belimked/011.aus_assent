@@ -51,7 +51,7 @@ export function Patch(){
  return <Screen title="My patch" back>
   <Banner>{l2('Tap Draw area to mark corners, or Radius to select a centre.','点绘制区域标记角点，或选半径设置圆心。')}</Banner>
   <MapView properties={s.properties} onSelect={()=>{}} height={240} drawing={mode==='draw'?{points:corners,finished:locked}:mode==='radius'?{points:[],...(center?{radius:{center,metres:radius}}:{})}:undefined} onTap={(lat,lng)=>{if(locked)return;if(mode==='radius')setCenter([lat,lng]);else if(mode==='draw')setCorners(v=>[...v,[lat,lng]])}}/>
-  {mode!=='idle'&&<Banner>{mode==='radius'?center?l2(`Radius ${radius} m · ${count} properties`,`半径 ${radius} 米 · ${count} 套房产`):l2('Tap the map to set the centre','点地图定圆心'):`${l2('Tap corners on the map','在地图上点选角点')} · ${corners.length} · ${count} ${l2('properties','套房产')}`}</Banner>}
+  {mode!=='idle'&&<Banner>{mode==='radius'?center?l2(`Radius ${radius} m · ${count} ${count===1?"property":"properties"}`,`半径 ${radius} 米 · ${count} 套房产`):l2('Tap the map to set the centre','点地图定圆心'):`${l2('Tap corners on the map','在地图上点选角点')} · ${corners.length} · ${count} ${l2('properties','套房产')}`}</Banner>}
   <View style={{flexDirection:'row',flexWrap:'wrap',gap:6}}>
    <Button onPress={()=>{reset();setMode('draw')}}>{l2('Draw area','绘制区域')}</Button>
    <Button onPress={()=>{reset();setMode('radius')}}>{l2('◯ Radius','◯ 半径')}</Button>
