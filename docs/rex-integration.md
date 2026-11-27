@@ -630,7 +630,7 @@ App 房产详情里的备注（`properties.data.notes[]`）在房产已关联 Re
 - **成员读取**：导入 / 轮询的 `Contacts::search` 带 `extra_options.extra_fields:["contact_mailing_lists"]`（设 `REX_IMPORT_MAILING_LISTS=0` 可关闭），`Contacts::read` 返回的 `related.contact_mailing_lists` 也会读。行字段为 `id, mailing_list_name, subscription_status, subscribe_timestamp, unsubscribe_timestamp, unsubscribe_reason`。只要有 `subscription_status` 非 active 的历史行，就保留为“已退订”，不算在成员内。返回里没有这个 key 时，不改本地数据。
 - **写入**（受 `AXLEO_REX_WRITE` 控制）：每个列表一个 outbox 任务：`rex_contact_mailing_add` / `rex_contact_mailing_remove`，`entity_id=<cid>:<小写名称>`。worker 先 `Contacts::read`，再按结果处理：
   - 加入：`Contacts::update related.contact_mailing_lists:[{mailing_list_name}]`（B3 已验证，必须用名称，用 id 会报错）。已是成员时不再写。
-  - 移除：`[{id,destroy:true}]`。列表本来就不存在时也算成功。
+  - 移除：`[{id,_destroy:true}]`。列表本来就不存在时也算成功。
   - Rex 里已退订时，再次加入会失败，提示“unsubscribed in Rex; re-subscribe in Rex”，不会静默重新订阅。
   - 先读后写，所以出现不确定的错误时直接重试。未链接 Rex 的联系人处理方式和标签一样：skipped，或等联系人建好。
 - **冲突规则**：手机推送 `mailingLists` 和 `mailingListsSeen`（上次拉到的服务器状态），服务器只按这两个的差异入队。所以旧副本不会撤销 Rex 那边的改动，重复推送也不会产生重复任务。某个名称的任务还是 pending / waiting_auth 时，轮询和导入不会改这个名称。任务完成后以 Rex 为准：worker 保存它读到的列表，之后每次读取都整体覆盖。
@@ -640,5 +640,5 @@ App 房产详情里的备注（`properties.data.notes[]`）在房产已关联 Re
 - **未验证**（可用 `rex-probe -account <沙箱ID> -only ML` 只读确认）：
   - `AdminMailingLists` 的行字段（名称 key、类型 / 渠道 key）；
   - search 是否接受这个 extra field；
-  - mailing list 行能不能用 `destroy`（还是要改成 unsubscribe）；
+  - mailing list 行能不能用 `_destroy`（还是要改成 unsubscribe）；
   - `combineRecords` 会不会合并列表。

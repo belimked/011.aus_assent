@@ -257,7 +257,7 @@ func TestMailingWorkerRequestBodiesAndIdempotency(t *testing.T) {
 	// Remove destroys the Rex row by id; an absent list is a successful no-op.
 	workerQueue(t, a, mailingRemove, "c:sellers", `{"contactId":"c","name":"Sellers"}`)
 	step("remove")
-	if len(updates) != 2 || ijson(updates[1]) != `{"data":{"id":"91","related":{"contact_mailing_lists":[{"destroy":true,"id":8}]}}}` {
+	if len(updates) != 2 || ijson(updates[1]) != `{"data":{"id":"91","related":{"contact_mailing_lists":[{"_destroy":true,"id":8}]}}}` {
 		t.Fatal(updates)
 	}
 	// Completed: Rex state is saved locally (Sellers gone, Buyers kept).

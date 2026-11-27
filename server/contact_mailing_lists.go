@@ -492,7 +492,7 @@ func (w *rexWorker) stepMailing(ctx context.Context, j rexJob, finish func(statu
 		keep := []any{}
 		for _, x := range list {
 			if r := imap(x); mailingKey(iv(r, "mailing_list_name")) == key && mailingActive(iv(r, "subscription_status")) {
-				ops = append(ops, map[string]any{"id": r["id"], "destroy": true})
+				ops = append(ops, map[string]any{"id": r["id"], "_destroy": true})
 				continue
 			}
 			keep = append(keep, x)
