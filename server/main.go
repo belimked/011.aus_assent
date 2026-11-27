@@ -815,7 +815,8 @@ func (a *app) mutate(w http.ResponseWriter, r *http.Request, p principal, kind, 
 	}
 	if kind == "properties" {
 		delete(m, "market")
-		delete(m, "noteRexSync") // server-computed on pull
+		delete(m, "noteRexSync")  // server-computed on pull
+		delete(m, "ownerRexSync") // server-computed on pull
 		if p.role != "admin" {
 			if method == "PATCH" {
 				var raw string

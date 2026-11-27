@@ -559,7 +559,7 @@ func main() {
 		return
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed [--with-demo]|reset-data [--yes] [--rex-import] [--with-demo]|passwd <email>|backup <dir>|verify <file>|restore <file>|market-import|market-purge-synthetic [--dry-run]|rex-probe|rex-import|rex-dup-links")
+		fmt.Fprintln(os.Stderr, "usage: axleo serve|migrate|seed [--with-demo]|reset-data [--yes] [--rex-import] [--with-demo]|passwd <email>|backup <dir>|verify <file>|restore <file>|market-import|market-purge-synthetic [--dry-run]|rex-probe|rex-import|rex-dup-links|rex-property-backfill [--dry-run] [--retry-unknown]")
 		os.Exit(2)
 	}
 	path := env("AXLEO_DB", "./axleo.db")
@@ -648,6 +648,8 @@ func main() {
 		for _, d := range dups {
 			fmt.Printf("rex_id=%s via=%s local=%s\n", d.RexID, d.Via, strings.Join(d.LocalIDs, ","))
 		}
+	case "rex-property-backfill": // requeue historical "not in Rex" Owner relations (rexproperty_create.go)
+		fatal(rexPropertyBackfillCLI(db, os.Args[2:]))
 	case "market-pull":
 		_, err := (pricefinderAPISource{}).Fetch(context.Background(), time.Time{})
 		if err != nil {

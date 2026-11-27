@@ -70,6 +70,11 @@ var probeMethods = map[string]probeSpec{
 	"propertyRead": {"Properties", "read", func(v map[string]string) any {
 		return map[string]any{"id": v["property"]}
 	}},
+	// UAT3 问题3: the worker's pre-create address check (rexproperty_create.go). Same
+	// address as propertyCreate: the result should be that property's id.
+	"propertyDuplicate": {"Properties", "findPossibleDuplicate", func(v map[string]string) any {
+		return map[string]any{"property_category_id": nil, "adr_street_number": "1", "adr_street_name": v["name"], "adr_suburb_or_town": "Sunnybank", "adr_state_or_region": "QLD", "adr_postcode": "4109"}
+	}},
 	// Owner/tenant links: search extra_options.extra_fields contact_reln_property -> related.contact_reln_property[{contact, reln_type, do_not_contact}].
 	"properties": {"Properties", "search", func(_ map[string]string) any {
 		return map[string]any{"limit": 3, "extra_options": map[string]any{"extra_fields": []string{"contact_reln_property"}}}
@@ -427,6 +432,12 @@ func (p *probeRun) runCheck(ctx context.Context, id string) {
 			}
 			if ce == nil {
 				_, ce = call("propertyRead")
+			}
+			if ce == nil {
+				var dup json.RawMessage
+				if dup, ce = call("propertyDuplicate"); ce == nil && probeID(dup) != p.vars["property"] {
+					ce = fmt.Errorf("findPossibleDuplicate returned %q, want created property %s", probeID(dup), p.vars["property"])
+				}
 			}
 			e = errors.Join(e, ce)
 		}

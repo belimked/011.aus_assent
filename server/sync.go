@@ -164,6 +164,11 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 			return
 		}
 	}
+	ownerSync, err := ownerRexSyncAll(a.db) // per-owner relation status (rexowner_sync.go)
+	if err != nil {
+		problem(w, 500, "database error")
+		return
+	}
 	for _, kind := range syncKinds {
 		items := []any{}
 		gone := []string{}
@@ -215,6 +220,11 @@ func (a *app) syncPull(w http.ResponseWriter, r *http.Request, p principal) {
 				}
 				if kind == "properties" {
 					attachPropertyNoteSync(a.db, id, item)
+					if o := ownerSync[id]; o != nil {
+						item["ownerRexSync"] = o
+					} else {
+						delete(item, "ownerRexSync")
+					}
 					// Always overwrite stale client metadata, including when a link is removed.
 					item["rexId"] = rexIDs[id]
 					// The phone draws its parcels from its own parcel layer and needs
