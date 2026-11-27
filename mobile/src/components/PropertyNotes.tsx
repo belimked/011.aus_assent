@@ -4,6 +4,7 @@ import type {Property} from '../data/types';
 import {useStore,update,showToast} from '../store';
 import {cname,ownersOf} from '../domain';
 import {noteIdentity,noteIdentityLabel,hasNoteIdentity,matchingNoteContacts,savePropertyTranscript,type NoteIdentity} from '../domain/propertyNotes';
+import {nameRequiredMessage,hasContactName} from '../domain/contactName';
 import {aiExtract} from '../lib/voice';
 import {getVoiceLang} from '../lib/voicePref';
 import {isOnline} from '../store/sync';
@@ -34,7 +35,7 @@ export function PropertyNotes({property:p}:{property:Property}){
     {pending&&<Card><Text style={text}>{l2('Contact heard in voice note. Confirm before linking as owner:','语音中识别到联系人，确认后关联为业主：')}</Text><Text style={text}>{noteIdentityLabel(pending.identity)}</Text>
       {matches.map(c=><Button key={c.id} onPress={()=>setSelected(c.id)}>{selected===c.id?'✓ ':''}{cname(c)} · {c.mobile}</Button>)}
       {matches.length>1&&<Text style={text}>{l2('Choose the correct contact','请选择正确的联系人')}</Text>}
-      <Button testID="property-note-confirm" variant="primary" disabled={matches.length>1&&!selected} onPress={()=>save(pending.transcript,pending.identity,selected||undefined)}>{matches.length?l2('Link owner and save note','关联业主并保存备注'):l2('Create owner and save note','新建业主并保存备注')}</Button>
+      {!matches.length&&!hasContactName(pending.identity)?<Text testID="property-note-name-required" style={text}>{nameRequiredMessage(l2)}</Text>:<Button testID="property-note-confirm" variant="primary" disabled={matches.length>1&&!selected} onPress={()=>save(pending.transcript,pending.identity,selected||undefined)}>{matches.length?l2('Link owner and save note','关联业主并保存备注'):l2('Create owner and save note','新建业主并保存备注')}</Button>}
       <Button onPress={()=>save(pending.transcript)}>{l2('Save note only','只保存备注')}</Button><Button onPress={()=>setPending(null)}>{l2('Edit note instead','返回编辑备注')}</Button></Card>}
     {(all?notes:notes.slice(0,3)).map((n,i)=><Card key={i}><Text style={[text,{fontSize:11,color:colors.muted}]}>{n.d} · {n.a} · {n.who}</Text><Text style={text}>{n.t}</Text><RexSyncLabel value={n.rex}/></Card>)}
   </>;

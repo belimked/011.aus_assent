@@ -1,7 +1,7 @@
 import type {AppState} from '../data/types';
 import {today} from '../lib/today';
 import {extract} from './extract';
-import {commitDK} from './dk';
+import {commitDK,dkNeedsName} from './dk';
 import {audit,byId,matchContacts,normMobile,noteOn,ownersOf,propAddr} from './index';
 
 export function captureIdentity(text:string, first='',last=''){
@@ -21,20 +21,35 @@ export function captureCandidates(s:AppState,identity:{first:string;last:string;
   });
 }
 
-export function approveCapture(s:AppState,id:string,transcript?:string,keepApproved=false,fields?:Partial<ReturnType<typeof extract>>,pick?:string){
-  const capture=byId(s.captures,id);if(!capture)return;
+/** What approveCapture would file: null for a visit (no identity → property owner), else the commitDK fields and pick. */
+function captureFiling(s:AppState,id:string,transcript?:string,fields?:Partial<ReturnType<typeof extract>>,pick?:string){
+  const capture=byId(s.captures,id);if(!capture)return undefined;
   const t=transcript??capture.text;
   const r={...extract(t,'dk',s),...fields};
-  const p=byId(s.properties,capture.propId);
   const matches=matchContacts(s,r);
+  if(!pick&&matches.status==='none'&&!r.mobile&&!r.email&&!r.first)return {capture,t,r,visit:true as const};
+  const existing=pick?pick==='new'?undefined:byId(s.contacts,pick):matches.status==='unique'?matches.list[0].c:undefined;
+  const dk={first:r.first||existing?.first||'',last:r.last||existing?.last||'',mobile:r.mobile||existing?.mobile||'',email:r.email||existing?.email||'',relation:r.relation,note:r.note,reason:r.reason,tags:r.tags,followup:r.followup,linked:r.linked};
+  return {capture,t,r,visit:false as const,matches,dk};
+}
+/** True when approving would create a contact with no first or last name; approveCapture refuses and keeps the capture. */
+export function captureNeedsName(s:AppState,id:string,transcript?:string,fields?:Partial<ReturnType<typeof extract>>,pick?:string){
+  const f=captureFiling(s,id,transcript,fields,pick);
+  return !!f&&!f.visit&&dkNeedsName(s,f.dk,pick);
+}
+
+export function approveCapture(s:AppState,id:string,transcript?:string,keepApproved=false,fields?:Partial<ReturnType<typeof extract>>,pick?:string){
+  const f=captureFiling(s,id,transcript,fields,pick);if(!f)return;
+  const {capture,t,r}=f;
+  const p=byId(s.properties,capture.propId);
   // A visit has no contact identity; it belongs to the property's owner, not a new contact.
-  if(!pick&&matches.status==='none'&&!r.mobile&&!r.email&&!r.first){
+  if(f.visit){
     if(p){p.visits=[...(p.visits||[]),{d:today(),o:r.tags.includes('Not at home')?'not_home':r.tags.includes('Left card')?'left_card':'spoke'}];const owner=ownersOf(s,p)[0];if(owner){owner.tags=[...new Set([...owner.tags,...r.tags])];noteOn(s,owner,t,{propId:p.id})}}
     audit(s,'DK',`${p?propAddr(p):capture.propId} · visit logged`);
   }else{
-    if(matches.status==='multiple'&&!pick)throw new Error('Choose a matching contact before approving');
-    const existing=pick?pick==='new'?undefined:byId(s.contacts,pick):matches.status==='unique'?matches.list[0].c:undefined;
-    commitDK(s,capture.propId,{first:r.first||existing?.first||'',last:r.last||existing?.last||'',mobile:r.mobile||existing?.mobile||'',email:r.email||existing?.email||'',relation:r.relation,note:r.note,reason:r.reason,tags:r.tags,followup:r.followup,linked:r.linked},pick);
+    if(f.matches.status==='multiple'&&!pick)throw new Error('Choose a matching contact before approving');
+    // commitDK throws 'contact name required' before any change, so the capture stays in the queue.
+    commitDK(s,capture.propId,f.dk,pick);
   }
   s.captures=s.captures.filter(c=>c.id!==id);
   if(keepApproved)s.captures.push({...capture,text:t,status:'approved'});

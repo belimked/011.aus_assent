@@ -7,7 +7,8 @@ import {useT} from '../i18n';
 import {getState,update,closeSheet,dismissSheet,openSheet,showToast,markSheetDirty} from '../store';
 import {addTodo,audit,byId,contactNoteId,matchContacts,mask,cname,shortAddr,propAddr} from '../domain';
 import {extract} from '../domain/extract';
-import {approveCapture,captureCandidates,captureIdentity} from '../domain/review';
+import {approveCapture,captureCandidates,captureIdentity,captureNeedsName} from '../domain/review';
+import {nameRequiredMessage} from '../domain/contactName';
 import {addLocalDays,today} from '../lib/today';
 import {isOnline,teamMembers,teamList} from '../store/sync';
 import {reassignTodos,revertTodos} from '../domain/todo';
@@ -43,7 +44,9 @@ export function CaptureSheet({params}:SheetProps){
       if((matches.status==='multiple'||candidates.length>0)&&!pick){showToast(l2('Choose a matching contact before approving','确认前请选择匹配的联系人'));return}
       const before=getState();const tags=fields.tags===undefined?parsed.tags:fields.tags.split(',').map(x=>x.trim()).filter(Boolean);
       const linked=fields.linked??((parsed.note.match(/(\w+)'s (?:wife|husband|partner|son|daughter|mother|father)/i)||[])[1]||'');
-      try{update(s=>approveCapture(s,capture.id,transcript,isOnline(),{...identity,...fields,tags,linked},pick||undefined))}catch(e){showToast(l2(`Could not file capture: ${String(e)}`,`无法归档语音记录：${String(e)}`));return}
+      const filed={...identity,...fields,tags,linked};
+      if(captureNeedsName(getState(),capture.id,transcript,filed,pick||undefined)){showToast(nameRequiredMessage(l2));return}
+      try{update(s=>approveCapture(s,capture.id,transcript,isOnline(),filed,pick||undefined))}catch(e){showToast(l2(`Could not file capture: ${String(e)}`,`无法归档语音记录：${String(e)}`));return}
       closeSheet();const first=fields.first??identity.first;const last=fields.last??identity.last;
       showToast(first||values.mobile||values.email?l2(`Saved · ${[first,last].filter(Boolean).join(' ')}`,`已保存 · ${[first,last].filter(Boolean).join(' ')}`):l2(`Saved · ${prop?shortAddr(prop):capture.propId}`,`已保存 · ${prop?shortAddr(prop):capture.propId}`),()=>update(s=>{s.captures=before.captures;s.contacts=before.contacts;s.properties=before.properties;s.todos=before.todos;s.audit=before.audit}));
     }}>{l2('Approve','确认')}</Button></View></View>
