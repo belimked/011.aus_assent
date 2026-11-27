@@ -23,7 +23,7 @@ export function MarketPanel({property:p}:{property:Property}){
   [l2('Agency / agent','中介公司 / 经纪人'),[rp.agency,rp.agent].map(display).join(' · ')],
  ] : pf ? [[l2('Bed / bath / car','卧室 / 浴室 / 车位'),[pf.Bedrooms,pf.Bathrooms,pf['Car Parks']].map(display).join(' / ')],[l2('Land use','用途'),pf['Land Use']],[l2('Zone','分区'),pf.Zoning]] : [];
  return <>{fields.map(([name,value])=><KV key={name} label={name} value={display(value)}/>)}
- {p.market&&<>{showLastSale&&<KV label={l2('Last sale','上次成交')} value={`${marketPrice||'—'} · ${display(p.market.lastSaleDate)}`}/>}{!!p.market.owners&&<KV label={l2('Registered owner','登记业主')} value={p.market.owners}/>}</>}
+ {p.market&&showLastSale&&<KV label={l2('Last sale','上次成交')} value={`${marketPrice||'—'} · ${display(p.market.lastSaleDate)}`}/>}
  {(p.market||a)&&<Text style={[text,{fontSize:11,color:colors.muted}]}>{l2('Source: ','来源：')}{label} · {l2('updated','更新于')} {display(rp?.updatedAt?.slice(0,10)||p.market?.updatedAt?.slice(0,10))}</Text>}
  {rp?.corelogicUrl?.startsWith('https://rpp.corelogic.com.au/property/')&&<Button onPress={()=>void Linking.openURL(rp.corelogicUrl)}>{l2('Open in RP Data','在 RP Data 中打开')}</Button>}
  </>;
