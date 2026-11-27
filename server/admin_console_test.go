@@ -170,3 +170,23 @@ func TestConsoleSettingsSessionAndTeams(t *testing.T) {
 		t.Fatalf("team: %d %s", w.Code, w.Body)
 	}
 }
+
+// "Listed with <company>" on phones: admin setting, else AXLEO_COMPANY_NAME.
+func TestCompanyName(t *testing.T) {
+	t.Setenv("AXLEO_COMPANY_NAME", "Env Agency")
+	a, tokens := setup(t)
+	if me := obj(t, request(a, "GET", "/api/v1/me", tokens["mary"], nil)); me["company"] != "Env Agency" {
+		t.Fatalf("env company: %v", me)
+	}
+	if w := request(a, "PATCH", "/api/v1/admin/settings", tokens["mary"], map[string]any{"companyName": "X"}); w.Code != 403 && w.Code != 404 {
+		t.Fatalf("agent set company: %d", w.Code)
+	}
+	w := request(a, "PATCH", "/api/v1/admin/settings", tokens["admi"], map[string]any{"companyName": " Place "})
+	if got := obj(t, w); w.Code != 200 || got["companyName"] != "Place" || got["sessionHours"] != float64(720) {
+		t.Fatalf("set company: %d %v", w.Code, got)
+	}
+	login := obj(t, request(a, "POST", "/api/v1/auth/login", "", map[string]any{"email": "john@axleo.local", "password": "password123"}))
+	if login["user"].(map[string]any)["company"] != "Place" {
+		t.Fatalf("login company: %v", login)
+	}
+}
