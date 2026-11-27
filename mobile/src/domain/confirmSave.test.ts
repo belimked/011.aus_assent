@@ -21,10 +21,12 @@ test('Update record from a contact page: the note goes to that contact, no new c
   expect(c).toMatchObject({first,last,mobile});
 });
 
-test('Update record: new extracted values merge like a picked match; consent only changes when edited',()=>{
-  const {s,c,p}=setup();c.consent={sms:0,email:1};const before=owners(s);
+test('Update record: extracted identity is kept out unless replaced; consent only changes when edited',()=>{
+  const {s,c,p}=setup();c.consent={sms:0,email:1};const before=owners(s);const{first,email}=c;
   const consent=confirmConsent(c,[]);expect(consent).toEqual({email:1,sms:0,phone:1,letter:1});
   saveConfirm(s,{propId:p.id,contactId:c.id,fields:fields({first:'Teddie',email:'teddie@example.com',consent,followup:'2030-01-02'})});
+  expect(c.first).toBe(first);expect(c.email).toBe(email);
+  saveConfirm(s,{propId:p.id,contactId:c.id,replace:{first:'Teddie',email:'teddie@example.com'},fields:fields({first:'Teddie',email:'teddie@example.com'})});
   expect(c.first).toBe('Teddie');expect(c.email).toBe('teddie@example.com');
   expect(c.consent).toEqual({sms:0,email:1});expect(c.consentRec).toBeUndefined();
   expect(s.todos.some(t=>t.cid===c.id&&t.d==='2030-01-02')).toBe(true);
