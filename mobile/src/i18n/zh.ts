@@ -21,7 +21,7 @@ export default {
   "not_connected": "未接入",
   "shown_once_connected": "接入后显示",
   "data": "资料",
-  "speak": "Hold to speak",
+  "speak": "按住说话",
   "search": "搜索",
   "todos": "To-dos",
   "greeting": "早上好",

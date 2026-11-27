@@ -16,7 +16,7 @@ export function ListenOverlay({phase,lang,durationMs,metering}:{phase:'recording
     <View style={{backgroundColor:colors.bg,borderTopLeftRadius:18,borderTopRightRadius:18,padding:20,paddingBottom:safe.bottom+150,gap:14}}>
       <View style={{flexDirection:'row',alignItems:'center',gap:8}}><Icon name="mic" size={20} color={colors.mic}/><Text style={[text,{fontSize:18,fontWeight:'700'}]}>{phase==='recording'?t('listening'):l2('Transcribing…','正在转写…')}</Text><View style={{paddingHorizontal:8,paddingVertical:3,borderRadius:10,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.line}}><Text style={[text,{fontSize:12}]}>{VOICE_LANG_LABEL[lang]}</Text></View></View>
       <View style={{height:48,flexDirection:'row',gap:4,alignItems:'center',justifyContent:'center'}}>{phase==='recording'?bars.map((h,i)=><View key={i} style={{width:4,height:h,borderRadius:2,backgroundColor:colors.mic}}/>):<ActivityIndicator color={colors.mic}/>}</View>
-      <Text style={[text,{textAlign:'center',color:colors.muted,fontSize:13}]}>{phase==='recording'?`${l2('Tap to stop','点按停止')} · ${Math.floor(durationMs/1000)} / 120 s`:l2('Turning your words into text…','正在把语音转成文字…')}</Text>
+      <Text style={[text,{textAlign:'center',color:colors.muted,fontSize:13}]}>{phase==='recording'?`${t('release')} · ${Math.floor(durationMs/1000)} / 120 s`:l2('Turning your words into text…','正在把语音转成文字…')}</Text>
     </View>
   </View>;
 }

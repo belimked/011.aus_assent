@@ -49,7 +49,7 @@ func enqueueRexDetails(tx *sql.Tx, kind, id string, diff any, stamp string) erro
 			continue
 		}
 		seen[tag] = true
-		if err := enqueue("rex_contact_tag", id+":"+tag, map[string]any{"contactId": id, "tag": tag, "group": rexTagGroup(current, tag)}); err != nil {
+		if err := enqueue("rex_contact_tag", id+":"+tag, map[string]any{"contactId": id, "tag": tag}); err != nil {
 			return err
 		}
 	}
@@ -98,22 +98,4 @@ func enqueueRexDetails(tx *sql.Tx, kind, id string, diff any, stamp string) erro
 		}
 	}
 	return nil
-}
-
-func rexTagGroup(m map[string]any, tag string) string {
-	// TODO(sandbox): mobile tags have no explicit group in the contact payload;
-	// source and known tag names are a best-effort grouping until the sync contract carries it.
-	// The mobile tags are ungrouped strings. Capture source takes precedence;
-	// otherwise the visit/intent groups correspond to DK and enquiry respectively.
-	switch strings.ToLower(str(m, "source")) {
-	case "dk", "ofi", "enquiry":
-		return strings.ToUpper(str(m, "source"))
-	}
-	switch tag {
-	case "Not at home", "Left card", "Friendly", "Neighbour", "Do not contact", "No junk mail":
-		return "DK"
-	case "Hot", "Warm", "Cold", "Seller lead", "Buyer lead":
-		return "Enquiry"
-	}
-	return ""
 }

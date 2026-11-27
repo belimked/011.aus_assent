@@ -198,15 +198,8 @@ func (w *rexWorker) step(ctx context.Context) error {
 		data = map[string]any{"id": contact}
 		switch j.entity {
 		case "rex_contact_tag":
+			// Tags are written exactly as shown in the app (no "DK - " style group prefix); older queued jobs may still carry "group", which is ignored.
 			tag := str(m, "tag")
-			switch str(m, "group") {
-			case "DK":
-				tag = "DK - " + tag
-			case "OFI":
-				tag = "OFI - " + tag
-			case "Enquiry":
-				tag = "Enquiry - " + tag
-			}
 			data["related"] = map[string]any{"contact_tags": []any{map[string]any{"tag": tag}}}
 		case "rex_contact_relation":
 			rel, _ := m["relation"].(map[string]any)

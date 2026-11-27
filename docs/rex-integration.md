@@ -92,7 +92,7 @@
 | 合并 | `Dedupe::findPossibleDuplicates`、`combineRecords`（需求规定不在 Rex 中自动合并，只允许人工确认后调用） |
 | 笔记 | `Notes::create({ data, return_id })`、`search` |
 | 提醒 | `Reminders::create` |
-| 标签 | `AdminTags::search`（读取标签列表）。给记录打标签的方式待确认 |
+| 标签 | `AdminTags::search`（读取标签列表）。打标签：`Contacts::update` 的 `related.contact_tags:[{tag}]`（追加）。标签原样写入，与 App 显示完全一致，**不加** `DK - ` / `OFI - ` / `Enquiry - ` 前缀（客户 UAT 3 确认）。导入/轮询不读取 Rex 的联系人标签，App 的标签不会被 Rex 覆盖 |
 | 用户 | `AccountUsers`（读取 Rex 用户，用于初始导入的映射） |
 | Webhook | `AdminWebhooks::create` / `getEventsAndCategories` / `markAsHealthy` |
 | 关系类型 | 值列表 `contact_reln_listing` / `contact_listing_reln_type_with_custom`；房产的关系类型对应哪个列表，待确认 |

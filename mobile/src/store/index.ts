@@ -65,7 +65,8 @@ export const flushState = () => {
 export const cancelStateWrite = () => { clearTimeout(persistTimer); persistTimer = undefined; ++persistGeneration; };
 RNAppState.addEventListener('change', status => { if (status === 'background' || status === 'inactive') flushState(); });
 export function replaceState(next: AppState) { state = next; emit(); reconcileReminders(state); persist(); }
-export function update(fn: (draft: AppState) => void) { const before = state; const next = produce(state, fn); if (next === before) return; replaceState(next); localWrite?.(before,next); }
+// Drop the callback's return value: `d=>d.list.push(x)` returns a number, and immer throws when a producer both mutates and returns.
+export function update(fn: (draft: AppState) => void) { const before = state; const next = produce(state, draft => { fn(draft); }); if (next === before) return; replaceState(next); localWrite?.(before,next); }
 export function resetDemo() { state = seed(); emit(); reconcileReminders(state); persist(); }
 type Sheet = {kind:string;prev?:Sheet;[key:string]:any};
 let sheet: Sheet | null = null;
