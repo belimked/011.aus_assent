@@ -17,7 +17,7 @@ export function PropertyNotes({property:p}:{property:Property}){
   const s=useStore(s=>s);const {l2,lang}=useT();const [note,setNote]=useState('');const [all,setAll]=useState(false);
   const [pending,setPending]=useState<{transcript:string;identity:NoteIdentity}|null>(null);
   const [selected,setSelected]=useState('');const [busy,setBusy]=useState(false);
-  const notes=[...(p.notes||[]).map(n=>({...n,who:l2('Property','房产'),rex:n.id?p.noteRexSync?.[n.id]:undefined})),...ownersOf(s,p).flatMap(c=>c.notes.map(n=>({...n,at:'',who:`${l2('Owner','业主')}: ${cname(c)}`,rex:undefined})))].sort((a,b)=>(b.at||b.d).localeCompare(a.at||a.d));
+  const notes=[...(p.notes||[]).map(n=>({...n,who:l2('Property','房产'),rex:n.id?p.noteRexSync?.[n.id]:undefined})),...ownersOf(s,p).flatMap(c=>c.notes.map(n=>({...n,at:'',who:`${l2('Owner','业主')}: ${cname(c)}`,rex:n.id?c.noteRexSync?.[n.id]:undefined})))].sort((a,b)=>(b.at||b.d).localeCompare(a.at||a.d));
   const save=(transcript:string,identity?:NoteIdentity,pick?:string)=>{try{update(d=>{savePropertyTranscript(d,p.id,transcript,identity,pick)});setNote('');setPending(null);setSelected('');showToast(l2('Saved','已保存'))}catch(e){showToast(String(e))}};
   const transcribed=async(transcript:string)=>{
     setNote(transcript);setBusy(true);

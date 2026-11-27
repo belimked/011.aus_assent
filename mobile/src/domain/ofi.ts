@@ -29,17 +29,17 @@ export function buyerMatches(state:AppState, mobile:string, email:string){
 }
 export function ohRequests(state:AppState, l:Listing, c:Contact, p:Property, rq:Requests){
   const task=(d:string,t:string,who=l.agent,kind='call')=>addTodo(state,{d,t,who,kind,cid:c.id,propId:p.id});
-  if(rq.form2){if(l.form2) noteOn(state,c,`Form 2 emailed ${today()}.`);else task(today(),`Send Form 2 to ${cname(c)}`);}
-  if(rq.bp){if(l.bpReport) noteOn(state,c,'Building & pest report emailed.');else task(today(),`Send B&P report to ${cname(c)}`);}
+  if(rq.form2){if(l.form2) noteOn(state,c,`Form 2 emailed ${today()}.`,{propId:p.id});else task(today(),`Send Form 2 to ${cname(c)}`);}
+  if(rq.bp){if(l.bpReport) noteOn(state,c,'Building & pest report emailed.',{propId:p.id});else task(today(),`Send B&P report to ${cname(c)}`);}
   if(rq.private) task(today(),`Book private inspection · ${cname(c)} · ${shortAddr(p)} (within 2 h)`,l.agent,'appt');
   for(const type of ['broker','conv','rental'] as const) if(rq[type]){
     const partner=state.partners[type]?.[0]||l.agent;
     state.referrals.unshift({id:id('rf'),type,to:partner,contactId:c.id,propertyId:p.id,d:today(),status:'sent'});
-    noteOn(state,c,`${type==='broker'?'Mortgage broker':type==='conv'?'Conveyancer':'Rental appraisal'} referral sent to ${partner}, ${today()} · consent recorded`);
+    noteOn(state,c,`${type==='broker'?'Mortgage broker':type==='conv'?'Conveyancer':'Rental appraisal'} referral sent to ${partner}, ${today()} · consent recorded`,{propId:p.id});
     if(type==='broker') task(days(1),`Broker follow-up · ${cname(c)}`,partner);
     if(type==='rental') task(days(2),`Rental appraisal · ${cname(c)}`,partner,'appt');
   }
-  if(rq.guide) noteOn(state,c,'Buyer guide emailed.');
+  if(rq.guide) noteOn(state,c,'Buyer guide emailed.',{propId:p.id});
   if(rq.dbyd) task(days(2),`Send Dial Before You Dig info · ${cname(c)}`);
 }
 export function commitOH(state:AppState, listingId:string, r:Registration, eventIndex?:number):Contact {
@@ -64,7 +64,7 @@ export function commitOH(state:AppState, listingId:string, r:Registration, event
   if(r.consent) c.consentRec={d:today(),how:'Ticked at open home check-in'};
   if(r.ps){if(!c.tags.includes('Seller lead')) c.tags.push('Seller lead');if(!existing) addTodo(state,{d:days(7),t:`Appraisal follow-up ${cname(c)}`,who:l.agent,kind:'hot',cid:c.id});
     if(r.address){const home=state.properties.find(x=>r.address!.toLowerCase().includes(`${x.no} ${x.street}`.toLowerCase()));if(home&&!home.ownerIds.includes(c.id)) home.ownerIds.push(c.id);}}
-  if(r.note) noteOn(state,c,r.note);
+  if(r.note) noteOn(state,c,r.note,{propId:p.id});
   audit(state,'OFI',`${propAddr(p)} · ${cname(c)}`);
   return c;
 }

@@ -1,9 +1,9 @@
 import type {AppState,Contact} from '../data/types';
 import {today} from '../lib/today';
-import {audit,byId} from './index';
+import {audit,byId,contactNoteId} from './index';
 
 // Prototype tdreto / tdtick / tdbulkdone: changes apply immediately, note the linked contact, and offer Undo.
-const sysNote=(c:Contact,t:string)=>{c.notes.unshift({d:today(),a:'AxleoCollect',t});};
+const sysNote=(c:Contact,t:string)=>{c.notes.unshift({id:contactNoteId(),d:today(),at:new Date().toISOString(),a:'AxleoCollect',t,sys:'todo'});};
 
 export function reassignTodos(s:AppState,ids:string[],who:string,whoId?:string):number{
   const me=s.auth?.name||'Owen Chen';let n=0;
