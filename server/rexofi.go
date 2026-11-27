@@ -76,6 +76,41 @@ func rexListingStatus(r importRow) (status, state string) {
 	return "unknown", state
 }
 
+// rexAgent turns a Rex user reference (listing_agent_1/2, event_agent) into
+// {name,rexId,userId}. userId is the matching app user (rexLocalUser, no default
+// owner fallback); a shared Rex login such as "Marketing Team" keeps its Rex name
+// and an empty userId. Results are cached per poll.
+func rexAgent(db *sql.DB, cache map[string]map[string]any, v any) map[string]any {
+	u := imap(v)
+	if u == nil {
+		if s := istring(v); s != "" {
+			u = importRow{"id": s}
+		} else {
+			return nil
+		}
+	}
+	name := strings.TrimSpace(iv(u, "name"))
+	if name == "" {
+		name = strings.TrimSpace(iv(u, "first_name") + " " + iv(u, "last_name"))
+	}
+	key := iv(u, "id") + "|" + iv(u, "email") + "|" + iv(u, "email_address") + "|" + name
+	if key == "|||" {
+		return nil
+	}
+	if hit, ok := cache[key]; ok {
+		return hit
+	}
+	user := rexLocalUser(db, u, "")
+	if name == "" && user != "" {
+		_ = db.QueryRow(`SELECT name FROM users WHERE id=?`, user).Scan(&name)
+	}
+	if name == "" {
+		name = iv(u, "email")
+	}
+	out := map[string]any{"name": name, "rexId": iv(u, "id"), "userId": user}
+	cache[key] = out
+	return out
+}
 func rexDate(v string) (time.Time, error) {
 	if len(v) == 10 {
 		return time.ParseInLocation("2006-01-02", v, brisbane)
@@ -183,9 +218,13 @@ func pollRexOFI(ctx context.Context, db *sql.DB, c *rexClient, account string, a
 		return err
 	}
 	grouped := map[string][]map[string]any{}
+	agents := map[string]map[string]any{}
 	for _, e := range events {
 		if ev, ok := rexEvent(e, at, back, ahead); ok {
 			if rid := rexOFIRef(e["listing"]); rid != "" {
+				if a := rexAgent(db, agents, e["event_agent"]); a != nil {
+					ev["agent"], ev["agentId"], ev["rexAgentId"] = a["name"], a["userId"], a["rexId"]
+				}
 				grouped[rid] = append(grouped[rid], ev)
 			}
 		}
@@ -253,7 +292,26 @@ func pollRexOFI(ctx context.Context, db *sql.DB, c *rexClient, account string, a
 				}
 			}
 		}
+		listingAgents, agentIDs, lead := []any{}, []any{}, map[string]any(nil)
+		for _, field := range []string{"listing_agent_1", "listing_agent_2"} {
+			if a := rexAgent(db, agents, r[field]); a != nil {
+				if lead == nil {
+					lead = a
+				}
+				listingAgents = append(listingAgents, a)
+				if a["userId"] != "" {
+					agentIDs = append(agentIDs, a["userId"])
+				}
+			}
+		}
 		for _, e := range grouped[rid] {
+			if _, ok := e["agent"]; !ok {
+				// No agent picked on the Rex event: the listing agent runs it.
+				e["agent"], e["agentId"], e["rexAgentId"] = "", "", ""
+				if lead != nil {
+					e["agent"], e["agentId"], e["rexAgentId"], e["agentFrom"] = lead["name"], lead["userId"], lead["rexId"], "listing"
+				}
+			}
 			ofi = append(ofi, e)
 		}
 		sort.Slice(ofi, func(i, j int) bool {
@@ -266,8 +324,10 @@ func pollRexOFI(ctx context.Context, db *sql.DB, c *rexClient, account string, a
 		if _, ok := data["price"]; !ok {
 			data["price"] = ""
 		}
-		if _, ok := data["agent"]; !ok {
-			data["agent"] = ""
+		// Rex owns the listing agents; the phone shows these names as they are in Rex.
+		data["agent"], data["agents"], data["agentIds"] = "", listingAgents, agentIDs
+		if lead != nil {
+			data["agent"] = lead["name"]
 		}
 		raw := ijson(data)
 		var oldOwner, oldProperty, oldTeam string

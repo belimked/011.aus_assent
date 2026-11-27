@@ -141,3 +141,114 @@ func TestRexListingStatus(t *testing.T) {
 		}
 	}
 }
+
+// Rex listing state, listing agents and each open home's own agent reach the
+// listing record; a shared Rex user ("Marketing Team") keeps its Rex name and is
+// never mapped to the default owner or the property owner.
+func TestRexOFIAgentsStatusWindow(t *testing.T) {
+	a, tokens := setup(t)
+	day := time.Date(2026, 11, 20, 1, 0, 0, 0, time.UTC) // Brisbane: Nov 20 11:00
+	for k, v := range map[string]string{"REX_BASE_URL": "mock", "REX_APP_ID": "test", "REX_EMAIL": "test", "REX_PASSWORD": "test", "REX_ACCOUNT_ID": "2057", "AXLEO_REX_READ": "1", "REX_DEFAULT_OWNER_EMAIL": "admin@axleo.local", "REX_OFI_FUTURE_DAYS": "90"} {
+		t.Setenv(k, v)
+	}
+	var mary, john string
+	_ = a.db.QueryRow(`SELECT id FROM users WHERE email='mary@axleo.local'`).Scan(&mary)
+	_ = a.db.QueryRow(`SELECT id FROM users WHERE email='john@axleo.local'`).Scan(&john)
+	if _, err := a.db.Exec(`UPDATE users SET rex_user_id='u-john' WHERE id=?`, john); err != nil {
+		t.Fatal(err)
+	}
+	marketing := map[string]any{"id": "u-mkt", "name": "Marketing Team"}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var result any
+		switch r.URL.Path {
+		case "/v1/rex/listings/search":
+			result = map[string]any{"rows": []any{
+				map[string]any{"id": "l1", "property": map[string]any{"id": "p1"}, "system_listing_state": "current", "listing_category": map[string]any{"id": "residential_sale"}, "listing_agent_1": map[string]any{"id": "u-mary", "name": "Mary Rex", "email": "MARY@axleo.local"}, "listing_agent_2": map[string]any{"id": "u-john", "name": "John Rex"}},
+				map[string]any{"id": "l2", "property": map[string]any{"id": "p1"}, "system_listing_state": "sold", "listing_agent_1": marketing},
+			}}
+		case "/v1/rex/listing-events/search":
+			ev := func(id, date string, agent any) map[string]any {
+				return map[string]any{"id": id, "listing": map[string]any{"id": "l1"}, "event_type": "open_home", "event_date": date, "event_time": "10:00:00", "event_duration_minutes": "30", "event_agent": agent}
+			}
+			result = map[string]any{"rows": []any{ev("e1", "2026-11-22", marketing), ev("e2", "2026-11-23", map[string]any{"id": "u-john", "name": "John Rex"}), ev("e3", "2026-11-24", nil), ev("e4", "2026-12-18", marketing), ev("e5", "2027-03-30", marketing)}}
+		case "/v1/rex/properties/read":
+			result = map[string]any{"id": "p1", "adr_street_number": "16", "adr_street_name": "Gager St", "adr_suburb_or_town": "Sunnybank", "attr_bedrooms": "3", "attr_bathrooms": "2", "attr_garages": "2"}
+		default:
+			t.Errorf("unexpected %s", r.URL.Path)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"result": result, "error": nil})
+	}))
+	defer srv.Close()
+	c := newRexClient(srv.URL, "test")
+	c.Interval = 0
+	c.ReadOnly = true
+	if err := pollRexOFI(context.Background(), a.db, c, "2057", day); err != nil {
+		t.Fatal(err)
+	}
+	read := func(id string) map[string]any {
+		t.Helper()
+		var raw string
+		if err := a.db.QueryRow(`SELECT data FROM listings WHERE id=?`, id).Scan(&raw); err != nil {
+			t.Fatal(err)
+		}
+		var m map[string]any
+		_ = json.Unmarshal([]byte(raw), &m)
+		return m
+	}
+	l1, l2 := read("rex-listings-2057-l1"), read("rex-listings-2057-l2")
+	if l1["status"] != "listed" || l1["rexState"] != "current" || l1["category"] != "residential_sale" || l1["agent"] != "Mary Rex" || ijson(l1["agentIds"]) != ijson([]string{mary, john}) {
+		t.Fatalf("current listing: %v", l1)
+	}
+	if l2["status"] != "sold" || l2["agent"] != "Marketing Team" || ijson(l2["agentIds"]) != "[]" {
+		t.Fatalf("sold listing: %v", l2)
+	}
+	events := l1["ofi"].([]any)
+	if len(events) != 4 {
+		t.Fatalf("default window should keep Dec 18 and drop Mar 30: %v", events)
+	}
+	want := []struct{ agent, id, from string }{{"Marketing Team", "", ""}, {"John Rex", john, ""}, {"Mary Rex", mary, "listing"}, {"Marketing Team", "", ""}}
+	for i, w := range want {
+		e := events[i].(map[string]any)
+		if e["agent"] != w.agent || e["agentId"] != w.id || str(e, "agentFrom") != w.from {
+			t.Fatalf("event %d: %v, want %v", i, e, w)
+		}
+	}
+	// Every agent receives the listing (listings stay team-visible); attendees of
+	// one agent's check-in are not sent to the open home's other agents.
+	if _, err := a.db.Exec(`INSERT INTO ofi_attendees(id,owner_id,event_id,contact_id,data,created_at,updated_at) VALUES('att',?,'rex-listings-2057-l1','c1','{"id":"att","listingId":"rex-listings-2057-l1","eventIndex":1,"note":"private"}',?,?)`, mary, now(), now()); err != nil {
+		t.Fatal(err)
+	}
+	for _, who := range []string{"mary", "john"} {
+		pull := obj(t, request(a, "GET", "/api/v1/sync", tokens[who], nil))
+		found := false
+		for _, v := range pull["listings"].([]any) {
+			if v.(map[string]any)["id"] == "rex-listings-2057-l1" {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("%s did not receive the listing", who)
+		}
+		if n := len(pull["ofi_attendees"].([]any)); (who == "mary") != (n == 1) {
+			t.Fatalf("%s attendees: %d", who, n)
+		}
+	}
+	// A phone echo cannot replace Rex-owned agents or erase Rex property attributes.
+	listing := obj(t, request(a, "GET", "/api/v1/listings/rex-listings-2057-l1", tokens["admi"], nil))
+	w := request(a, "PATCH", "/api/v1/listings/rex-listings-2057-l1", tokens["admi"], map[string]any{"version": listing["version"], "agent": "Admin", "agentIds": []string{}, "price": "$1m"})
+	if got := obj(t, w); w.Code != 200 || got["agent"] != "Mary Rex" || got["price"] != "$1m" || len(got["agentIds"].([]any)) != 2 {
+		t.Fatalf("listing echo: %d %v", w.Code, got)
+	}
+	property := obj(t, request(a, "GET", "/api/v1/properties/rex-properties-2057-p1", tokens["admi"], nil))
+	w = request(a, "PATCH", "/api/v1/properties/rex-properties-2057-p1", tokens["admi"], map[string]any{"version": property["version"], "beds": nil, "baths": nil, "cars": nil, "notes": "x"})
+	if got := obj(t, w); w.Code != 200 || got["beds"] != "3" || got["baths"] != "2" || got["cars"] != "2" {
+		t.Fatalf("property echo: %d %v", w.Code, got)
+	}
+	// The 'properties' outbox job is a no-op marker in rexworker (no Rex call);
+	// nothing else may carry the attributes towards Rex.
+	var outbox int
+	_ = a.db.QueryRow(`SELECT count(*) FROM rex_outbox WHERE entity<>'properties' AND payload LIKE '%beds%'`).Scan(&outbox)
+	if outbox != 0 {
+		t.Fatal("property attributes queued for Rex")
+	}
+}
