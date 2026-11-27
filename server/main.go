@@ -1204,7 +1204,7 @@ func rexOwnedKey(kind string, old map[string]any, k string, v any) bool {
 	case "listings":
 		return strings.HasPrefix(str(old, "id"), "rex-listings-") && (k == "agent" || k == "agents" || k == "agentIds" || k == "rexState" || k == "rexId" || k == "category")
 	case "properties":
-		return v == nil && old[k] != nil && str(old, "source") == "rex_import" && (k == "beds" || k == "baths" || k == "cars")
+		return v == nil && old[k] != nil && str(old, "source") == "rex_import" && (k == "beds" || k == "baths" || k == "cars" || k == "land")
 	}
 	return false
 }

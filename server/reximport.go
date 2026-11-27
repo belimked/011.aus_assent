@@ -38,6 +38,61 @@ func iopt(v any) int {
 }
 func ijson(v any) string { b, _ := json.Marshal(v); return string(b) }
 
+// rexLandArea formats a Rex property's land area with its Rex unit, or ""
+// when Rex has no usable value. Fields per svc_Properties docs: attr_landarea
+// (float) with attr_landarea_unit ({id,text} on read, per the docs' read
+// example; attr_landarea_unit_id on write, valuelist unit_of_area_land), and
+// attr_landarea_m2 (always square metres). Only "m2" is seen in the docs'
+// example; other unit ids (ha / acres) are not verified in the sandbox, so an
+// unknown unit is shown as Rex's own text rather than assumed to be m².
+func rexLandArea(r importRow) string {
+	num := func(v any) string {
+		s := strings.TrimSpace(istring(v))
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil || f <= 0 || math.IsInf(f, 0) || math.IsNaN(f) {
+			return ""
+		}
+		return strconv.FormatFloat(f, 'f', -1, 64)
+	}
+	unitID, unitText := "", ""
+	switch u := r["attr_landarea_unit"].(type) {
+	case map[string]any:
+		unitID, unitText = istring(u["id"]), istring(u["text"])
+	case string:
+		unitID = u
+	}
+	if unitID == "" {
+		unitID = iv(r, "attr_landarea_unit_id")
+	}
+	if area := num(r["attr_landarea"]); area != "" {
+		switch strings.ToLower(strings.TrimSpace(unitID)) {
+		case "m2", "sqm", "m²", "square metres", "square meters":
+			return area + " m²"
+		case "ha", "hectare", "hectares":
+			return area + " ha"
+		case "acre", "acres", "ac":
+			if area == "1" {
+				return area + " acre"
+			}
+			return area + " acres"
+		case "":
+			if unitText == "" {
+				break // unit unknown: fall back to the explicit m² field below
+			}
+			return area + " " + unitText
+		default:
+			if unitText == "" {
+				unitText = unitID
+			}
+			return area + " " + unitText
+		}
+	}
+	if m2 := num(r["attr_landarea_m2"]); m2 != "" {
+		return m2 + " m²"
+	}
+	return ""
+}
+
 // Do not start a login (or modify the database) until the account and read gate are verified.
 func rexImportCLI(args []string) error {
 	f := flag.NewFlagSet("rex-import", flag.ContinueOnError)
@@ -293,6 +348,13 @@ func importSave(db *sql.DB, kind, account string, r importRow, owner string, dry
 		if e1 == nil && e2 == nil && lat >= -44 && lat <= -10 && lng >= 112 && lng <= 154 {
 			data["ll"] = []float64{lat, lng}
 		} // no parcel geometry: map as point only
+		// Land area only when Rex has a value: an empty Rex field keeps the local one
+		// (mergeImportData copies "land" from the old record when absent here).
+		// title_number is not mapped to "lot": Rex documents it as the title number,
+		// not lot/plan, and "lot" drives market-data lot matching.
+		if land := rexLandArea(r); land != "" {
+			data["land"] = land
+		}
 		if exists {
 			if err = mergeImportData(tx, "properties", id, data); err != nil {
 				return err
@@ -392,6 +454,9 @@ func mergeImportData(tx *sql.Tx, table, id string, data importRow) error {
 	keys := []string{"first", "last", "mobile", "mobileNorm", "email", "address", "consent"}
 	if table == "properties" {
 		keys = []string{"no", "street", "suburb", "address", "state", "postcode", "unit", "lat", "lng", "beds", "baths", "cars"}
+		if data["land"] != nil { // Rex land area wins only when Rex has one
+			keys = append(keys, "land")
+		}
 	}
 	for _, k := range keys {
 		owned[k] = true
